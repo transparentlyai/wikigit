@@ -1,10 +1,5 @@
 'use client';
 
-/**
- * Markdown Editor Component for WikiGit
- * Uses CodeMirror 6 with custom toolbar matching WikiUIDesing.pdf v2.1 spec
- */
-
 import { useEffect, useRef, useState } from 'react';
 import { EditorState } from '@codemirror/state';
 import { EditorView, keymap, lineNumbers } from '@codemirror/view';
@@ -12,7 +7,7 @@ import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
 import { syntaxHighlighting, HighlightStyle } from '@codemirror/language';
 import { tags as t } from '@lezer/highlight';
-import { Bold, Italic, Hash, Eye, EyeOff, Save, Strikethrough, Link2, Quote, Code, List, ListOrdered, Image as ImageIcon, Table, Minus } from 'lucide-react';
+import { Bold, Italic, Hash, Eye, EyeOff, Save, Strikethrough, Link2, Quote, Code, List, ListOrdered, Image as ImageIcon, Table, Minus, Info, AlertTriangle, Lightbulb, AlertCircle, OctagonAlert } from 'lucide-react';
 import { MarkdownViewer } from '@/components/viewer/markdown-viewer';
 
 interface MarkdownEditorProps {
@@ -21,7 +16,6 @@ interface MarkdownEditorProps {
   onSave: () => void;
 }
 
-// Custom syntax highlighting theme with colors
 const markdownHighlighting = HighlightStyle.define([
   { tag: t.heading1, fontSize: '1.3em', fontWeight: '700', color: '#111827' },
   { tag: t.heading2, fontSize: '1.2em', fontWeight: '600', color: '#111827' },
@@ -48,7 +42,6 @@ export function MarkdownEditor({ value, onChange, onSave }: MarkdownEditorProps)
   const viewRef = useRef<EditorView | null>(null);
   const [showPreview, setShowPreview] = useState(false);
 
-  // Initialize CodeMirror 6
   useEffect(() => {
     if (!editorRef.current) return;
 
@@ -92,7 +85,6 @@ export function MarkdownEditor({ value, onChange, onSave }: MarkdownEditorProps)
           '&.cm-focused': {
             outline: 'none',
           },
-          // Markdown syntax highlighting
           '.cm-header-1': {
             fontSize: '2em',
             fontWeight: '700',
@@ -159,9 +151,8 @@ export function MarkdownEditor({ value, onChange, onSave }: MarkdownEditorProps)
       view.destroy();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only initialize once - value, onChange, onSave are captured in closures
+  }, []);
 
-  // Update editor value when prop changes externally
   useEffect(() => {
     if (viewRef.current) {
       const currentValue = viewRef.current.state.doc.toString();
@@ -210,15 +201,12 @@ export function MarkdownEditor({ value, onChange, onSave }: MarkdownEditorProps)
     const line = view.state.doc.lineAt(from);
     const lineText = line.text;
 
-    // Count existing hashes
     const hashMatch = lineText.match(/^(#{1,6})\s/);
     const currentLevel = hashMatch ? hashMatch[1].length : 0;
 
-    // Cycle through heading levels (1-3) or remove
     const nextLevel = currentLevel >= 3 ? 0 : currentLevel + 1;
     const newPrefix = nextLevel > 0 ? '#'.repeat(nextLevel) + ' ' : '';
 
-    // Remove existing heading prefix if present
     const textWithoutHeading = lineText.replace(/^#{1,6}\s/, '');
 
     view.dispatch({
@@ -355,6 +343,31 @@ export function MarkdownEditor({ value, onChange, onSave }: MarkdownEditorProps)
     view.focus();
   };
 
+  const insertCallout = (type: 'info' | 'warning' | 'success' | 'important' | 'caution') => {
+    if (!viewRef.current) return;
+    const view = viewRef.current;
+    const { from } = view.state.selection.main;
+
+    const alertTypes = {
+      info: 'NOTE',
+      warning: 'WARNING',
+      success: 'TIP',
+      important: 'IMPORTANT',
+      caution: 'CAUTION',
+    };
+
+    const calloutText = `\n> [!${alertTypes[type]}]\n> Your message here\n\n`;
+
+    view.dispatch({
+      changes: {
+        from,
+        to: from,
+        insert: calloutText,
+      },
+    });
+    view.focus();
+  };
+
   return (
     <>
       {/* Toolbar - Sticky at top, z-20 */}
@@ -467,6 +480,50 @@ export function MarkdownEditor({ value, onChange, onSave }: MarkdownEditorProps)
             title="Horizontal Rule"
           >
             <Minus size={18} />
+          </button>
+
+          {/* Divider */}
+          <div className="w-px h-5 bg-gray-200 mx-2" />
+
+          {/* Callouts/Alerts */}
+          <button
+            onClick={() => insertCallout('info')}
+            className="p-1.5 rounded text-gray-500 hover:bg-gray-100 transition-colors"
+            title="Insert Info Callout"
+          >
+            <Info size={18} />
+          </button>
+
+          <button
+            onClick={() => insertCallout('success')}
+            className="p-1.5 rounded text-gray-500 hover:bg-gray-100 transition-colors"
+            title="Insert Tip Callout"
+          >
+            <Lightbulb size={18} />
+          </button>
+
+          <button
+            onClick={() => insertCallout('important')}
+            className="p-1.5 rounded text-gray-500 hover:bg-gray-100 transition-colors"
+            title="Insert Important Callout"
+          >
+            <AlertCircle size={18} />
+          </button>
+
+          <button
+            onClick={() => insertCallout('warning')}
+            className="p-1.5 rounded text-gray-500 hover:bg-gray-100 transition-colors"
+            title="Insert Warning Callout"
+          >
+            <AlertTriangle size={18} />
+          </button>
+
+          <button
+            onClick={() => insertCallout('caution')}
+            className="p-1.5 rounded text-gray-500 hover:bg-gray-100 transition-colors"
+            title="Insert Caution Callout"
+          >
+            <OctagonAlert size={18} />
           </button>
 
           {/* Divider */}

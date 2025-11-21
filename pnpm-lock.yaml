@@ -53,6 +53,9 @@ importers:
       remark-gfm:
         specifier: ^4.0.0
         version: 4.0.1
+      remark-github-blockquote-alert:
+        specifier: ^2.0.0
+        version: 2.0.0
       remark-mermaid:
         specifier: ^0.2.0
         version: 0.2.0(mermaid.cli@0.3.6)
@@ -2092,6 +2095,10 @@ packages:
 
   remark-gfm@4.0.1:
     resolution: {integrity: sha512-1quofZ2RQ9EWdeN34S79+KExV1764+wCUGop5CPL1WGdD0ocPpu91lzPGbwWMECpEpd42kJGQwzRfyov9j4yNg==}
+
+  remark-github-blockquote-alert@2.0.0:
+    resolution: {integrity: sha512-n05GsATsJJUm9INz6E9bMcjMdJva0iTQXBOgFqm/DqDOlztxkqpwplVOAqt/6MV/FE7G/Wqskgkbq333CJU3kg==}
+    engines: {node: '>=16'}
 
   remark-mermaid@0.2.0:
     resolution: {integrity: sha512-eAFxk0D4MCLdWiNPDjz7+m357QPf4cUmPKwXnsl1h6nCWg0/YTKdcpKLxabSEf66MtauxXSu/rMxx9KDDv8vew==}
@@ -5026,6 +5033,10 @@ snapshots:
       unified: 11.0.5
     transitivePeerDependencies:
       - supports-color
+
+  remark-github-blockquote-alert@2.0.0:
+    dependencies:
+      unist-util-visit: 5.0.0
 
   remark-mermaid@0.2.0(mermaid.cli@0.3.6):
     dependencies:

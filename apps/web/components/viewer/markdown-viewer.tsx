@@ -1,14 +1,12 @@
 'use client';
 
-/**
- * Markdown Viewer with flat design and GitHub Dark code theme
- */
-
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { remarkAlert } from 'remark-github-blockquote-alert';
 import { ComponentPropsWithoutRef, useEffect, useState } from 'react';
 import { bundledLanguages, codeToHtml } from 'shiki';
 import { Hash, Copy } from 'lucide-react';
+import { Callout } from '@/components/ui/callout';
 
 interface MarkdownViewerProps {
   content: string;
@@ -18,14 +16,50 @@ interface CodeBlockProps extends ComponentPropsWithoutRef<'code'> {
   inline?: boolean;
 }
 
+function CustomDiv({ children, className, ...props }: ComponentPropsWithoutRef<'div'>) {
+  if (className?.includes('markdown-alert')) {
+    const alertType = className.match(/markdown-alert-(\w+)/)?.[1];
+
+    const typeMap: Record<string, 'info' | 'warning' | 'success' | 'important' | 'caution'> = {
+      'note': 'info',
+      'tip': 'success',
+      'important': 'important',
+      'warning': 'warning',
+      'caution': 'caution',
+    };
+
+    const calloutType = alertType ? typeMap[alertType] || 'info' : 'info';
+
+    let content = children;
+
+    if (Array.isArray(children)) {
+      content = children.filter((child) => {
+        if (typeof child === 'object' && child && 'props' in child) {
+          const childClassName = child.props?.className;
+          return !childClassName?.includes('markdown-alert-title');
+        }
+        return true;
+      });
+    }
+
+    return (
+      <Callout type={calloutType}>
+        {content}
+      </Callout>
+    );
+  }
+
+  return <div {...props} className={className}>{children}</div>;
+}
+
 export function MarkdownViewer({ content }: MarkdownViewerProps) {
   return (
     <div className="prose max-w-4xl">
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={[remarkGfm, remarkAlert]}
         components={{
           code: CodeBlock,
-          // Task list items
+          div: CustomDiv,
           input: (props) => {
             if (props.type === 'checkbox') {
               return (
@@ -39,7 +73,6 @@ export function MarkdownViewer({ content }: MarkdownViewerProps) {
             }
             return <input {...props} />;
           },
-          // Generate IDs for headings with hash anchor links
           h1: ({ children, ...props }) => {
             const id = slugify(String(children));
             return <h1 id={id} {...props}>{children}</h1>;
@@ -89,7 +122,6 @@ function CodeBlock({ inline, className, children, ...props }: CodeBlockProps) {
     if (!inline && language) {
       const code = String(children).replace(/\n$/, '');
 
-      // Check if language is supported by Shiki
       if (language in bundledLanguages) {
         codeToHtml(code, {
           lang: language,
@@ -97,11 +129,9 @@ function CodeBlock({ inline, className, children, ...props }: CodeBlockProps) {
         })
           .then((result) => setHtml(result))
           .catch(() => {
-            // Fallback to plain code if highlighting fails
             setHtml(`<pre class="bg-[#0d1117] p-4"><code>${escapeHtml(code)}</code></pre>`);
           });
       } else {
-        // Language not supported, use plain formatting with dark background
         setHtml(`<pre class="bg-[#0d1117] p-4 text-[#c9d1d9]"><code>${escapeHtml(code)}</code></pre>`);
       }
     }
@@ -121,10 +151,8 @@ function CodeBlock({ inline, className, children, ...props }: CodeBlockProps) {
   if (html) {
     return (
       <div className="my-6 rounded-lg overflow-hidden border border-gray-200 bg-gray-50/50 shadow-sm">
-        {/* Code Block Header */}
         <div className="flex items-center justify-between px-4 py-2.5 bg-gray-100/50 border-b border-gray-200">
           <div className="flex items-center gap-2">
-            {/* Mac-style dots */}
             <div className="flex gap-1.5">
               <div className="w-2.5 h-2.5 rounded-full bg-gray-300"></div>
               <div className="w-2.5 h-2.5 rounded-full bg-gray-300"></div>
@@ -144,7 +172,6 @@ function CodeBlock({ inline, className, children, ...props }: CodeBlockProps) {
             <Copy size={14} />
           </button>
         </div>
-        {/* Code Content */}
         <div
           className="overflow-x-auto bg-[#0d1117] selection:bg-blue-500/30"
           dangerouslySetInnerHTML={{ __html: html }}
@@ -153,7 +180,6 @@ function CodeBlock({ inline, className, children, ...props }: CodeBlockProps) {
     );
   }
 
-  // Fallback while loading
   return (
     <pre className="my-6 rounded-lg overflow-hidden border border-gray-200 bg-[#0d1117] p-4">
       <code className={`${className} text-[#c9d1d9]`} {...props}>
