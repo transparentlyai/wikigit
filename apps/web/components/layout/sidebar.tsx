@@ -5,7 +5,7 @@
  * Displays directory structure and allows navigation to articles
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Folder, FileText, ChevronRight, ChevronDown, FolderPlus } from 'lucide-react';
@@ -20,20 +20,46 @@ interface TreeNodeProps {
   level: number;
 }
 
+const EXPANDED_NODES_KEY = 'wikigit-expanded-nodes';
+
+function getExpandedNodes(): Set<string> {
+  if (typeof window === 'undefined') return new Set();
+  const stored = localStorage.getItem(EXPANDED_NODES_KEY);
+  return stored ? new Set(JSON.parse(stored)) : new Set();
+}
+
+function saveExpandedNodes(nodes: Set<string>) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(EXPANDED_NODES_KEY, JSON.stringify(Array.from(nodes)));
+}
+
 function TreeNode({ node, level }: TreeNodeProps) {
   const pathname = usePathname();
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const isDirectory = node.type === 'directory';
   const hasChildren = isDirectory && node.children && node.children.length > 0;
 
-  // Determine if this node is the currently active article
   const isActive = pathname === `/article/${node.path}`;
+
+  useEffect(() => {
+    const expandedNodes = getExpandedNodes();
+    setIsExpanded(expandedNodes.has(node.path));
+  }, [node.path]);
 
   const handleToggle = (e: React.MouseEvent) => {
     if (isDirectory) {
       e.preventDefault();
-      setIsExpanded(!isExpanded);
+      const newExpandedState = !isExpanded;
+      setIsExpanded(newExpandedState);
+
+      const expandedNodes = getExpandedNodes();
+      if (newExpandedState) {
+        expandedNodes.add(node.path);
+      } else {
+        expandedNodes.delete(node.path);
+      }
+      saveExpandedNodes(expandedNodes);
     }
   };
 

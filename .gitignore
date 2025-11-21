@@ -42,6 +42,9 @@ out/
 *.tsbuildinfo
 next-env.d.ts
 
+# Turborepo
+.turbo/
+
 # Production
 build/
 dist/
