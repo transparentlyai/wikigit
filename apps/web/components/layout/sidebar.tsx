@@ -107,12 +107,11 @@ function TreeNode({ node, level }: TreeNodeProps) {
 
 export function Sidebar({ directories }: SidebarProps) {
   const handleNewFolder = () => {
-    // Navigate to new folder creation page
     window.location.href = '/new-folder';
   };
 
   return (
-    <aside className="wiki-sidebar">
+    <>
       <div className="wiki-sidebar-title">Navigation</div>
 
       {directories.length === 0 ? (
@@ -135,6 +134,6 @@ export function Sidebar({ directories }: SidebarProps) {
           New Folder
         </button>
       </div>
-    </aside>
+    </>
   );
 }
