@@ -1,0 +1,309 @@
+"""
+Directory management endpoints for WikiGit API.
+
+This module provides endpoints for managing directories in the git repository.
+Directories are used to organize articles into hierarchical sections.
+"""
+
+import logging
+from pathlib import Path
+from typing import List
+
+from fastapi import APIRouter, Depends, HTTPException, status
+
+from app.config.settings import settings
+from app.middleware.auth import get_current_user, require_admin
+from app.models.schemas import Directory, DirectoryCreate, DirectoryNode
+from app.services.git_service import GitService
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/directories", tags=["directories"])
+
+
+def get_git_service():
+    """Dependency to get GitService instance."""
+    return GitService(settings.repository.repo_path, settings.repository)
+
+
+def build_directory_tree(base_path: Path) -> List[DirectoryNode]:
+    """
+    Build a hierarchical tree of directories and articles.
+
+    Args:
+        base_path: Base repository path to scan
+
+    Returns:
+        List of DirectoryNode objects representing the tree structure
+    """
+    def scan_directory(dir_path: Path, relative_path: str = "") -> DirectoryNode:
+        """Recursively scan a directory and build its node."""
+        children: List[DirectoryNode] = []
+
+        if not dir_path.exists() or not dir_path.is_dir():
+            return DirectoryNode(
+                name=dir_path.name,
+                path=relative_path,
+                type="directory",
+                children=[]
+            )
+
+        # Iterate through directory contents
+        for item in sorted(dir_path.iterdir()):
+            # Skip hidden files and git directory
+            if item.name.startswith('.') or item.name == '.git':
+                continue
+
+            item_relative = f"{relative_path}/{item.name}".lstrip('/')
+
+            if item.is_dir():
+                # Recursively scan subdirectories
+                child_node = scan_directory(item, item_relative)
+                children.append(child_node)
+            elif item.suffix == '.md':
+                # Add markdown files as files
+                article_path = item_relative[:-3]  # Remove .md extension
+                children.append(DirectoryNode(
+                    name=item.stem,
+                    path=article_path,
+                    type="file",
+                    children=None
+                ))
+
+        return DirectoryNode(
+            name=dir_path.name if relative_path else "root",
+            path=relative_path,
+            type="directory",
+            children=children
+        )
+
+    # Start scanning from base path
+    root_node = scan_directory(base_path)
+
+    # Return root's children (we don't want to expose the root node itself)
+    return root_node.children
+
+
+@router.get("", response_model=List[DirectoryNode])
+async def list_directories(
+    _user: str = Depends(get_current_user)
+):
+    """
+    Get hierarchical directory tree with articles.
+
+    Returns a tree structure of all directories and articles in the repository.
+    This is used for navigation and displaying the wiki structure.
+
+    Returns:
+        List[DirectoryNode]: Hierarchical tree of directories and articles
+
+    Raises:
+        HTTPException: If there's an error reading the repository
+    """
+    try:
+        repo_path = Path(settings.repository.repo_path)
+        tree = build_directory_tree(repo_path)
+        return tree
+    except Exception as e:
+        logger.error(f"Failed to list directories: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to list directories: {str(e)}"
+        )
+
+
+@router.post("", response_model=Directory, status_code=status.HTTP_201_CREATED)
+async def create_directory(
+    directory: DirectoryCreate,
+    user: str = Depends(get_current_user),
+    git_service: GitService = Depends(get_git_service)
+):
+    """
+    Create a new directory in the repository.
+
+    Creates a directory at the specified path. If parent directories don't exist,
+    they will be created automatically. A .gitkeep file is added to ensure the
+    directory is tracked by git.
+
+    Args:
+        directory: Directory creation data containing path
+        user: Current authenticated user email
+        git_service: Git service instance
+
+    Returns:
+        Directory: Created directory information
+
+    Raises:
+        HTTPException: If directory already exists or creation fails
+    """
+    try:
+        # Validate directory path
+        if not directory.path or directory.path.strip() == "":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Directory path cannot be empty"
+            )
+
+        # Remove leading/trailing slashes
+        clean_path = directory.path.strip('/')
+
+        # Validate path doesn't contain invalid characters
+        invalid_chars = ['..', '\\', '<', '>', ':', '"', '|', '?', '*']
+        if any(char in clean_path for char in invalid_chars):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Directory path contains invalid characters"
+            )
+
+        # Build full directory path
+        repo_path = Path(settings.repository.repo_path)
+        dir_path = repo_path / clean_path
+
+        # Check if directory already exists
+        if dir_path.exists():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Directory already exists: {clean_path}"
+            )
+
+        # Create directory and all parent directories
+        dir_path.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Created directory: {dir_path}")
+
+        # Create .gitkeep file to ensure directory is tracked
+        gitkeep_path = dir_path / ".gitkeep"
+        gitkeep_path.write_text("# This file ensures the directory is tracked by git\n")
+        logger.info(f"Created .gitkeep file: {gitkeep_path}")
+
+        # Commit to git
+        commit_message = f"create: directory {clean_path}"
+        git_service.add_and_commit(
+            files=[str(gitkeep_path.relative_to(repo_path))],
+            message=commit_message,
+            author_email=user
+        )
+        logger.info(f"Committed directory creation: {clean_path}")
+
+        # Push to remote if configured
+        if settings.repository.auto_push and settings.repository.remote_url:
+            git_service.push_to_remote()
+            logger.info(f"Pushed directory creation to remote: {clean_path}")
+
+        return Directory(
+            path=clean_path,
+            name=dir_path.name
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to create directory: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create directory: {str(e)}"
+        )
+
+
+@router.delete("/{path:path}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_directory(
+    path: str,
+    user: str = Depends(require_admin),
+    git_service: GitService = Depends(get_git_service)
+):
+    """
+    Delete a directory and all its contents.
+
+    Removes the directory and all files/subdirectories within it. This operation
+    is destructive and requires admin privileges.
+
+    Args:
+        path: Directory path to delete
+        user: Current authenticated admin user email
+        git_service: Git service instance
+
+    Raises:
+        HTTPException: If directory doesn't exist, is not empty (has articles),
+                      or deletion fails
+    """
+    try:
+        # Validate path
+        if not path or path.strip() == "":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Directory path cannot be empty"
+            )
+
+        # Clean path
+        clean_path = path.strip('/')
+
+        # Build full directory path
+        repo_path = Path(settings.repository.repo_path)
+        dir_path = repo_path / clean_path
+
+        # Check if directory exists
+        if not dir_path.exists():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Directory not found: {clean_path}"
+            )
+
+        if not dir_path.is_dir():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Path is not a directory: {clean_path}"
+            )
+
+        # Check if directory contains any markdown files (articles)
+        has_articles = any(
+            item.suffix == '.md'
+            for item in dir_path.rglob('*')
+            if item.is_file()
+        )
+
+        if has_articles:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"Directory contains articles and cannot be deleted: {clean_path}. "
+                    "Please delete all articles in the directory first."
+                )
+            )
+
+        # Get all files to remove for git
+        files_to_remove = []
+        for item in dir_path.rglob('*'):
+            if item.is_file() and not any(part.startswith('.git') for part in item.parts):
+                rel_path = item.relative_to(repo_path)
+                files_to_remove.append(str(rel_path))
+
+        # Remove directory from filesystem
+        import shutil
+        shutil.rmtree(dir_path)
+        logger.info(f"Removed directory: {dir_path}")
+
+        # Commit to git if there were files
+        if files_to_remove:
+            commit_message = f"delete: directory {clean_path}"
+            # Stage all removed files
+            repo = git_service.repo
+            repo.index.remove(files_to_remove, working_tree=True, r=True)
+            repo.index.commit(
+                f"{commit_message}\n\nAuthor: {user}\nDate: {git_service._get_iso_timestamp()}"
+            )
+            logger.info(f"Committed directory deletion: {clean_path}")
+
+            # Push to remote if configured
+            if settings.repository.auto_push and settings.repository.remote_url:
+                git_service.push_to_remote()
+                logger.info(f"Pushed directory deletion to remote: {clean_path}")
+
+        return None
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete directory: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete directory: {str(e)}"
+        )

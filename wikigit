@@ -1,0 +1,496 @@
+#!/bin/bash
+
+set -e
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# Default ports (can be overridden by env vars)
+FRONTEND_PORT=${WIKIGIT_FRONTEND_PORT:-3000}
+BACKEND_PORT=${WIKIGIT_BACKEND_PORT:-8000}
+LOGS_DIR=${WIKIGIT_LOGS_DIR:-/tmp/wikigit}
+REBUILD=false
+
+# Helper functions
+kill_process_tree() {
+    local pid=$1
+    if [ -z "$pid" ] || ! ps -p $pid > /dev/null 2>&1; then
+        return
+    fi
+    local children=$(pgrep -P $pid 2>/dev/null || true)
+    if [ ! -z "$children" ]; then
+        for child in $children; do
+            kill_process_tree $child
+        done
+    fi
+    kill -9 $pid 2>/dev/null || true
+}
+
+kill_by_port() {
+    local port=$1
+    local raw_pids=$(ss -ltnp 2>/dev/null | grep ":${port}[[:space:]]" | grep -o 'pid=[0-9]\+' | sed 's/pid=//')
+    if [ -z "$raw_pids" ]; then
+        return
+    fi
+    local pids=$(echo "$raw_pids" | sort -u | xargs)
+    if [ ! -z "$pids" ]; then
+        kill -9 $pids 2>/dev/null || true
+    fi
+}
+
+# Commands
+cmd_start() {
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --frontend-port)
+                FRONTEND_PORT="$2"
+                shift 2
+                ;;
+            --backend-port)
+                BACKEND_PORT="$2"
+                shift 2
+                ;;
+            --logs)
+                LOGS_DIR="$2"
+                shift 2
+                ;;
+            --rebuild)
+                REBUILD=true
+                shift
+                ;;
+            *)
+                echo -e "${RED}Unknown option: $1${NC}"
+                echo "Usage: wikigit start [--frontend-port PORT] [--backend-port PORT] [--logs PATH] [--rebuild]"
+                exit 1
+                ;;
+        esac
+    done
+
+    echo -e "${GREEN}Starting WikiGit (production mode)${NC}"
+    echo "  Frontend: http://localhost:$FRONTEND_PORT"
+    echo "  Backend:  http://localhost:$BACKEND_PORT"
+    echo "  Logs:     $LOGS_DIR"
+    echo ""
+
+    # Create directories
+    mkdir -p wiki-content data/whoosh_index "$LOGS_DIR"
+
+    # Initialize git repository if needed
+    if [ ! -d "wiki-content/.git" ]; then
+        echo "Initializing git repository..."
+        cd wiki-content
+        git init
+        cat > README.md <<'EOF'
+---
+title: Welcome to WikiGit
+author: system@wikigit.app
+created_at: 2025-11-21T00:00:00Z
+updated_at: 2025-11-21T00:00:00Z
+updated_by: system@wikigit.app
+---
+
+# Welcome to WikiGit
+
+This is your wiki content repository.
+EOF
+        git add README.md
+        git commit -m "Initial commit"
+        cd ..
+    fi
+
+    # Create config if needed
+    if [ ! -f "config.yaml" ]; then
+        echo "Creating config.yaml from template..."
+        cp config.yaml.example config.yaml
+        echo -e "${YELLOW}Please update config.yaml with your settings${NC}"
+    fi
+
+    # Kill any existing processes on target ports
+    kill_by_port $BACKEND_PORT
+    kill_by_port $FRONTEND_PORT
+
+    # Save configuration
+    echo "$BACKEND_PORT" > .backend.port
+    echo "$FRONTEND_PORT" > .frontend.port
+    echo "$LOGS_DIR" > .logs.path
+
+    # Start backend
+    cd apps/api
+    WIKIGIT_DEV_MODE=true FRONTEND_PORT=$FRONTEND_PORT uv run fastapi run app/main.py --port $BACKEND_PORT --host 0.0.0.0 > "$LOGS_DIR/api.log" 2>&1 &
+    API_PID=$!
+    echo $API_PID > ../../.api.pid
+    cd ../..
+    echo "Backend started (PID: $API_PID)"
+
+    # Wait for backend
+    sleep 3
+
+    # Build frontend if needed
+    if [ ! -d "apps/web/.next" ] || [ "$REBUILD" = true ]; then
+        echo "Building frontend..."
+        cd apps/web
+        BACKEND_PORT=$BACKEND_PORT pnpm build > /dev/null 2>&1
+        cd ../..
+    fi
+
+    # Start frontend
+    cd apps/web
+    PORT=$FRONTEND_PORT BACKEND_PORT=$BACKEND_PORT NEXT_PUBLIC_API_URL="http://localhost:$BACKEND_PORT" pnpm start > "$LOGS_DIR/web.log" 2>&1 &
+    WEB_PID=$!
+    echo $WEB_PID > ../../.web.pid
+    cd ../..
+    echo "Frontend started (PID: $WEB_PID)"
+
+    echo ""
+    echo -e "${GREEN}WikiGit is running${NC}"
+    echo ""
+    echo "View logs:"
+    echo "  wikigit logs backend"
+    echo "  wikigit logs frontend"
+    echo ""
+    echo "Log files:"
+    echo "  Backend:  $LOGS_DIR/api.log"
+    echo "  Frontend: $LOGS_DIR/web.log"
+}
+
+cmd_stop() {
+    echo -e "${RED}Stopping WikiGit${NC}"
+    echo ""
+
+    # Load saved port configuration if available
+    local backend_port=${WIKIGIT_BACKEND_PORT:-8000}
+    local frontend_port=${WIKIGIT_FRONTEND_PORT:-3000}
+
+    if [ -f .backend.port ]; then
+        backend_port=$(cat .backend.port)
+    fi
+    if [ -f .frontend.port ]; then
+        frontend_port=$(cat .frontend.port)
+    fi
+
+    # Stop backend
+    if [ -f .api.pid ]; then
+        API_PID=$(cat .api.pid)
+        kill_process_tree $API_PID
+        rm .api.pid
+        echo "Stopped backend"
+    fi
+
+    # Stop frontend
+    if [ -f .web.pid ]; then
+        WEB_PID=$(cat .web.pid)
+        kill_process_tree $WEB_PID
+        rm .web.pid
+        echo "Stopped frontend"
+    fi
+
+    # Double-check: kill any remaining processes on configured ports
+    kill_by_port $backend_port
+    kill_by_port $frontend_port
+
+    # Clean up config files
+    rm -f .backend.port .frontend.port .logs.path
+
+    echo ""
+    echo -e "${GREEN}WikiGit stopped${NC}"
+}
+
+cmd_restart() {
+    cmd_stop
+    echo ""
+    sleep 1
+    cmd_start "$@"
+}
+
+cmd_status() {
+    echo -e "${BLUE}WikiGit Status${NC}"
+    echo ""
+
+    local backend_running=false
+    local frontend_running=false
+    local backend_port=""
+    local frontend_port=""
+
+    # Check backend
+    if [ -f .api.pid ]; then
+        API_PID=$(cat .api.pid)
+        if ps -p $API_PID > /dev/null 2>&1; then
+            backend_port=$(ss -ltnp 2>/dev/null | grep "pid=$API_PID" | grep -o ':\([0-9]\+\)[[:space:]]' | head -1 | tr -d ': ')
+            echo -e "${GREEN}Backend:  Running${NC} (PID: $API_PID, Port: $backend_port)"
+            backend_running=true
+        else
+            echo -e "${RED}Backend:  Stopped${NC} (stale PID file)"
+            rm .api.pid
+        fi
+    else
+        echo -e "${YELLOW}Backend:  Stopped${NC}"
+    fi
+
+    # Check frontend
+    if [ -f .web.pid ]; then
+        WEB_PID=$(cat .web.pid)
+        if ps -p $WEB_PID > /dev/null 2>&1; then
+            frontend_port=$(ss -ltnp 2>/dev/null | grep "pid=$WEB_PID" | grep -o ':\([0-9]\+\)[[:space:]]' | head -1 | tr -d ': ')
+            echo -e "${GREEN}Frontend: Running${NC} (PID: $WEB_PID, Port: $frontend_port)"
+            frontend_running=true
+        else
+            echo -e "${RED}Frontend: Stopped${NC} (stale PID file)"
+            rm .web.pid
+        fi
+    else
+        echo -e "${YELLOW}Frontend: Stopped${NC}"
+    fi
+
+    # Show URLs if running
+    echo ""
+    if [ "$frontend_running" = true ]; then
+        echo "Access WikiGit:"
+        echo "  Application: http://localhost:$frontend_port"
+    fi
+    if [ "$backend_running" = true ]; then
+        echo "  Backend API: http://localhost:$backend_port"
+        echo "  API Docs:    http://localhost:$backend_port/docs"
+    fi
+}
+
+cmd_dev() {
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --frontend-port)
+                FRONTEND_PORT="$2"
+                shift 2
+                ;;
+            --backend-port)
+                BACKEND_PORT="$2"
+                shift 2
+                ;;
+            --logs)
+                LOGS_DIR="$2"
+                shift 2
+                ;;
+            *)
+                echo -e "${RED}Unknown option: $1${NC}"
+                echo "Usage: wikigit dev [--frontend-port PORT] [--backend-port PORT] [--logs PATH]"
+                exit 1
+                ;;
+        esac
+    done
+
+    echo -e "${GREEN}Starting WikiGit (development mode)${NC}"
+    echo "  Frontend: http://localhost:$FRONTEND_PORT (hot reload)"
+    echo "  Backend:  http://localhost:$BACKEND_PORT (hot reload)"
+    echo "  Logs:     $LOGS_DIR"
+    echo ""
+
+    # Create directories
+    mkdir -p wiki-content data/whoosh_index "$LOGS_DIR"
+
+    # Initialize git repository if needed
+    if [ ! -d "wiki-content/.git" ]; then
+        echo "Initializing git repository..."
+        cd wiki-content
+        git init
+        cat > README.md <<'EOF'
+---
+title: Welcome to WikiGit
+author: system@wikigit.app
+created_at: 2025-11-21T00:00:00Z
+updated_at: 2025-11-21T00:00:00Z
+updated_by: system@wikigit.app
+---
+
+# Welcome to WikiGit
+
+This is your wiki content repository.
+EOF
+        git add README.md
+        git commit -m "Initial commit"
+        cd ..
+    fi
+
+    # Create config if needed
+    if [ ! -f "config.yaml" ]; then
+        echo "Creating config.yaml from template..."
+        cp config.yaml.example config.yaml
+        echo "Please update config.yaml with your settings"
+    fi
+
+    # Export ports
+    export FRONTEND_PORT
+    export BACKEND_PORT
+
+    # Cleanup function for Ctrl+C
+    cleanup() {
+        echo ""
+        echo -e "${YELLOW}Stopping development servers...${NC}"
+        kill $BACKEND_PID $FRONTEND_PID 2>/dev/null
+        exit 0
+    }
+    trap cleanup SIGINT SIGTERM
+
+    # Start backend in background
+    echo "Starting backend..."
+    cd apps/api
+    WIKIGIT_DEV_MODE=true FRONTEND_PORT=$FRONTEND_PORT uv run fastapi dev app/main.py --port $BACKEND_PORT --host 0.0.0.0 &
+    BACKEND_PID=$!
+    cd ../..
+
+    # Wait for backend
+    sleep 2
+
+    # Start frontend
+    echo "Starting frontend..."
+    cd apps/web
+    PORT=$FRONTEND_PORT BACKEND_PORT=$BACKEND_PORT NEXT_PUBLIC_API_URL="http://localhost:$BACKEND_PORT" pnpm dev &
+    FRONTEND_PID=$!
+    cd ../..
+
+    echo ""
+    echo -e "${GREEN}WikiGit development mode running${NC}"
+    echo "  Application: http://localhost:$FRONTEND_PORT"
+    echo "  Backend API: http://localhost:$BACKEND_PORT"
+    echo "  API Docs:    http://localhost:$BACKEND_PORT/docs"
+    echo ""
+    echo "Press Ctrl+C to stop"
+
+    # Wait for both processes
+    wait
+}
+
+cmd_logs() {
+    local service=$1
+    local follow=${2:-false}
+
+    # Load saved logs path if available
+    local logs_dir=${WIKIGIT_LOGS_DIR:-/tmp/wikigit}
+    if [ -f .logs.path ]; then
+        logs_dir=$(cat .logs.path)
+    fi
+
+    case "$service" in
+        backend|api)
+            local log_file="$logs_dir/api.log"
+            if [ ! -f "$log_file" ]; then
+                echo "Log file not found: $log_file"
+                echo "Is WikiGit running?"
+                exit 1
+            fi
+            if [ "$follow" = "-f" ] || [ "$follow" = "--follow" ]; then
+                tail -f "$log_file"
+            else
+                tail -n 50 "$log_file"
+            fi
+            ;;
+        frontend|web)
+            local log_file="$logs_dir/web.log"
+            if [ ! -f "$log_file" ]; then
+                echo "Log file not found: $log_file"
+                echo "Is WikiGit running?"
+                exit 1
+            fi
+            if [ "$follow" = "-f" ] || [ "$follow" = "--follow" ]; then
+                tail -f "$log_file"
+            else
+                tail -n 50 "$log_file"
+            fi
+            ;;
+        *)
+            echo "Usage: wikigit logs [backend|frontend] [-f|--follow]"
+            exit 1
+            ;;
+    esac
+}
+
+cmd_help() {
+    cat <<EOF
+WikiGit - Git-based Wiki Application
+
+Usage:
+  wikigit <command> [options]
+
+Commands:
+  start              Start WikiGit in production mode
+    --frontend-port  Frontend port (default: 3000)
+    --backend-port   Backend port (default: 8000)
+    --logs           Log directory (default: /tmp/wikigit)
+    --rebuild        Rebuild frontend before starting
+
+  dev                Start WikiGit in development mode (hot reload)
+    --frontend-port  Frontend port (default: 3000)
+    --backend-port   Backend port (default: 8000)
+    --logs           Log directory (default: /tmp/wikigit)
+
+  stop               Stop WikiGit
+
+  restart            Restart WikiGit (accepts same options as start)
+
+  status             Show running status
+
+  logs <service>     View logs
+    backend          View backend logs
+    frontend         View frontend logs
+    -f, --follow     Follow log output
+
+  help               Show this help message
+
+Environment Variables:
+  WIKIGIT_FRONTEND_PORT  Override default frontend port (default: 3000)
+  WIKIGIT_BACKEND_PORT   Override default backend port (default: 8000)
+  WIKIGIT_LOGS_DIR       Override default logs directory (default: /tmp/wikigit)
+
+Examples:
+  wikigit dev
+  wikigit dev --frontend-port 3005 --backend-port 8080
+  wikigit start --logs /var/log/wikigit
+  wikigit start --rebuild
+  wikigit stop
+  wikigit restart --rebuild
+  wikigit status
+  wikigit logs backend -f
+
+  # Using environment variables
+  WIKIGIT_FRONTEND_PORT=3005 WIKIGIT_LOGS_DIR=/var/log/wikigit wikigit start
+
+EOF
+}
+
+# Main
+case "$1" in
+    start)
+        shift
+        cmd_start "$@"
+        ;;
+    dev)
+        shift
+        cmd_dev "$@"
+        ;;
+    stop)
+        cmd_stop
+        ;;
+    restart)
+        shift
+        cmd_restart "$@"
+        ;;
+    status)
+        cmd_status
+        ;;
+    logs)
+        shift
+        cmd_logs "$@"
+        ;;
+    help|--help|-h|"")
+        cmd_help
+        ;;
+    *)
+        echo -e "${RED}Unknown command: $1${NC}"
+        echo ""
+        cmd_help
+        exit 1
+        ;;
+esac

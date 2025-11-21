@@ -1,0 +1,21 @@
+# WikiGit Configuration File
+# Copy this to config.yaml and customize for your deployment
+
+# Application settings
+app:
+  app_name: WikiGit
+  admins:
+    - admin@example.com
+    - editor@example.com
+
+# Git repository settings
+repository:
+  repo_path: /home/mauro/projects/wikigit/wiki-content
+  default_branch: main
+  auto_push: false
+  remote_url: ""  # Optional: https://github.com/username/repo.git
+  remote_token: ""  # Optional: GitHub personal access token (use ${GITHUB_TOKEN} for env var)
+
+# Search settings
+search:
+  index_dir: /home/mauro/projects/wikigit/data/search-index

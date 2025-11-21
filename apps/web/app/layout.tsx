@@ -1,0 +1,22 @@
+import '../styles/wiki.css'
+
+export const metadata = {
+  title: 'WikiGit',
+  description: 'Git-based Wiki Application',
+}
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="en">
+      <body>
+        <div className="wiki-layout">
+          {children}
+        </div>
+      </body>
+    </html>
+  )
+}
