@@ -1,4 +1,4 @@
-import '../styles/wiki.css'
+import '../styles/globals.css'
 
 export const metadata = {
   title: 'WikiGit',
@@ -13,9 +13,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <div className="wiki-layout">
-          {children}
-        </div>
+        {children}
       </body>
     </html>
   )

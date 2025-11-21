@@ -2,34 +2,18 @@
 
 /**
  * Markdown Editor Component for WikiGit
- * Uses @mdxeditor/editor with GitHub-compatible markdown support
+ * Uses CodeMirror 6 with custom toolbar matching WikiUIDesing.pdf v2.1 spec
  */
 
-import { useEffect, useRef } from 'react';
-import {
-  MDXEditor,
-  headingsPlugin,
-  listsPlugin,
-  quotePlugin,
-  thematicBreakPlugin,
-  markdownShortcutPlugin,
-  linkPlugin,
-  tablePlugin,
-  codeBlockPlugin,
-  codeMirrorPlugin,
-  toolbarPlugin,
-  UndoRedo,
-  BoldItalicUnderlineToggles,
-  BlockTypeSelect,
-  CreateLink,
-  InsertTable,
-  InsertThematicBreak,
-  ListsToggle,
-  Separator,
-  type MDXEditorMethods,
-} from '@mdxeditor/editor';
-import '@mdxeditor/editor/style.css';
-import { Save } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { EditorState } from '@codemirror/state';
+import { EditorView, keymap, lineNumbers } from '@codemirror/view';
+import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
+import { markdown } from '@codemirror/lang-markdown';
+import { syntaxHighlighting, HighlightStyle } from '@codemirror/language';
+import { tags as t } from '@lezer/highlight';
+import { Bold, Italic, Hash, Eye, EyeOff, Save, Strikethrough, Link2, Quote, Code, List, ListOrdered, Image as ImageIcon, Table, Minus } from 'lucide-react';
+import { MarkdownViewer } from '@/components/viewer/markdown-viewer';
 
 interface MarkdownEditorProps {
   value: string;
@@ -37,110 +21,506 @@ interface MarkdownEditorProps {
   onSave: () => void;
 }
 
+// Custom syntax highlighting theme with colors
+const markdownHighlighting = HighlightStyle.define([
+  { tag: t.heading1, fontSize: '1.3em', fontWeight: '700', color: '#111827' },
+  { tag: t.heading2, fontSize: '1.2em', fontWeight: '600', color: '#111827' },
+  { tag: t.heading3, fontSize: '1.1em', fontWeight: '600', color: '#1f2937' },
+  { tag: t.heading4, fontWeight: '600', color: '#374151' },
+  { tag: t.heading5, fontWeight: '600', color: '#374151' },
+  { tag: t.heading6, fontWeight: '600', color: '#374151' },
+  { tag: t.strong, fontWeight: '700', color: '#111827' },
+  { tag: t.emphasis, fontStyle: 'italic', color: '#4b5563' },
+  { tag: t.strikethrough, textDecoration: 'line-through', color: '#6b7280' },
+  { tag: t.link, color: '#2563eb', textDecoration: 'underline' },
+  { tag: t.url, color: '#2563eb' },
+  { tag: t.monospace, fontFamily: 'monospace', color: '#7c3aed', backgroundColor: '#f3f4f6' },
+  { tag: t.quote, color: '#4b5563', fontStyle: 'italic' },
+  { tag: t.list, color: '#6b7280' },
+  { tag: t.contentSeparator, color: '#9ca3af' },
+  { tag: t.meta, color: '#059669' },
+  { tag: t.processingInstruction, color: '#dc2626' },
+  { tag: t.comment, color: '#9ca3af', fontStyle: 'italic' },
+]);
+
 export function MarkdownEditor({ value, onChange, onSave }: MarkdownEditorProps) {
-  const editorRef = useRef<MDXEditorMethods>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
+  const viewRef = useRef<EditorView | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
 
-  // Handle save keyboard shortcut (Ctrl+S / Cmd+S)
+  // Initialize CodeMirror 6
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        e.preventDefault();
-        onSave();
-      }
-    };
+    if (!editorRef.current) return;
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onSave]);
+    const startState = EditorState.create({
+      doc: value,
+      extensions: [
+        markdown(),
+        syntaxHighlighting(markdownHighlighting),
+        lineNumbers(),
+        history(),
+        keymap.of([
+          ...defaultKeymap,
+          ...historyKeymap,
+          {
+            key: 'Mod-s',
+            run: () => {
+              onSave();
+              return true;
+            },
+          },
+        ]),
+        EditorView.updateListener.of((update) => {
+          if (update.docChanged) {
+            const newValue = update.state.doc.toString();
+            onChange(newValue);
+          }
+        }),
+        EditorView.lineWrapping,
+        EditorView.theme({
+          '&': {
+            fontSize: '14px',
+            fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif',
+          },
+          '.cm-content': {
+            fontFamily: 'inherit',
+            padding: '16px',
+          },
+          '.cm-line': {
+            lineHeight: '1.75',
+          },
+          '&.cm-focused': {
+            outline: 'none',
+          },
+          // Markdown syntax highlighting
+          '.cm-header-1': {
+            fontSize: '2em',
+            fontWeight: '700',
+            color: '#111827',
+          },
+          '.cm-header-2': {
+            fontSize: '1.5em',
+            fontWeight: '600',
+            color: '#111827',
+          },
+          '.cm-header-3': {
+            fontSize: '1.25em',
+            fontWeight: '600',
+            color: '#1f2937',
+          },
+          '.cm-strong': {
+            fontWeight: '600',
+            color: '#111827',
+          },
+          '.cm-em': {
+            fontStyle: 'italic',
+            color: '#374151',
+          },
+          '.cm-strikethrough': {
+            textDecoration: 'line-through',
+            color: '#6b7280',
+          },
+          '.cm-link': {
+            color: '#2563eb',
+            textDecoration: 'underline',
+          },
+          '.cm-url': {
+            color: '#2563eb',
+          },
+          '.cm-monospace, .cm-code': {
+            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+            backgroundColor: '#f3f4f6',
+            padding: '2px 4px',
+            borderRadius: '3px',
+            color: '#1f2937',
+            fontSize: '0.9em',
+          },
+          '.cm-quote': {
+            color: '#4b5563',
+            fontStyle: 'italic',
+            borderLeft: '3px solid #e5e7eb',
+            paddingLeft: '12px',
+          },
+          '.cm-list': {
+            color: '#6b7280',
+          },
+        }),
+      ],
+    });
+
+    const view = new EditorView({
+      state: startState,
+      parent: editorRef.current,
+    });
+
+    viewRef.current = view;
+
+    return () => {
+      view.destroy();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only initialize once - value, onChange, onSave are captured in closures
+
+  // Update editor value when prop changes externally
+  useEffect(() => {
+    if (viewRef.current) {
+      const currentValue = viewRef.current.state.doc.toString();
+      if (currentValue !== value) {
+        viewRef.current.dispatch({
+          changes: {
+            from: 0,
+            to: currentValue.length,
+            insert: value,
+          },
+        });
+      }
+    }
+  }, [value]);
+
+  const insertMarkdown = (before: string, after: string = before) => {
+    if (!viewRef.current) return;
+
+    const view = viewRef.current;
+    const { from, to } = view.state.selection.main;
+    const selectedText = view.state.sliceDoc(from, to);
+
+    view.dispatch({
+      changes: {
+        from,
+        to,
+        insert: `${before}${selectedText}${after}`,
+      },
+      selection: {
+        anchor: from + before.length,
+        head: from + before.length + selectedText.length,
+      },
+    });
+
+    view.focus();
+  };
+
+  const toggleBold = () => insertMarkdown('**');
+  const toggleItalic = () => insertMarkdown('*');
+  const toggleStrikethrough = () => insertMarkdown('~~');
+  const insertHeading = () => {
+    if (!viewRef.current) return;
+
+    const view = viewRef.current;
+    const { from } = view.state.selection.main;
+    const line = view.state.doc.lineAt(from);
+    const lineText = line.text;
+
+    // Count existing hashes
+    const hashMatch = lineText.match(/^(#{1,6})\s/);
+    const currentLevel = hashMatch ? hashMatch[1].length : 0;
+
+    // Cycle through heading levels (1-3) or remove
+    const nextLevel = currentLevel >= 3 ? 0 : currentLevel + 1;
+    const newPrefix = nextLevel > 0 ? '#'.repeat(nextLevel) + ' ' : '';
+
+    // Remove existing heading prefix if present
+    const textWithoutHeading = lineText.replace(/^#{1,6}\s/, '');
+
+    view.dispatch({
+      changes: {
+        from: line.from,
+        to: line.to,
+        insert: newPrefix + textWithoutHeading,
+      },
+    });
+
+    view.focus();
+  };
+
+  const insertLink = () => {
+    if (!viewRef.current) return;
+    const view = viewRef.current;
+    const { from, to } = view.state.selection.main;
+    const selectedText = view.state.sliceDoc(from, to);
+    const linkText = selectedText || 'link text';
+
+    view.dispatch({
+      changes: {
+        from,
+        to,
+        insert: `[${linkText}](url)`,
+      },
+      selection: {
+        anchor: from + linkText.length + 3,
+        head: from + linkText.length + 6,
+      },
+    });
+    view.focus();
+  };
+
+  const insertQuote = () => {
+    if (!viewRef.current) return;
+    const view = viewRef.current;
+    const { from } = view.state.selection.main;
+    const line = view.state.doc.lineAt(from);
+
+    view.dispatch({
+      changes: {
+        from: line.from,
+        to: line.from,
+        insert: '> ',
+      },
+    });
+    view.focus();
+  };
+
+  const insertCode = () => insertMarkdown('`');
+
+  const insertList = () => {
+    if (!viewRef.current) return;
+    const view = viewRef.current;
+    const { from } = view.state.selection.main;
+    const line = view.state.doc.lineAt(from);
+
+    view.dispatch({
+      changes: {
+        from: line.from,
+        to: line.from,
+        insert: '- ',
+      },
+    });
+    view.focus();
+  };
+
+  const insertOrderedList = () => {
+    if (!viewRef.current) return;
+    const view = viewRef.current;
+    const { from } = view.state.selection.main;
+    const line = view.state.doc.lineAt(from);
+
+    view.dispatch({
+      changes: {
+        from: line.from,
+        to: line.from,
+        insert: '1. ',
+      },
+    });
+    view.focus();
+  };
+
+  const insertImage = () => {
+    if (!viewRef.current) return;
+    const view = viewRef.current;
+    const { from, to } = view.state.selection.main;
+    const selectedText = view.state.sliceDoc(from, to);
+    const altText = selectedText || 'alt text';
+
+    view.dispatch({
+      changes: {
+        from,
+        to,
+        insert: `![${altText}](url)`,
+      },
+      selection: {
+        anchor: from + altText.length + 4,
+        head: from + altText.length + 7,
+      },
+    });
+    view.focus();
+  };
+
+  const insertTable = () => {
+    if (!viewRef.current) return;
+    const view = viewRef.current;
+    const { from } = view.state.selection.main;
+    const table = '\n| Header 1 | Header 2 |\n| -------- | -------- |\n| Cell 1   | Cell 2   |\n';
+
+    view.dispatch({
+      changes: {
+        from,
+        to: from,
+        insert: table,
+      },
+    });
+    view.focus();
+  };
+
+  const insertHorizontalRule = () => {
+    if (!viewRef.current) return;
+    const view = viewRef.current;
+    const { from } = view.state.selection.main;
+
+    view.dispatch({
+      changes: {
+        from,
+        to: from,
+        insert: '\n---\n',
+      },
+    });
+    view.focus();
+  };
 
   return (
-    <div className="editor-container">
-      <MDXEditor
-        ref={editorRef}
-        markdown={value}
-        onChange={onChange}
-        plugins={[
-          // Core editing plugins
-          headingsPlugin(),
-          listsPlugin(),
-          quotePlugin(),
-          thematicBreakPlugin(),
-          markdownShortcutPlugin(),
-          linkPlugin(),
-          tablePlugin(),
+    <>
+      {/* Toolbar - Sticky at top, z-20 */}
+      <div className="sticky top-0 z-20 bg-white/95 backdrop-blur border-b border-gray-200">
+        <div className="h-10 px-4 flex items-center gap-1">
+          {/* Text Formatting */}
+          <button
+            onClick={toggleBold}
+            className="p-1.5 rounded text-gray-500 hover:bg-gray-100 transition-colors"
+            title="Bold (Ctrl+B)"
+          >
+            <Bold size={18} />
+          </button>
 
-          // Code blocks with syntax highlighting
-          codeBlockPlugin({ defaultCodeBlockLanguage: 'javascript' }),
-          codeMirrorPlugin({
-            codeBlockLanguages: {
-              js: 'JavaScript',
-              javascript: 'JavaScript',
-              ts: 'TypeScript',
-              typescript: 'TypeScript',
-              jsx: 'JSX',
-              tsx: 'TSX',
-              css: 'CSS',
-              html: 'HTML',
-              json: 'JSON',
-              python: 'Python',
-              py: 'Python',
-              bash: 'Bash',
-              sh: 'Shell',
-              yaml: 'YAML',
-              yml: 'YAML',
-              markdown: 'Markdown',
-              md: 'Markdown',
-              sql: 'SQL',
-              go: 'Go',
-              rust: 'Rust',
-              java: 'Java',
-              c: 'C',
-              cpp: 'C++',
-              php: 'PHP',
-              ruby: 'Ruby',
-              swift: 'Swift',
-              kotlin: 'Kotlin',
-            },
-          }),
+          <button
+            onClick={toggleItalic}
+            className="p-1.5 rounded text-gray-500 hover:bg-gray-100 transition-colors"
+            title="Italic (Ctrl+I)"
+          >
+            <Italic size={18} />
+          </button>
 
-          // Toolbar
-          toolbarPlugin({
-            toolbarContents: () => (
-              <>
-                <UndoRedo />
-                <Separator />
-                <BoldItalicUnderlineToggles />
-                <Separator />
-                <BlockTypeSelect />
-                <Separator />
-                <CreateLink />
-                <Separator />
-                <ListsToggle />
-                <Separator />
-                <InsertTable />
-                <Separator />
-                <InsertThematicBreak />
-                <Separator />
-                <button
-                  className="btn btn-primary"
-                  onClick={onSave}
-                  title="Save (Ctrl+S)"
-                  style={{
-                    marginLeft: 'auto',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                  }}
-                >
-                  <Save size={16} />
-                  Save
-                </button>
-              </>
-            ),
-          }),
-        ]}
-        contentEditableClassName="prose"
-      />
-    </div>
+          <button
+            onClick={toggleStrikethrough}
+            className="p-1.5 rounded text-gray-500 hover:bg-gray-100 transition-colors"
+            title="Strikethrough"
+          >
+            <Strikethrough size={18} />
+          </button>
+
+          {/* Divider */}
+          <div className="w-px h-5 bg-gray-200 mx-2" />
+
+          {/* Block Formatting */}
+          <button
+            onClick={insertHeading}
+            className="p-1.5 rounded text-gray-500 hover:bg-gray-100 transition-colors"
+            title="Heading"
+          >
+            <Hash size={18} />
+          </button>
+
+          <button
+            onClick={insertQuote}
+            className="p-1.5 rounded text-gray-500 hover:bg-gray-100 transition-colors"
+            title="Quote"
+          >
+            <Quote size={18} />
+          </button>
+
+          <button
+            onClick={insertCode}
+            className="p-1.5 rounded text-gray-500 hover:bg-gray-100 transition-colors"
+            title="Inline Code"
+          >
+            <Code size={18} />
+          </button>
+
+          {/* Divider */}
+          <div className="w-px h-5 bg-gray-200 mx-2" />
+
+          {/* Lists */}
+          <button
+            onClick={insertList}
+            className="p-1.5 rounded text-gray-500 hover:bg-gray-100 transition-colors"
+            title="Bullet List"
+          >
+            <List size={18} />
+          </button>
+
+          <button
+            onClick={insertOrderedList}
+            className="p-1.5 rounded text-gray-500 hover:bg-gray-100 transition-colors"
+            title="Numbered List"
+          >
+            <ListOrdered size={18} />
+          </button>
+
+          {/* Divider */}
+          <div className="w-px h-5 bg-gray-200 mx-2" />
+
+          {/* Insert Elements */}
+          <button
+            onClick={insertLink}
+            className="p-1.5 rounded text-gray-500 hover:bg-gray-100 transition-colors"
+            title="Insert Link"
+          >
+            <Link2 size={18} />
+          </button>
+
+          <button
+            onClick={insertImage}
+            className="p-1.5 rounded text-gray-500 hover:bg-gray-100 transition-colors"
+            title="Insert Image"
+          >
+            <ImageIcon size={18} />
+          </button>
+
+          <button
+            onClick={insertTable}
+            className="p-1.5 rounded text-gray-500 hover:bg-gray-100 transition-colors"
+            title="Insert Table"
+          >
+            <Table size={18} />
+          </button>
+
+          <button
+            onClick={insertHorizontalRule}
+            className="p-1.5 rounded text-gray-500 hover:bg-gray-100 transition-colors"
+            title="Horizontal Rule"
+          >
+            <Minus size={18} />
+          </button>
+
+          {/* Divider */}
+          <div className="w-px h-5 bg-gray-200 mx-2" />
+
+          {/* Preview Toggle */}
+          <button
+            onClick={() => setShowPreview(!showPreview)}
+            className={`p-1.5 rounded transition-colors ${
+              showPreview
+                ? 'text-blue-600 bg-blue-50'
+                : 'text-gray-500 hover:bg-gray-100'
+            }`}
+            title="Toggle Preview"
+          >
+            {showPreview ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+
+          {/* Divider */}
+          <div className="w-px h-5 bg-gray-200 mx-2" />
+
+          {/* Save Button */}
+          <button
+            onClick={onSave}
+            className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50 rounded-md border border-transparent hover:border-gray-200 transition-all"
+            title="Save (Ctrl+S)"
+          >
+            <Save size={14} />
+            <span>Save</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Editor Area */}
+      <div className="flex-1 overflow-hidden">
+        {showPreview ? (
+          /* Split View: Editor | Preview */
+          <div className="flex h-full animate-in fade-in duration-300">
+            <div className="flex-1 border-r border-gray-200 overflow-y-auto">
+              <div ref={editorRef} className="h-full" />
+            </div>
+            <div className="flex-1 overflow-y-auto bg-white">
+              <div className="px-6 md:px-12 py-8 max-w-4xl mx-auto w-full">
+                <MarkdownViewer content={value} />
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Editor Only */
+          <div className="h-full overflow-y-auto animate-in fade-in duration-300">
+            <div ref={editorRef} className="h-full" />
+          </div>
+        )}
+      </div>
+    </>
   );
 }

@@ -7,7 +7,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { MarkdownEditor } from '@/components/editor';
+import { MainLayout } from '@/components/layout/main-layout';
+import { MarkdownEditor } from '@/components/editor/markdown-editor';
 
 export default function NewArticlePage() {
   const router = useRouter();
@@ -46,50 +47,28 @@ export default function NewArticlePage() {
     }
   };
 
-  const handleCancel = () => {
-    router.back();
-  };
-
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <div style={{
-        padding: '16px',
-        borderBottom: '1px solid var(--color-border-subtle)',
-        display: 'flex',
-        gap: '12px',
-        alignItems: 'center'
-      }}>
-        <label style={{ fontWeight: 500 }}>
-          Article Path:
+    <MainLayout breadcrumbs={[{ label: 'New Article' }]}>
+      <div className="mb-6">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Article Path
         </label>
         <input
           type="text"
           value={path}
           onChange={(e) => setPath(e.target.value)}
           placeholder="e.g., Getting-Started.md or docs/API-Guide.md"
-          style={{
-            flex: 1,
-            padding: '8px 12px',
-            border: '1px solid var(--color-border)',
-            borderRadius: '4px',
-            fontSize: '14px',
-          }}
+          className="w-full bg-white border border-gray-200 rounded-md py-1.5 px-3 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
         />
-        <button onClick={handleSave} className="btn btn-primary">
-          Create Article
-        </button>
-        <button onClick={handleCancel} className="btn">
-          Cancel
-        </button>
       </div>
 
-      <div style={{ flex: 1, overflow: 'hidden' }}>
+      <div className="absolute inset-x-0 bottom-0 top-32 bg-white z-40 flex flex-col">
         <MarkdownEditor
-          content={content}
+          value={content}
           onChange={setContent}
           onSave={handleSave}
         />
       </div>
-    </div>
+    </MainLayout>
   );
 }

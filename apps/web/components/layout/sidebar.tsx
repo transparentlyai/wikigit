@@ -2,13 +2,13 @@
 
 /**
  * Sidebar component with recursive file tree navigation
- * Displays directory structure and allows navigation to articles
+ * Flat design with gray-50 background and blue active states
  */
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Folder, FileText, ChevronRight, ChevronDown, FolderPlus } from 'lucide-react';
+import { FileText, ChevronRight, ChevronDown, Search } from 'lucide-react';
 import { DirectoryNode } from '@/types/api';
 
 interface SidebarProps {
@@ -63,21 +63,11 @@ function TreeNode({ node, level }: TreeNodeProps) {
     }
   };
 
-  const renderContent = () => {
-    const icon = isDirectory ? (
-      <Folder className="nav-tree-icon" size={16} />
-    ) : (
-      <FileText className="nav-tree-icon" size={16} />
-    );
+  const paddingLeft = `${level * 12 + 12}px`;
 
+  const renderContent = () => {
     const chevron = isDirectory && hasChildren && (
-      <span
-        style={{
-          marginRight: '4px',
-          display: 'inline-flex',
-          transition: 'transform 0.2s',
-        }}
-      >
+      <span className={`opacity-50 ${isActive ? 'text-blue-500' : ''}`}>
         {isExpanded ? (
           <ChevronDown size={14} />
         ) : (
@@ -86,20 +76,35 @@ function TreeNode({ node, level }: TreeNodeProps) {
       </span>
     );
 
+    const icon = !isDirectory && (
+      <span className={`opacity-50 ${isActive ? 'text-blue-500' : ''}`}>
+        <FileText size={14} />
+      </span>
+    );
+
     const content = (
       <>
         {chevron}
         {icon}
-        {node.name}
+        <span className="truncate">{node.name}</span>
       </>
     );
+
+    const className = `
+      group flex items-center gap-2 px-3 py-1.5 mx-2 rounded-md cursor-pointer text-sm transition-colors select-none
+      ${
+        isActive
+          ? 'bg-blue-50 text-blue-700 font-medium'
+          : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+      }
+    `;
 
     if (isDirectory) {
       return (
         <div
-          className="nav-tree-link"
+          className={className}
           onClick={handleToggle}
-          style={{ cursor: 'pointer' }}
+          style={{ paddingLeft }}
         >
           {content}
         </div>
@@ -109,7 +114,8 @@ function TreeNode({ node, level }: TreeNodeProps) {
     return (
       <Link
         href={`/article/${node.path}`}
-        className={`nav-tree-link ${isActive ? 'active' : ''}`}
+        className={className}
+        style={{ paddingLeft }}
       >
         {content}
       </Link>
@@ -117,49 +123,76 @@ function TreeNode({ node, level }: TreeNodeProps) {
   };
 
   return (
-    <li className="nav-tree-item">
+    <div>
       {renderContent()}
 
       {isDirectory && hasChildren && isExpanded && (
-        <ul className="nav-tree-nested">
+        <div>
           {node.children!.map((child) => (
             <TreeNode key={`${child.type}:${child.path}`} node={child} level={level + 1} />
           ))}
-        </ul>
+        </div>
       )}
-    </li>
+    </div>
   );
 }
 
 export function Sidebar({ directories }: SidebarProps) {
-  const handleNewFolder = () => {
-    window.location.href = '/new-folder';
-  };
-
   return (
-    <>
-      <div className="wiki-sidebar-title">Navigation</div>
+    <div className="flex flex-col h-full">
+      {/* Sidebar Header */}
+      <div className="h-14 flex items-center px-4 border-b border-gray-200/50 shrink-0">
+        <div className="flex items-center gap-2 font-bold text-gray-800 tracking-tight">
+          <div className="w-6 h-6 bg-gray-900 rounded flex items-center justify-center text-white">
+            <span className="text-xs">Wg</span>
+          </div>
+          <span>Wikigit</span>
+        </div>
+      </div>
 
-      {directories.length === 0 ? (
-        <p className="text-muted text-sm">No articles yet</p>
-      ) : (
-        <ul className="nav-tree">
-          {directories.map((node) => (
-            <TreeNode key={`${node.type}:${node.path}`} node={node} level={0} />
-          ))}
-        </ul>
-      )}
+      {/* Search */}
+      <div className="p-4">
+        <div className="relative group">
+          <Search
+            size={14}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors"
+          />
+          <input
+            type="text"
+            placeholder="Search docs..."
+            className="w-full bg-white border border-gray-200 rounded-md py-1.5 pl-9 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder:text-gray-400"
+          />
+          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
+            <span className="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200 font-mono">
+              ⌘K
+            </span>
+          </div>
+        </div>
+      </div>
 
-      <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--color-border-subtle)' }}>
-        <button
-          className="btn"
-          onClick={handleNewFolder}
-          style={{ width: '100%', justifyContent: 'flex-start' }}
-        >
-          <FolderPlus size={16} style={{ marginRight: '4px' }} />
-          New Folder
+      {/* Navigation Tree */}
+      <nav className="flex-1 overflow-y-auto py-2">
+        <div className="px-4 mb-2 text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+          Workspace
+        </div>
+        {directories.length === 0 ? (
+          <p className="text-gray-400 text-sm px-4">No articles yet</p>
+        ) : (
+          <div>
+            {directories.map((node) => (
+              <TreeNode key={`${node.type}:${node.path}`} node={node} level={0} />
+            ))}
+          </div>
+        )}
+      </nav>
+
+      {/* Sidebar Footer */}
+      <div className="p-4 border-t border-gray-200/50 text-xs text-gray-500 flex justify-between items-center">
+        <span>v2.4.0</span>
+        <button className="hover:text-gray-800 transition-colors">
+          Settings
         </button>
       </div>
-    </>
+    </div>
   );
 }

@@ -1,0 +1,141 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Wikigit Design System - Flat/Functional/Clean */
+
+@layer base {
+  /* Base Typography */
+  html {
+    @apply antialiased;
+  }
+
+  body {
+    @apply bg-white text-gray-900 font-sans overflow-x-hidden;
+  }
+
+  /* Prevent layout shift */
+  * {
+    @apply box-border;
+  }
+}
+
+@layer components {
+  /* Markdown Content Styles */
+  .prose {
+    @apply max-w-prose;
+  }
+
+  .prose h1 {
+    @apply text-4xl font-bold text-gray-900 tracking-tighter mb-6 mt-2 pb-4 border-b border-gray-100;
+  }
+
+  .prose h2 {
+    @apply text-2xl font-semibold text-gray-900 tracking-tighter mt-10 mb-4 cursor-pointer flex items-center gap-2;
+  }
+
+  .prose h3 {
+    @apply text-lg font-semibold text-gray-800 mt-8 mb-3;
+  }
+
+  .prose h4 {
+    @apply text-base font-semibold text-gray-800 mt-6 mb-2;
+  }
+
+  .prose h5 {
+    @apply text-base font-medium text-gray-800 mt-4 mb-2;
+  }
+
+  .prose h6 {
+    @apply text-sm font-medium text-gray-800 mt-4 mb-2;
+  }
+
+  .prose p {
+    @apply text-base leading-7 text-gray-600 mb-5 max-w-prose;
+  }
+
+  .prose a {
+    @apply text-blue-600 hover:text-blue-800 underline decoration-blue-200 underline-offset-2 transition-colors;
+  }
+
+  .prose strong {
+    @apply font-semibold text-gray-900;
+  }
+
+  .prose em {
+    @apply italic;
+  }
+
+  .prose code {
+    @apply px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-800 text-sm font-mono border border-gray-200;
+  }
+
+  .prose pre {
+    @apply my-6 rounded-lg overflow-hidden border border-gray-200 bg-gray-50/50;
+  }
+
+  .prose pre code {
+    @apply border-0 bg-transparent p-0 text-sm;
+  }
+
+  .prose blockquote {
+    @apply pl-4 border-l-4 border-gray-200 my-6 italic text-gray-600 bg-white;
+  }
+
+  .prose ul {
+    @apply mb-6 pl-5 space-y-2 text-gray-600 list-disc marker:text-gray-400;
+  }
+
+  .prose ol {
+    @apply mb-6 pl-5 space-y-2 text-gray-600 list-decimal marker:text-gray-400;
+  }
+
+  .prose li {
+    @apply text-gray-600;
+  }
+
+  .prose table {
+    @apply w-full text-sm text-left my-8 overflow-hidden border border-gray-200 rounded-lg;
+  }
+
+  .prose thead {
+    @apply bg-gray-50 text-gray-900 font-semibold border-b border-gray-200;
+  }
+
+  .prose th {
+    @apply px-6 py-3;
+  }
+
+  .prose tbody {
+    @apply divide-y divide-gray-200 bg-white;
+  }
+
+  .prose td {
+    @apply px-6 py-3 text-gray-500;
+  }
+
+  .prose img {
+    @apply max-w-full h-auto rounded-lg border border-gray-200;
+  }
+
+  .prose hr {
+    @apply border-0 border-t border-gray-200 my-8;
+  }
+
+  /* Task List Items */
+  .prose input[type="checkbox"] {
+    @apply rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2;
+  }
+
+  /* Hash Anchor Links */
+  .hash-anchor {
+    @apply opacity-0 text-gray-300 transition-opacity;
+  }
+}
+
+@layer utilities {
+  /* Custom utilities for specific needs */
+  .sidebar-item-indent {
+    padding-left: calc(var(--level, 0) * 12px + 12px);
+  }
+}
