@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useCallback, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { MainLayout } from '@/components/layout/main-layout'
 import { api } from '@/lib/api'
@@ -19,13 +19,7 @@ function SearchContent() {
   const [isLoading, setIsLoading] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
 
-  useEffect(() => {
-    if (query.trim()) {
-      performSearch(query)
-    }
-  }, [query])
-
-  const performSearch = async (searchQuery: string) => {
+  const performSearch = useCallback(async (searchQuery: string) => {
     try {
       setIsLoading(true)
       setHasSearched(true)
@@ -39,7 +33,13 @@ function SearchContent() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [setError])
+
+  useEffect(() => {
+    if (query.trim()) {
+      performSearch(query)
+    }
+  }, [query, performSearch])
 
   const highlightExcerpt = (excerpt: string) => {
     // The excerpt already contains HTML highlights from Whoosh

@@ -11,6 +11,8 @@
     "build": "turbo run build",
     "start": "turbo run start",
     "lint": "turbo run lint",
+    "lint:py": "cd apps/api && ruff check . && ruff format --check .",
+    "lint:py:fix": "cd apps/api && ruff check . --fix && ruff format .",
     "clean": "turbo run clean"
   },
   "devDependencies": {
