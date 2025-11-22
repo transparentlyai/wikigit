@@ -553,14 +553,24 @@ async def update_article(
         # Parse the updated article to return full metadata
         metadata, content = frontmatter_service.parse_article(file_path)
 
+        # Extract string values from metadata (handle structured data from legacy wikis)
+        def extract_string(value):
+            """Extract string from value that might be a dict or string."""
+            if value is None:
+                return None
+            if isinstance(value, dict):
+                # Try to extract email or name from structured data
+                return value.get("email") or value.get("name") or str(value)
+            return str(value) if value else None
+
         article = Article(
             path=path,
             title=metadata.get("title", path.replace(".md", "").replace("-", " ").title()),
             content=content,
-            author=metadata.get("author"),
-            created_at=metadata.get("created_at"),
-            updated_at=metadata.get("updated_at"),
-            updated_by=metadata.get("updated_by"),
+            author=extract_string(metadata.get("author")),
+            created_at=metadata.get("created_at") if isinstance(metadata.get("created_at"), str) else None,
+            updated_at=metadata.get("updated_at") if isinstance(metadata.get("updated_at"), str) else None,
+            updated_by=extract_string(metadata.get("updated_by")),
         )
 
         # Update search index

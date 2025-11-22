@@ -177,6 +177,16 @@ class FrontmatterService:
             )
             return self.create_frontmatter(title, updated_by, content)
 
+        # Normalize metadata values (handle legacy structured data)
+        def normalize_string_field(value, default=None):
+            """Extract string from value that might be a dict or string."""
+            if value is None:
+                return default
+            if isinstance(value, dict):
+                # Try to extract email or name from structured data
+                return value.get("email") or value.get("name") or str(value)
+            return str(value) if value else default
+
         # Update only the mutable fields (REQ-ART-014)
         metadata['updated_at'] = self.get_current_timestamp()
         metadata['updated_by'] = updated_by
@@ -189,12 +199,20 @@ class FrontmatterService:
             )
             metadata['created_at'] = metadata['updated_at']
 
-        # Ensure author exists (migration case)
+        # Ensure author exists and is a string (migration case)
         if 'author' not in metadata:
             logger.warning(
                 f"No author found in {file_path}, setting to updater"
             )
             metadata['author'] = updated_by
+        else:
+            # Normalize author to string if it's a dict
+            author_value = metadata['author']
+            if isinstance(author_value, dict):
+                logger.info(
+                    f"Converting structured author to string in {file_path}"
+                )
+                metadata['author'] = normalize_string_field(author_value, updated_by)
 
         return self.serialize_article(metadata, content)
 
