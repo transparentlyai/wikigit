@@ -172,7 +172,12 @@ function CodeBlock({ inline, className, children, ...props }: CodeBlockProps) {
   if (isInline) {
     return (
       <code
-        className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-800 font-mono text-sm border border-gray-200"
+        className="px-1.5 py-0.5 rounded font-mono text-sm border"
+        style={{
+          backgroundColor: '#fff3e0',
+          color: '#e65100',
+          borderColor: '#ffcc80'
+        }}
         {...props}
       >
         {children}
