@@ -158,14 +158,6 @@ class SearchService:
                         metadata.get("updated_by"), default=author
                     )
 
-                    logger.debug(
-                        f"Indexing {article_path}: title={title}, author={author}, "
-                        f"created_at={created_at} ({type(created_at)}), "
-                        f"updated_at={updated_at} ({type(updated_at)}), "
-                        f"content_len={len(content)}"
-                    )
-
-                    # Add to index
                     writer.add_document(
                         path=article_path,
                         title=title,
@@ -176,7 +168,6 @@ class SearchService:
                         updated_by=updated_by,
                     )
                     indexed_count += 1
-                    logger.debug(f"Successfully indexed: {article_path}")
 
                 except Exception as e:
                     logger.error(f"Failed to index {md_file}: {e}")
