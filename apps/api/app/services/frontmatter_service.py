@@ -182,7 +182,19 @@ class FrontmatterService:
         metadata['updated_by'] = updated_by
 
         # Preserve immutable fields: title, author, created_at
-        # (They remain unchanged from the original metadata)
+        # If created_at is missing, set it to current time (migration case)
+        if 'created_at' not in metadata:
+            logger.warning(
+                f"No created_at found in {file_path}, setting to current time"
+            )
+            metadata['created_at'] = metadata['updated_at']
+
+        # Ensure author exists (migration case)
+        if 'author' not in metadata:
+            logger.warning(
+                f"No author found in {file_path}, setting to updater"
+            )
+            metadata['author'] = updated_by
 
         return self.serialize_article(metadata, content)
 
