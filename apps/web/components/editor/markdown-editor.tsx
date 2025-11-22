@@ -9,6 +9,8 @@ import { syntaxHighlighting, HighlightStyle } from '@codemirror/language';
 import { tags as t } from '@lezer/highlight';
 import { Bold, Italic, Hash, Eye, EyeOff, Save, Strikethrough, Link2, Quote, Code, List, ListOrdered, Image as ImageIcon, Table, Minus, Info, AlertTriangle, Lightbulb, AlertCircle, OctagonAlert } from 'lucide-react';
 import { MarkdownViewer } from '@/components/viewer/markdown-viewer';
+import { MediaManager } from '@/components/media/media-manager';
+import type { MediaFile } from '@/types/api';
 
 interface MarkdownEditorProps {
   value: string;
@@ -41,6 +43,7 @@ export function MarkdownEditor({ value, onChange, onSave }: MarkdownEditorProps)
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [showMediaManager, setShowMediaManager] = useState(false);
 
   useEffect(() => {
     if (!editorRef.current) return;
@@ -292,24 +295,26 @@ export function MarkdownEditor({ value, onChange, onSave }: MarkdownEditorProps)
   };
 
   const insertImage = () => {
+    setShowMediaManager(true);
+  };
+
+  const handleMediaSelect = (file: MediaFile) => {
     if (!viewRef.current) return;
     const view = viewRef.current;
     const { from, to } = view.state.selection.main;
     const selectedText = view.state.sliceDoc(from, to);
-    const altText = selectedText || 'alt text';
+    const altText = selectedText || file.filename;
 
+    // Use the file path relative to repo root
     view.dispatch({
       changes: {
         from,
         to,
-        insert: `![${altText}](url)`,
-      },
-      selection: {
-        anchor: from + altText.length + 4,
-        head: from + altText.length + 7,
+        insert: `![${altText}](${file.url})`,
       },
     });
     view.focus();
+    setShowMediaManager(false);
   };
 
   const insertTable = () => {
@@ -578,6 +583,13 @@ export function MarkdownEditor({ value, onChange, onSave }: MarkdownEditorProps)
           </div>
         )}
       </div>
+
+      {/* Media Manager Modal */}
+      <MediaManager
+        isOpen={showMediaManager}
+        onSelect={handleMediaSelect}
+        onClose={() => setShowMediaManager(false)}
+      />
     </>
   );
 }
