@@ -7,6 +7,7 @@ import { MainLayout } from '@/components/layout/main-layout'
 import { api } from '@/lib/api'
 import type { SearchResult } from '@/types/api'
 import { Search as SearchIcon } from 'lucide-react'
+import { MarkdownViewer } from '@/components/viewer/markdown-viewer'
 
 function SearchContent() {
   const router = useRouter()
@@ -38,9 +39,9 @@ function SearchContent() {
     }
   }, [query, performSearch])
 
-  const highlightExcerpt = (excerpt: string) => {
-    // The excerpt already contains HTML highlights from Whoosh
-    return { __html: excerpt }
+  const stripHtmlTags = (html: string) => {
+    // Strip HTML highlight tags from Whoosh but keep the text content
+    return html.replace(/<[^>]*>/g, '')
   }
 
   return (
@@ -114,9 +115,9 @@ function SearchContent() {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                {results.map((result) => (
+                {results.map((result, index) => (
                   <div
-                    key={result.path}
+                    key={`${result.path}:${index}`}
                     style={{
                       padding: '1.5rem',
                       backgroundColor: '#f8f9fa',
@@ -163,11 +164,25 @@ function SearchContent() {
                     {result.snippet && (
                       <div
                         style={{
-                          color: '#202122',
-                          lineHeight: '1.6',
+                          maxHeight: '200px',
+                          overflow: 'hidden',
+                          position: 'relative',
                         }}
-                        dangerouslySetInnerHTML={highlightExcerpt(result.snippet)}
-                      />
+                      >
+                        <div style={{ fontSize: '0.8rem', lineHeight: '1.4' }}>
+                          <MarkdownViewer content={stripHtmlTags(result.snippet)} />
+                        </div>
+                        <div
+                          style={{
+                            position: 'absolute',
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            height: '40px',
+                            background: 'linear-gradient(transparent, #f8f9fa)',
+                          }}
+                        />
+                      </div>
                     )}
                   </div>
                 ))}

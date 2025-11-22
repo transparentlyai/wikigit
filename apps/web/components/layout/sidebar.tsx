@@ -407,8 +407,8 @@ function TreeNode({ node, level, onRefresh }: TreeNodeProps) {
 
       {isDirectory && hasChildren && isExpanded && (
         <div>
-          {node.children!.map((child) => (
-            <TreeNode key={`${child.type}:${child.path}`} node={child} level={level + 1} onRefresh={onRefresh} />
+          {node.children!.map((child, index) => (
+            <TreeNode key={`${child.type}:${child.path}:${index}`} node={child} level={level + 1} onRefresh={onRefresh} />
           ))}
         </div>
       )}
@@ -709,8 +709,8 @@ export function Sidebar({ directories, onRefresh }: SidebarProps) {
           <p className="text-gray-400 text-sm px-4">No articles yet</p>
         ) : (
           <div>
-            {directories.map((node) => (
-              <TreeNode key={`${node.type}:${node.path}`} node={node} level={0} onRefresh={onRefresh} />
+            {directories.map((node, index) => (
+              <TreeNode key={`${node.type}:${node.path}:${index}`} node={node} level={0} onRefresh={onRefresh} />
             ))}
           </div>
         )}
