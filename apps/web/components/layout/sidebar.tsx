@@ -467,6 +467,22 @@ export function Sidebar({ directories, onRefresh }: SidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
 
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Handle search
+  const handleSearch = () => {
+    if (searchQuery.trim()) {
+      router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+    }
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  };
+
   // Root-level dialog states
   const [showRootNewArticleDialog, setShowRootNewArticleDialog] = useState(false);
   const [showRootNewFolderDialog, setShowRootNewFolderDialog] = useState(false);
@@ -647,6 +663,9 @@ export function Sidebar({ directories, onRefresh }: SidebarProps) {
           <input
             type="text"
             placeholder="Search docs..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={handleSearchKeyDown}
             className="w-full bg-white border border-gray-200 rounded-md py-1.5 pl-9 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder:text-gray-400"
           />
           <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
