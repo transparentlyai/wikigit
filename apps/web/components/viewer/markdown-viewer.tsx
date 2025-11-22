@@ -16,6 +16,54 @@ interface CodeBlockProps extends ComponentPropsWithoutRef<'code'> {
   inline?: boolean;
 }
 
+function CustomImage({ src, alt, title, width, height, ...props }: ComponentPropsWithoutRef<'img'>) {
+  if (!src) return null;
+
+  // Parse query parameters from src for sizing (e.g., image.jpg?width=300)
+  const url = new URL(src, 'http://dummy.com');
+  const queryWidth = url.searchParams.get('width');
+  const queryHeight = url.searchParams.get('height');
+
+  // Clean src by removing query parameters
+  const cleanSrc = src.split('?')[0];
+
+  // Determine final width and height (prioritize inline attributes, then query params)
+  const finalWidth = width || queryWidth;
+  const finalHeight = height || queryHeight;
+
+  // If dimensions are specified, render with those dimensions
+  if (finalWidth || finalHeight) {
+    return (
+      <img
+        src={cleanSrc}
+        alt={alt || ''}
+        title={title}
+        width={finalWidth || undefined}
+        height={finalHeight || undefined}
+        style={{
+          maxWidth: '100%',
+          height: finalHeight ? undefined : 'auto',
+        }}
+        {...props}
+      />
+    );
+  }
+
+  // Default: responsive image
+  return (
+    <img
+      src={cleanSrc}
+      alt={alt || ''}
+      title={title}
+      style={{
+        maxWidth: '100%',
+        height: 'auto',
+      }}
+      {...props}
+    />
+  );
+}
+
 function CustomDiv({ children, className, ...props }: ComponentPropsWithoutRef<'div'>) {
   if (className?.includes('markdown-alert')) {
     const alertType = className.match(/markdown-alert-(\w+)/)?.[1];
@@ -60,6 +108,7 @@ export function MarkdownViewer({ content }: MarkdownViewerProps) {
         components={{
           code: CodeBlock,
           pre: ({ children }) => <>{children}</>,
+          img: CustomImage,
           div: CustomDiv,
           p: ({ children }) => {
             // Check if children contains a fenced code block
