@@ -20,7 +20,7 @@ export function ArticleMetadata({
   const updatedDate = updatedAt ? formatDate(updatedAt) : null;
 
   return (
-    <div className="text-muted text-sm" style={{ marginBottom: '1rem' }}>
+    <div className="text-gray-600 text-sm" style={{ marginBottom: '1rem' }}>
       {author && createdDate && (
         <>Created by {author} on {createdDate}.</>
       )}
