@@ -295,6 +295,10 @@ class SearchService:
 
                 # Convert to SearchResult objects
                 search_results = []
+
+                # Get max score for normalization (to 0-1 range)
+                max_score = max((hit.score for hit in results), default=1.0)
+
                 for hit in results:
                     # Extract highlighted excerpt from content
                     excerpt = hit.highlights("content", top=1) or ""
@@ -303,12 +307,15 @@ class SearchService:
                         content = hit["content"] or ""
                         excerpt = content[:200] + ("..." if len(content) > 200 else "")
 
+                    # Normalize score to 0-1 range
+                    normalized_score = hit.score / max_score if max_score > 0 else 0.0
+
                     search_results.append(
                         SearchResult(
                             path=hit["path"],
                             title=hit["title"],
                             snippet=excerpt,
-                            score=hit.score,
+                            score=normalized_score,
                         )
                     )
 
