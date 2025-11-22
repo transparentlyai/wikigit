@@ -60,6 +60,26 @@ export function MarkdownViewer({ content }: MarkdownViewerProps) {
         components={{
           code: CodeBlock,
           div: CustomDiv,
+          p: ({ children }) => {
+            // Check if children contains a fenced code block
+            const childrenArray = Array.isArray(children) ? children : [children];
+
+            // Fenced code blocks have className with "language-*"
+            const hasFencedCodeBlock = childrenArray.some((child: any) => {
+              if (child?.type?.name === 'CodeBlock' || typeof child?.type === 'function') {
+                const className = child?.props?.className;
+                return className && /language-/.test(className);
+              }
+              return false;
+            });
+
+            if (hasFencedCodeBlock) {
+              // Unwrap to avoid nesting <pre> in <p>
+              return <>{children}</>;
+            }
+
+            return <p>{children}</p>;
+          },
           input: (props) => {
             if (props.type === 'checkbox') {
               return (
@@ -118,8 +138,13 @@ function CodeBlock({ inline, className, children, ...props }: CodeBlockProps) {
   const match = /language-(\w+)/.exec(className || '');
   const language = match?.[1];
 
+  // Determine if this is inline or block code
+  // If inline prop is explicitly set, use it
+  // Otherwise, code with a className is fenced (block), code without is inline
+  const isInline = inline !== undefined ? inline : !className;
+
   useEffect(() => {
-    if (!inline && language) {
+    if (!isInline && language) {
       const code = String(children).replace(/\n$/, '');
 
       if (language in bundledLanguages) {
@@ -135,7 +160,7 @@ function CodeBlock({ inline, className, children, ...props }: CodeBlockProps) {
         setHtml(`<pre class="bg-[#0d1117] p-4 text-[#c9d1d9]"><code>${escapeHtml(code)}</code></pre>`);
       }
     }
-  }, [children, language, inline]);
+  }, [children, language, isInline]);
 
   const handleCopy = async () => {
     const code = String(children).replace(/\n$/, '');
@@ -144,8 +169,15 @@ function CodeBlock({ inline, className, children, ...props }: CodeBlockProps) {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  if (inline) {
-    return <code className={className} {...props}>{children}</code>;
+  if (isInline) {
+    return (
+      <code
+        className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-800 font-mono text-sm border border-gray-200"
+        {...props}
+      >
+        {children}
+      </code>
+    );
   }
 
   if (html) {
