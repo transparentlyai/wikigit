@@ -192,6 +192,18 @@ export async function deleteArticle(path: string): Promise<void> {
   return del<void>(`/api/articles/${encodedPath}`);
 }
 
+/**
+ * Move or rename an article
+ * POST /api/articles/{path}/move
+ *
+ * @param path - Current article path
+ * @param newPath - New article path
+ */
+export async function moveArticle(path: string, newPath: string): Promise<Article> {
+  const encodedPath = encodeURIComponent(path);
+  return post<Article>(`/api/articles/${encodedPath}/move`, { new_path: newPath });
+}
+
 // ============================================================================
 // Directory Endpoints
 // ============================================================================
@@ -224,6 +236,18 @@ export async function createDirectory(path: string): Promise<void> {
 export async function deleteDirectory(path: string): Promise<void> {
   const encodedPath = encodeURIComponent(path);
   return del<void>(`/api/directories/${encodedPath}`);
+}
+
+/**
+ * Move or rename a directory
+ * POST /api/directories/{path}/move
+ *
+ * @param path - Current directory path
+ * @param newPath - New directory path
+ */
+export async function moveDirectory(path: string, newPath: string): Promise<void> {
+  const encodedPath = encodeURIComponent(path);
+  return post<void>(`/api/directories/${encodedPath}/move`, { new_path: newPath });
 }
 
 // ============================================================================
@@ -335,11 +359,13 @@ export const api = {
   createArticle,
   updateArticle,
   deleteArticle,
+  moveArticle,
 
   // Directories
   getDirectories,
   createDirectory,
   deleteDirectory,
+  moveDirectory,
 
   // Search
   search,

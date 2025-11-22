@@ -40,30 +40,30 @@ export function MainLayout({ children, breadcrumbs, onEdit, showEditButton }: Ma
     }
   }, []);
 
-  useEffect(() => {
-    const fetchDirectories = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+  const fetchDirectories = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-        const response = await fetch('/api/directories');
+      const response = await fetch('/api/directories');
 
-        if (!response.ok) {
-          throw new Error(`Failed to fetch directories: ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        setDirectories(data || []);
-      } catch (error) {
-        console.error('Error fetching directories:', error);
-        setError(error instanceof Error ? error.message : 'Failed to load directories');
-      } finally {
-        setLoading(false);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch directories: ${response.statusText}`);
       }
-    };
 
-    fetchDirectories();
+      const data = await response.json();
+      setDirectories(data || []);
+    } catch (error) {
+      console.error('Error fetching directories:', error);
+      setError(error instanceof Error ? error.message : 'Failed to load directories');
+    } finally {
+      setLoading(false);
+    }
   }, [setDirectories, setLoading, setError]);
+
+  useEffect(() => {
+    fetchDirectories();
+  }, [fetchDirectories]);
 
   const toggleSidebar = useCallback(() => {
     const newState = !sidebarOpen;
@@ -132,7 +132,7 @@ export function MainLayout({ children, breadcrumbs, onEdit, showEditButton }: Ma
           `}
           style={{ width: sidebarOpen ? `${sidebarWidth}px` : '0' }}
         >
-          <Sidebar directories={directories} />
+          <Sidebar directories={directories} onRefresh={fetchDirectories} />
         </aside>
 
         {/* Resize Handle - only visible when sidebar is open */}

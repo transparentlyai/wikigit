@@ -1,7 +1,7 @@
 'use client'
 
 import { use, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { MainLayout } from '@/components/layout/main-layout'
 import { MarkdownViewer } from '@/components/viewer/markdown-viewer'
@@ -15,6 +15,7 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
   const { slug } = use(params)
   const articlePath = slug.join('/')
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   const currentArticle = useStore((state) => state.currentArticle)
   const setCurrentArticle = useStore((state) => state.setCurrentArticle)
@@ -35,6 +36,15 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
         const article = await api.getArticle(articlePath)
         setCurrentArticle(article)
         setEditContent(article.content)
+        setInitialEditContent(article.content)
+
+        // Check if we should auto-enter edit mode
+        const shouldEdit = searchParams?.get('edit') === 'true'
+        if (shouldEdit) {
+          setIsEditing(true)
+          // Remove the query parameter from URL
+          router.replace(`/article/${articlePath}`)
+        }
       } catch (error: any) {
         toast.error(error.message || 'Failed to load article')
         console.error('Failed to fetch article:', error)
@@ -44,6 +54,8 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
     }
 
     fetchArticle()
+    // searchParams and router are stable references and don't need to be in dependencies
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [articlePath, setCurrentArticle])
 
   const handleEdit = () => {
