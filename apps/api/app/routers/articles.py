@@ -408,10 +408,13 @@ async def create_article(
             updated_by=metadata.get("updated_by", user_email),
         )
 
-        # Update search index
+        # Update search index (remove .md extension for consistency)
         try:
+            search_path = (
+                article.path[:-3] if article.path.endswith(".md") else article.path
+            )
             search_service.index_article(
-                path=article.path,
+                path=search_path,
                 title=article.title,
                 content=article.content,
                 author=article.author or "unknown",
@@ -419,7 +422,7 @@ async def create_article(
                 updated_at=article.updated_at,
                 updated_by=article.updated_by or "unknown",
             )
-            logger.info(f"Article indexed in search: {article_data.path}")
+            logger.info(f"Article indexed in search: {search_path}")
         except Exception as search_error:
             logger.error(f"Failed to index article in search: {search_error}")
 
@@ -580,10 +583,13 @@ async def update_article(
             updated_by=extract_string(metadata.get("updated_by")),
         )
 
-        # Update search index
+        # Update search index (remove .md extension for consistency)
         try:
+            search_path = (
+                article.path[:-3] if article.path.endswith(".md") else article.path
+            )
             search_service.index_article(
-                path=article.path,
+                path=search_path,
                 title=article.title,
                 content=article.content,
                 author=article.author or "unknown",
@@ -591,7 +597,7 @@ async def update_article(
                 updated_at=article.updated_at,
                 updated_by=article.updated_by or "unknown",
             )
-            logger.info(f"Article re-indexed in search: {path}")
+            logger.info(f"Article re-indexed in search: {search_path}")
         except Exception as search_error:
             logger.error(f"Failed to re-index article in search: {search_error}")
 
@@ -698,10 +704,11 @@ async def delete_article(
             else:
                 logger.warning("Failed to push to remote repository")
 
-        # Remove from search index
+        # Remove from search index (without .md extension)
         try:
-            search_service.remove_article(path)
-            logger.info(f"Article removed from search index: {path}")
+            search_path = path[:-3] if path.endswith(".md") else path
+            search_service.remove_article(search_path)
+            logger.info(f"Article removed from search index: {search_path}")
         except Exception as search_error:
             logger.error(f"Failed to remove article from search index: {search_error}")
             # Don't fail the request if search index removal fails
@@ -825,8 +832,12 @@ async def move_article(
 
         # Update search index
         try:
-            search_service.remove_article(path)
-            # Re-index at new location
+            # Remove from search index (without .md extension)
+            old_search_path = path[:-3] if path.endswith(".md") else path
+            search_service.remove_article(old_search_path)
+
+            # Re-index at new location (without .md extension)
+            new_search_path = new_path[:-3] if new_path.endswith(".md") else new_path
             title = metadata.get(
                 "title", new_path.replace(".md", "").replace("-", " ").title()
             )
@@ -836,7 +847,7 @@ async def move_article(
             updated_by = extract_string(metadata.get("updated_by")) or author
 
             search_service.index_article(
-                path=new_path,
+                path=new_search_path,
                 title=title,
                 content=content,
                 author=author,
