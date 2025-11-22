@@ -1,5 +1,6 @@
 import '../styles/globals.css'
 import { ToastProvider } from '@/components/providers/toast-provider'
+import { ConfigProvider } from '@/components/providers/config-provider'
 
 export const metadata = {
   title: 'WikiGit',
@@ -14,7 +15,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        {children}
+        <ConfigProvider>
+          {children}
+        </ConfigProvider>
         <ToastProvider />
       </body>
     </html>

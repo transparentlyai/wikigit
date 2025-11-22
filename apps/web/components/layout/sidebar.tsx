@@ -10,6 +10,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { FileText, ChevronRight, ChevronDown, Search } from 'lucide-react';
 import { DirectoryNode } from '@/types/api';
+import { useWikiStore } from '@/lib/store';
 
 interface SidebarProps {
   directories: DirectoryNode[];
@@ -138,6 +139,8 @@ function TreeNode({ node, level }: TreeNodeProps) {
 }
 
 export function Sidebar({ directories }: SidebarProps) {
+  const appName = useWikiStore((state) => state.appName);
+
   return (
     <div className="flex flex-col h-full">
       {/* Sidebar Header */}
@@ -146,7 +149,7 @@ export function Sidebar({ directories }: SidebarProps) {
           <div className="w-6 h-6 bg-gray-900 rounded flex items-center justify-center text-white">
             <span className="text-xs">WG</span>
           </div>
-          <span>Wikigit</span>
+          <span>{appName}</span>
         </div>
       </div>
 
