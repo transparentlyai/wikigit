@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 import { MainLayout } from '@/components/layout/main-layout';
 import { MarkdownEditor } from '@/components/editor/markdown-editor';
 
@@ -17,7 +18,7 @@ export default function NewArticlePage() {
 
   const handleSave = async () => {
     if (!path.trim()) {
-      alert('Please enter a path for the article');
+      toast.error('Please enter a path for the article');
       return;
     }
 
@@ -35,15 +36,16 @@ export default function NewArticlePage() {
       });
 
       if (response.ok) {
+        toast.success('Article created successfully');
         // Navigate to the newly created article
         router.push(`/article/${encodeURIComponent(path)}`);
       } else {
         const error = await response.json();
-        alert(`Error creating article: ${error.detail || 'Unknown error'}`);
+        toast.error(`Error creating article: ${error.detail || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error creating article:', error);
-      alert('Failed to create article');
+      toast.error('Failed to create article');
     }
   };
 

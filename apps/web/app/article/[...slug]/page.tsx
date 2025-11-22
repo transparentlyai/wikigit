@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import toast from 'react-hot-toast'
 import { MainLayout } from '@/components/layout/main-layout'
 import { MarkdownViewer } from '@/components/viewer/markdown-viewer'
 import { ArticleMetadata } from '@/components/viewer/article-metadata'
@@ -16,7 +17,6 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
 
   const currentArticle = useStore((state) => state.currentArticle)
   const setCurrentArticle = useStore((state) => state.setCurrentArticle)
-  const setError = useStore((state) => state.setError)
 
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState('')
@@ -33,7 +33,7 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
         setCurrentArticle(article)
         setEditContent(article.content)
       } catch (error: any) {
-        setError(error.message || 'Failed to load article')
+        toast.error(error.message || 'Failed to load article')
         console.error('Failed to fetch article:', error)
       } finally {
         setIsLoading(false)
@@ -41,7 +41,7 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
     }
 
     fetchArticle()
-  }, [articlePath, setCurrentArticle, setError])
+  }, [articlePath, setCurrentArticle])
 
   const handleEdit = () => {
     if (currentArticle) {
@@ -60,9 +60,9 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
       })
       setCurrentArticle(updated)
       setIsEditing(false)
-      setError(null)
+      toast.success('Article saved successfully')
     } catch (error: any) {
-      setError(error.message || 'Failed to save article')
+      toast.error(error.message || 'Failed to save article')
       console.error('Failed to save article:', error)
     } finally {
       setIsSaving(false)
@@ -86,10 +86,10 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
     try {
       setIsDeleting(true)
       await api.deleteArticle(articlePath)
-      setError(null)
+      toast.success('Article deleted successfully')
       router.push('/')
     } catch (error: any) {
-      setError(error.message || 'Failed to delete article')
+      toast.error(error.message || 'Failed to delete article')
       console.error('Failed to delete article:', error)
       setIsDeleting(false)
     }

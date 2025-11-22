@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import toast from 'react-hot-toast'
 import { api } from '@/lib/api'
 import { Folder, Plus, Trash2 } from 'lucide-react'
 
@@ -9,26 +10,22 @@ export function DirectoryManager() {
   const [deleteDirPath, setDeleteDirPath] = useState('')
   const [isCreating, setIsCreating] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
 
   const handleCreateDirectory = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError(null)
-    setSuccess(null)
 
     if (!newDirPath.trim()) {
-      setError('Directory path is required')
+      toast.error('Directory path is required')
       return
     }
 
     try {
       setIsCreating(true)
       await api.createDirectory(newDirPath.trim())
-      setSuccess(`Directory created: ${newDirPath}`)
+      toast.success(`Directory created: ${newDirPath}`)
       setNewDirPath('')
     } catch (error: any) {
-      setError(error.message || 'Failed to create directory')
+      toast.error(error.message || 'Failed to create directory')
     } finally {
       setIsCreating(false)
     }
@@ -36,11 +33,9 @@ export function DirectoryManager() {
 
   const handleDeleteDirectory = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError(null)
-    setSuccess(null)
 
     if (!deleteDirPath.trim()) {
-      setError('Directory path is required')
+      toast.error('Directory path is required')
       return
     }
 
@@ -51,10 +46,10 @@ export function DirectoryManager() {
     try {
       setIsDeleting(true)
       await api.deleteDirectory(deleteDirPath.trim())
-      setSuccess(`Directory deleted: ${deleteDirPath}`)
+      toast.success(`Directory deleted: ${deleteDirPath}`)
       setDeleteDirPath('')
     } catch (error: any) {
-      setError(error.message || 'Failed to delete directory')
+      toast.error(error.message || 'Failed to delete directory')
     } finally {
       setIsDeleting(false)
     }
@@ -66,37 +61,6 @@ export function DirectoryManager() {
         <Folder size={24} />
         Directory Management
       </h2>
-
-      {/* Error/Success Messages */}
-      {error && (
-        <div
-          style={{
-            padding: '1rem',
-            backgroundColor: '#fee',
-            border: '1px solid #fcc',
-            borderRadius: '2px',
-            marginBottom: '1rem',
-            color: '#c33',
-          }}
-        >
-          {error}
-        </div>
-      )}
-
-      {success && (
-        <div
-          style={{
-            padding: '1rem',
-            backgroundColor: '#efe',
-            border: '1px solid #cfc',
-            borderRadius: '2px',
-            marginBottom: '1rem',
-            color: '#3c3',
-          }}
-        >
-          {success}
-        </div>
-      )}
 
       {/* Create Directory Section */}
       <div

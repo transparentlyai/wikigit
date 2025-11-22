@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import toast from 'react-hot-toast'
 import { api } from '@/lib/api'
 import { Settings, Save, RefreshCw } from 'lucide-react'
 import type { ConfigData } from '@/types/api'
@@ -9,8 +10,6 @@ export function ConfigManager() {
   const [config, setConfig] = useState<ConfigData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
 
   // Form state
   const [appName, setAppName] = useState('')
@@ -36,7 +35,7 @@ export function ConfigManager() {
       setRemoteUrl(configData.remote_url || '')
       setRemoteToken(configData.github_token || '')
     } catch (error: any) {
-      setError(error.message || 'Failed to load configuration')
+      toast.error(error.message || 'Failed to load configuration')
     } finally {
       setIsLoading(false)
     }
@@ -44,8 +43,6 @@ export function ConfigManager() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError(null)
-    setSuccess(null)
 
     try {
       setIsSaving(true)
@@ -69,9 +66,9 @@ export function ConfigManager() {
       })
 
       setConfig(updatedConfig)
-      setSuccess('Configuration saved successfully. Restart the application to apply changes.')
+      toast.success('Configuration saved successfully. Restart the application to apply changes.')
     } catch (error: any) {
-      setError(error.message || 'Failed to save configuration')
+      toast.error(error.message || 'Failed to save configuration')
     } finally {
       setIsSaving(false)
     }
@@ -84,8 +81,6 @@ export function ConfigManager() {
       setAutoPush(config.auto_push)
       setRemoteUrl(config.remote_url || '')
       setRemoteToken(config.github_token || '')
-      setError(null)
-      setSuccess(null)
     }
   }
 
@@ -103,37 +98,6 @@ export function ConfigManager() {
         <Settings size={24} />
         Configuration Settings
       </h2>
-
-      {/* Error/Success Messages */}
-      {error && (
-        <div
-          style={{
-            padding: '1rem',
-            backgroundColor: '#fee',
-            border: '1px solid #fcc',
-            borderRadius: '2px',
-            marginBottom: '1rem',
-            color: '#c33',
-          }}
-        >
-          {error}
-        </div>
-      )}
-
-      {success && (
-        <div
-          style={{
-            padding: '1rem',
-            backgroundColor: '#efe',
-            border: '1px solid #cfc',
-            borderRadius: '2px',
-            marginBottom: '1rem',
-            color: '#3c3',
-          }}
-        >
-          {success}
-        </div>
-      )}
 
       {/* Configuration Form */}
       <form onSubmit={handleSave}>

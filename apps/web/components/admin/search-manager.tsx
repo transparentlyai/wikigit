@@ -1,18 +1,14 @@
 'use client'
 
 import { useState } from 'react'
+import toast from 'react-hot-toast'
 import { api } from '@/lib/api'
 import { Search, RefreshCw } from 'lucide-react'
 
 export function SearchManager() {
   const [isReindexing, setIsReindexing] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
 
   const handleReindex = async () => {
-    setError(null)
-    setSuccess(null)
-
     if (!confirm('Rebuild the entire search index? This may take a few minutes for large wikis.')) {
       return
     }
@@ -20,9 +16,9 @@ export function SearchManager() {
     try {
       setIsReindexing(true)
       const result = await api.reindexSearch()
-      setSuccess(`Search index rebuilt successfully. Indexed ${result.document_count} articles.`)
+      toast.success(`Search index rebuilt successfully. Indexed ${result.document_count} articles.`)
     } catch (error: any) {
-      setError(error.message || 'Failed to rebuild search index')
+      toast.error(error.message || 'Failed to rebuild search index')
     } finally {
       setIsReindexing(false)
     }
@@ -34,37 +30,6 @@ export function SearchManager() {
         <Search size={24} />
         Search Index Management
       </h2>
-
-      {/* Error/Success Messages */}
-      {error && (
-        <div
-          style={{
-            padding: '1rem',
-            backgroundColor: '#fee',
-            border: '1px solid #fcc',
-            borderRadius: '2px',
-            marginBottom: '1rem',
-            color: '#c33',
-          }}
-        >
-          {error}
-        </div>
-      )}
-
-      {success && (
-        <div
-          style={{
-            padding: '1rem',
-            backgroundColor: '#efe',
-            border: '1px solid #cfc',
-            borderRadius: '2px',
-            marginBottom: '1rem',
-            color: '#3c3',
-          }}
-        >
-          {success}
-        </div>
-      )}
 
       {/* Reindex Section */}
       <div

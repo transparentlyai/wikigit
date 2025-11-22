@@ -2,9 +2,9 @@
 
 import { Suspense, useCallback, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import toast from 'react-hot-toast'
 import { MainLayout } from '@/components/layout/main-layout'
 import { api } from '@/lib/api'
-import { useStore } from '@/lib/store'
 import type { SearchResult } from '@/types/api'
 import { Search as SearchIcon } from 'lucide-react'
 
@@ -12,8 +12,6 @@ function SearchContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const query = searchParams.get('q') || ''
-
-  const setError = useStore((state) => state.setError)
 
   const [results, setResults] = useState<SearchResult[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -25,15 +23,14 @@ function SearchContent() {
       setHasSearched(true)
       const searchResults = await api.search(searchQuery)
       setResults(searchResults)
-      setError(null)
     } catch (error: any) {
-      setError(error.message || 'Failed to perform search')
+      toast.error(error.message || 'Failed to perform search')
       console.error('Search failed:', error)
       setResults([])
     } finally {
       setIsLoading(false)
     }
-  }, [setError])
+  }, [])
 
   useEffect(() => {
     if (query.trim()) {

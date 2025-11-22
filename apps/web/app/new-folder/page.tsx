@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 import { FolderPlus } from 'lucide-react';
 
 export default function NewFolderPage() {
@@ -16,7 +17,7 @@ export default function NewFolderPage() {
 
   const handleCreate = async () => {
     if (!folderPath.trim()) {
-      alert('Please enter a folder path');
+      toast.error('Please enter a folder path');
       return;
     }
 
@@ -37,15 +38,15 @@ export default function NewFolderPage() {
       });
 
       if (response.ok) {
-        alert('Folder created successfully!');
+        toast.success('Folder created successfully!');
         router.push('/');
       } else {
         const error = await response.json();
-        alert(`Error creating folder: ${error.detail || 'Unknown error'}`);
+        toast.error(`Error creating folder: ${error.detail || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error creating folder:', error);
-      alert('Failed to create folder');
+      toast.error('Failed to create folder');
     } finally {
       setIsCreating(false);
     }
