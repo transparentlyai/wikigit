@@ -144,7 +144,7 @@ export function Sidebar({ directories }: SidebarProps) {
       <div className="h-14 flex items-center px-4 border-b border-gray-200/50 shrink-0">
         <div className="flex items-center gap-2 font-bold text-gray-800 tracking-tight">
           <div className="w-6 h-6 bg-gray-900 rounded flex items-center justify-center text-white">
-            <span className="text-xs">Wg</span>
+            <span className="text-xs">WG</span>
           </div>
           <span>Wikigit</span>
         </div>
