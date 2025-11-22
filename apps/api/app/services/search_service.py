@@ -44,7 +44,7 @@ class SearchService:
             author=TEXT(stored=True),
             created_at=DATETIME(stored=True),
             updated_at=DATETIME(stored=True),
-            updated_by=TEXT(stored=True)
+            updated_by=TEXT(stored=True),
         )
 
         # Create index directory if it doesn't exist
@@ -82,7 +82,7 @@ class SearchService:
 
             for md_file in md_files:
                 # Skip hidden files and git directory
-                if any(part.startswith('.') for part in md_file.parts):
+                if any(part.startswith(".") for part in md_file.parts):
                     continue
 
                 try:
@@ -90,20 +90,24 @@ class SearchService:
                     article_path = str(md_file.relative_to(self.repo_path))[:-3]
 
                     # Parse article with frontmatter
-                    article = self.frontmatter_service.parse_article(
-                        content=md_file.read_text(encoding='utf-8'),
-                        path=article_path
-                    )
+                    metadata, content = self.frontmatter_service.parse_article(md_file)
+
+                    # Extract required fields from metadata (with defaults)
+                    title = metadata.get("title", md_file.stem)
+                    author = metadata.get("author", "unknown")
+                    created_at = metadata.get("created_at")
+                    updated_at = metadata.get("updated_at")
+                    updated_by = metadata.get("updated_by", author)
 
                     # Add to index
                     writer.add_document(
                         path=article_path,
-                        title=article.title,
-                        content=article.content,
-                        author=article.author,
-                        created_at=article.created_at,
-                        updated_at=article.updated_at,
-                        updated_by=article.updated_by
+                        title=title,
+                        content=content,
+                        author=author,
+                        created_at=created_at,
+                        updated_at=updated_at,
+                        updated_by=updated_by,
                     )
                     indexed_count += 1
                     logger.debug(f"Indexed: {article_path}")
@@ -122,8 +126,16 @@ class SearchService:
             logger.error(f"Failed to rebuild index: {e}")
             raise
 
-    def index_article(self, path: str, title: str, content: str, author: str,
-                     created_at, updated_at, updated_by: str) -> None:
+    def index_article(
+        self,
+        path: str,
+        title: str,
+        content: str,
+        author: str,
+        created_at,
+        updated_at,
+        updated_by: str,
+    ) -> None:
         """
         Index or update a single article in the search index.
 
@@ -150,7 +162,7 @@ class SearchService:
                 author=author,
                 created_at=created_at,
                 updated_at=updated_at,
-                updated_by=updated_by
+                updated_by=updated_by,
             )
 
             writer.commit()
@@ -172,7 +184,7 @@ class SearchService:
         """
         try:
             writer = self.ix.writer()
-            writer.delete_by_term('path', path)
+            writer.delete_by_term("path", path)
             writer.commit()
             logger.info(f"Removed article from index: {path}")
 
@@ -205,7 +217,7 @@ class SearchService:
             parser = MultifieldParser(
                 ["title", "content"],
                 schema=self.schema,
-                fieldboosts={"title": 2.0, "content": 1.0}
+                fieldboosts={"title": 2.0, "content": 1.0},
             )
 
             # Parse query
@@ -225,14 +237,18 @@ class SearchService:
                         content = hit["content"] or ""
                         excerpt = content[:200] + ("..." if len(content) > 200 else "")
 
-                    search_results.append(SearchResult(
-                        path=hit["path"],
-                        title=hit["title"],
-                        snippet=excerpt,
-                        score=hit.score
-                    ))
+                    search_results.append(
+                        SearchResult(
+                            path=hit["path"],
+                            title=hit["title"],
+                            snippet=excerpt,
+                            score=hit.score,
+                        )
+                    )
 
-                logger.info(f"Search query '{query_string}' returned {len(search_results)} results")
+                logger.info(
+                    f"Search query '{query_string}' returned {len(search_results)} results"
+                )
                 return search_results
 
         except Exception as e:
