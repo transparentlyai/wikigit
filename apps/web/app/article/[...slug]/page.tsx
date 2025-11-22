@@ -9,6 +9,7 @@ import { ArticleMetadata } from '@/components/viewer/article-metadata'
 import { MarkdownEditor } from '@/components/editor/markdown-editor'
 import { useStore } from '@/lib/store'
 import { api } from '@/lib/api'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 export default function ArticlePage({ params }: { params: Promise<{ slug: string[] }> }) {
   const { slug } = use(params)
@@ -23,6 +24,7 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   // Fetch article on mount
   useEffect(() => {
@@ -76,12 +78,13 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
     setIsEditing(false)
   }
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!currentArticle) return
+    setShowDeleteConfirm(true)
+  }
 
-    if (!confirm(`Are you sure you want to delete "${currentArticle.title}"? This action cannot be undone.`)) {
-      return
-    }
+  const confirmDelete = async () => {
+    if (!currentArticle) return
 
     try {
       setIsDeleting(true)
@@ -92,6 +95,7 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
       toast.error(error.message || 'Failed to delete article')
       console.error('Failed to delete article:', error)
       setIsDeleting(false)
+      setShowDeleteConfirm(false)
     }
   }
 
@@ -158,6 +162,17 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
           />
         </div>
       )}
+
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+        title="Delete Article"
+        description={`Are you sure you want to delete "${currentArticle?.title}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={confirmDelete}
+        variant="destructive"
+      />
     </MainLayout>
   )
 }

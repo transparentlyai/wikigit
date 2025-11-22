@@ -4,7 +4,16 @@ import { useEffect, useState, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { api } from '@/lib/api';
 import type { MediaFile } from '@/types/api';
-import { Upload, X, Trash2, Image as ImageIcon, File, Video, Music, FileText } from 'lucide-react';
+import { Upload, Trash2, Image as ImageIcon, File, Video, Music, FileText } from 'lucide-react';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 
 interface MediaManagerProps {
   onSelect?: (file: MediaFile) => void;
@@ -17,6 +26,7 @@ export function MediaManager({ onSelect, onClose, isOpen }: MediaManagerProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<MediaFile | null>(null);
+  const [fileToDelete, setFileToDelete] = useState<MediaFile | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -60,23 +70,26 @@ export function MediaManager({ onSelect, onClose, isOpen }: MediaManagerProps) {
     }
   };
 
-  const handleDelete = async (file: MediaFile, event: React.MouseEvent) => {
+  const handleDelete = (file: MediaFile, event: React.MouseEvent) => {
     event.stopPropagation();
+    setFileToDelete(file);
+  };
 
-    if (!confirm(`Are you sure you want to delete ${file.filename}?`)) {
-      return;
-    }
+  const confirmDelete = async () => {
+    if (!fileToDelete) return;
 
     try {
-      await api.deleteMediaFile(file.filename);
-      toast.success(`Deleted ${file.filename}`);
-      setMediaFiles(mediaFiles.filter(f => f.filename !== file.filename));
+      await api.deleteMediaFile(fileToDelete.filename);
+      toast.success(`Deleted ${fileToDelete.filename}`);
+      setMediaFiles(mediaFiles.filter(f => f.filename !== fileToDelete.filename));
 
-      if (selectedFile?.filename === file.filename) {
+      if (selectedFile?.filename === fileToDelete.filename) {
         setSelectedFile(null);
       }
     } catch (error: any) {
       toast.error(error.message || 'Failed to delete file');
+    } finally {
+      setFileToDelete(null);
     }
   };
 
@@ -100,22 +113,12 @@ export function MediaManager({ onSelect, onClose, isOpen }: MediaManagerProps) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[80vh] flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Media Manager</h2>
-          <button
-            onClick={onClose}
-            className="p-1 rounded hover:bg-gray-100 transition-colors"
-            aria-label="Close"
-          >
-            <X size={20} />
-          </button>
-        </div>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col p-0">
+        <DialogHeader className="p-4 border-b border-gray-200">
+          <DialogTitle>Media Manager</DialogTitle>
+        </DialogHeader>
 
         {/* Toolbar */}
         <div className="p-4 border-b border-gray-200">
@@ -199,7 +202,7 @@ export function MediaManager({ onSelect, onClose, isOpen }: MediaManagerProps) {
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-gray-200 flex justify-between items-center">
+        <DialogFooter className="p-4 border-t border-gray-200 flex justify-between items-center sm:justify-between">
           <div className="text-sm text-gray-600">
             {selectedFile ? (
               <span>
@@ -210,22 +213,32 @@ export function MediaManager({ onSelect, onClose, isOpen }: MediaManagerProps) {
             )}
           </div>
           <div className="flex gap-2">
-            <button
+            <Button
+              variant="outline"
               onClick={onClose}
-              className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded transition-colors"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={handleInsert}
               disabled={!selectedFile}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Insert
-            </button>
+            </Button>
           </div>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+
+      <ConfirmDialog
+        open={!!fileToDelete}
+        onOpenChange={(open) => !open && setFileToDelete(null)}
+        title="Delete File"
+        description={`Are you sure you want to delete ${fileToDelete?.filename || 'this file'}?`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={confirmDelete}
+        variant="destructive"
+      />
+    </Dialog>
   );
 }

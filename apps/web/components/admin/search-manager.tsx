@@ -4,15 +4,17 @@ import { useState } from 'react'
 import toast from 'react-hot-toast'
 import { api } from '@/lib/api'
 import { Search, RefreshCw } from 'lucide-react'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 export function SearchManager() {
   const [isReindexing, setIsReindexing] = useState(false)
+  const [showReindexConfirm, setShowReindexConfirm] = useState(false)
 
-  const handleReindex = async () => {
-    if (!confirm('Rebuild the entire search index? This may take a few minutes for large wikis.')) {
-      return
-    }
+  const handleReindex = () => {
+    setShowReindexConfirm(true)
+  }
 
+  const confirmReindex = async () => {
     try {
       setIsReindexing(true)
       const result = await api.reindexSearch()
@@ -21,6 +23,7 @@ export function SearchManager() {
       toast.error(error.message || 'Failed to rebuild search index')
     } finally {
       setIsReindexing(false)
+      setShowReindexConfirm(false)
     }
   }
 
@@ -90,6 +93,16 @@ export function SearchManager() {
           <li>Reindexing is safe and can be performed at any time</li>
         </ul>
       </div>
+
+      <ConfirmDialog
+        open={showReindexConfirm}
+        onOpenChange={setShowReindexConfirm}
+        title="Rebuild Search Index"
+        description="Rebuild the entire search index? This may take a few minutes for large wikis."
+        confirmText="Rebuild"
+        cancelText="Cancel"
+        onConfirm={confirmReindex}
+      />
 
       <style jsx>{`
         @keyframes spin {

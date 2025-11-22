@@ -4,12 +4,14 @@ import { useState } from 'react'
 import toast from 'react-hot-toast'
 import { api } from '@/lib/api'
 import { Folder, Plus, Trash2 } from 'lucide-react'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 export function DirectoryManager() {
   const [newDirPath, setNewDirPath] = useState('')
   const [deleteDirPath, setDeleteDirPath] = useState('')
   const [isCreating, setIsCreating] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const handleCreateDirectory = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -39,10 +41,10 @@ export function DirectoryManager() {
       return
     }
 
-    if (!confirm(`Are you sure you want to delete the directory "${deleteDirPath}"? This will only work if the directory is empty.`)) {
-      return
-    }
+    setShowDeleteConfirm(true)
+  }
 
+  const confirmDeleteDirectory = async () => {
     try {
       setIsDeleting(true)
       await api.deleteDirectory(deleteDirPath.trim())
@@ -52,6 +54,7 @@ export function DirectoryManager() {
       toast.error(error.message || 'Failed to delete directory')
     } finally {
       setIsDeleting(false)
+      setShowDeleteConfirm(false)
     }
   }
 
@@ -227,6 +230,17 @@ export function DirectoryManager() {
           <li>The sidebar navigation reflects the directory structure</li>
         </ul>
       </div>
+
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+        title="Delete Directory"
+        description={`Are you sure you want to delete the directory "${deleteDirPath}"? This will only work if the directory is empty.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={confirmDeleteDirectory}
+        variant="destructive"
+      />
     </div>
   )
 }
