@@ -135,9 +135,9 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
       {/* View mode */}
       {!isEditing && (
         <>
-          <h1 className="text-4xl font-bold text-gray-900 tracking-tighter mb-6 mt-2 pb-4 border-b border-gray-100">
-            {currentArticle.title}
-          </h1>
+          <MarkdownViewer content={currentArticle.content} />
+
+          <hr className="my-8 border-0 border-t border-gray-200" />
 
           <ArticleMetadata
             author={currentArticle.author}
@@ -145,10 +145,6 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
             updatedAt={currentArticle.updated_at}
             updatedBy={currentArticle.updated_by}
           />
-
-          <hr className="my-6 border-0 border-t border-gray-200" />
-
-          <MarkdownViewer content={currentArticle.content} />
         </>
       )}
 
