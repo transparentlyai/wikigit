@@ -20,9 +20,7 @@ router = APIRouter(prefix="/config", tags=["config"])
 
 
 @router.get("", response_model=ConfigData)
-async def get_config(
-    _user: str = Depends(require_admin)
-):
+async def get_config(_user: str = Depends(require_admin)):
     """
     Get current application configuration.
 
@@ -45,22 +43,21 @@ async def get_config(
             default_branch=settings.repository.default_branch,
             auto_push=settings.repository.auto_push,
             remote_url=settings.repository.remote_url,
-            remote_token=settings.repository.remote_token,
-            index_dir=str(settings.search.index_dir)
+            github_token=settings.repository.remote_token,
+            index_dir=str(settings.search.index_dir),
         )
 
     except Exception as e:
         logger.error(f"Failed to get configuration: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get configuration: {str(e)}"
+            detail=f"Failed to get configuration: {str(e)}",
         )
 
 
 @router.put("", response_model=ConfigData)
 async def update_config(
-    config_update: ConfigUpdate,
-    _user: str = Depends(require_admin)
+    config_update: ConfigUpdate, _user: str = Depends(require_admin)
 ):
     """
     Update application configuration.
@@ -80,52 +77,59 @@ async def update_config(
         HTTPException: If configuration update fails
     """
     try:
-        # Read current config file
-        config_file = Path("config.yaml")
+        config_file = Path(__file__).parent.parent.parent.parent.parent / "config.yaml"
         if not config_file.exists():
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Configuration file not found. Please create config.yaml from config.yaml.example"
+                detail=f"Configuration file not found at {config_file.absolute()}. Please create config.yaml from config.yaml.example",
             )
 
-        with open(config_file, 'r') as f:
+        with open(config_file, "r") as f:
             config_data = yaml.safe_load(f)
 
-        # Update fields if provided
-        if config_update.app_name is not None:
-            config_data['app']['app_name'] = config_update.app_name
+        if config_update.app is not None:
+            if "app" not in config_data:
+                config_data["app"] = {}
+            if config_update.app.name is not None:
+                config_data["app"]["app_name"] = config_update.app.name
+            if config_update.app.admins is not None:
+                config_data["app"]["admins"] = config_update.app.admins
 
-        if config_update.admins is not None:
-            config_data['app']['admins'] = config_update.admins
+        # Update repository settings if provided
+        if config_update.repository is not None:
+            if "repository" not in config_data:
+                config_data["repository"] = {}
+            if config_update.repository.auto_push is not None:
+                config_data["repository"]["auto_push"] = (
+                    config_update.repository.auto_push
+                )
+            if config_update.repository.remote_url is not None:
+                config_data["repository"]["remote_url"] = (
+                    config_update.repository.remote_url
+                )
+            if config_update.repository.github_token is not None:
+                config_data["repository"]["remote_token"] = (
+                    config_update.repository.github_token
+                )
 
-        if config_update.auto_push is not None:
-            config_data['repository']['auto_push'] = config_update.auto_push
-
-        if config_update.remote_url is not None:
-            config_data['repository']['remote_url'] = config_update.remote_url
-
-        if config_update.remote_token is not None:
-            config_data['repository']['remote_token'] = config_update.remote_token
-
-        # Write updated config back to file
-        with open(config_file, 'w') as f:
+        with open(config_file, "w") as f:
             yaml.safe_dump(config_data, f, default_flow_style=False)
 
         logger.info("Configuration file updated successfully")
-
-        # Note: Settings won't be reloaded until application restart
-        logger.warning("Configuration updated. Restart the application to apply changes.")
+        logger.warning(
+            "Configuration updated. Restart the application to apply changes."
+        )
 
         # Return updated configuration (from memory, not reloaded)
         return ConfigData(
-            app_name=config_data['app']['app_name'],
-            admins=config_data['app']['admins'],
-            repo_path=config_data['repository']['repo_path'],
-            default_branch=config_data['repository']['default_branch'],
-            auto_push=config_data['repository']['auto_push'],
-            remote_url=config_data['repository'].get('remote_url'),
-            remote_token=config_data['repository'].get('remote_token'),
-            index_dir=config_data['search']['index_dir']
+            app_name=config_data["app"]["app_name"],
+            admins=config_data["app"]["admins"],
+            repo_path=config_data["repository"]["repo_path"],
+            default_branch=config_data["repository"]["default_branch"],
+            auto_push=config_data["repository"]["auto_push"],
+            remote_url=config_data["repository"].get("remote_url"),
+            github_token=config_data["repository"].get("remote_token"),
+            index_dir=config_data["search"]["index_dir"],
         )
 
     except HTTPException:
@@ -134,5 +138,5 @@ async def update_config(
         logger.error(f"Failed to update configuration: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update configuration: {str(e)}"
+            detail=f"Failed to update configuration: {str(e)}",
         )

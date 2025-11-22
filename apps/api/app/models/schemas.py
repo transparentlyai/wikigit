@@ -393,6 +393,7 @@ class AppConfig(BaseModel):
     max_file_size_mb: Optional[int] = Field(
         None, ge=1, le=100, description="Maximum file size in MB"
     )
+    admins: Optional[list[str]] = Field(None, description="List of admin user emails")
 
 
 class RepositoryConfig(BaseModel):
@@ -462,7 +463,7 @@ class ConfigData(BaseModel):
     default_branch: str
     auto_push: bool
     remote_url: Optional[str] = None
-    remote_token: Optional[str] = None
+    github_token: Optional[str] = None
     index_dir: str
 
 

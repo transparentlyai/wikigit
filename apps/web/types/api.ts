@@ -120,16 +120,23 @@ export interface ConfigData {
   default_branch: string;
   auto_push: boolean;
   remote_url?: string;
-  remote_token?: string;
+  github_token?: string;
   index_dir: string;
 }
 
 export interface ConfigUpdate {
-  app_name?: string;
-  admins?: string[];
-  auto_push?: boolean;
-  remote_url?: string;
-  remote_token?: string;
+  app?: {
+    name?: string;
+    admins?: string[];
+  };
+  repository?: {
+    auto_push?: boolean;
+    remote_url?: string;
+    github_token?: string;
+  };
+  search?: {
+    index_dir?: string;
+  };
 }
 
 export interface ConfigResponse {

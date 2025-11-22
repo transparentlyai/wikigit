@@ -34,7 +34,7 @@ export function ConfigManager() {
       setAdmins(configData.admins.join('\n'))
       setAutoPush(configData.auto_push)
       setRemoteUrl(configData.remote_url || '')
-      setRemoteToken(configData.remote_token || '')
+      setRemoteToken(configData.github_token || '')
     } catch (error: any) {
       setError(error.message || 'Failed to load configuration')
     } finally {
@@ -57,11 +57,15 @@ export function ConfigManager() {
         .filter(line => line.length > 0)
 
       const updatedConfig = await api.updateConfig({
-        app_name: appName,
-        admins: adminsList,
-        auto_push: autoPush,
-        remote_url: remoteUrl || undefined,
-        remote_token: remoteToken || undefined,
+        app: {
+          name: appName,
+          admins: adminsList,
+        },
+        repository: {
+          auto_push: autoPush,
+          remote_url: remoteUrl || undefined,
+          github_token: remoteToken || undefined,
+        },
       })
 
       setConfig(updatedConfig)
@@ -79,7 +83,7 @@ export function ConfigManager() {
       setAdmins(config.admins.join('\n'))
       setAutoPush(config.auto_push)
       setRemoteUrl(config.remote_url || '')
-      setRemoteToken(config.remote_token || '')
+      setRemoteToken(config.github_token || '')
       setError(null)
       setSuccess(null)
     }
