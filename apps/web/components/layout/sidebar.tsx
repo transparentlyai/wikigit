@@ -189,9 +189,9 @@ export function Sidebar({ directories }: SidebarProps) {
       {/* Sidebar Footer */}
       <div className="p-4 border-t border-gray-200/50 text-xs text-gray-500 flex justify-between items-center">
         <span>v2.4.0</span>
-        <button className="hover:text-gray-800 transition-colors">
+        <Link href="/admin" className="hover:text-gray-800 transition-colors">
           Settings
-        </button>
+        </Link>
       </div>
     </div>
   );
