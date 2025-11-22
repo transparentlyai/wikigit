@@ -505,6 +505,67 @@ class HealthCheck(BaseModel):
 
 
 # ============================================================================
+# Media Models
+# ============================================================================
+
+
+class MediaFile(BaseModel):
+    """
+    Media file information model.
+
+    Represents metadata about a media file (image, video, audio, document).
+    """
+
+    filename: str = Field(..., description="Original filename")
+    path: str = Field(..., description="Relative path from repository root")
+    size: int = Field(..., description="File size in bytes", ge=0)
+    content_type: str = Field(..., description="MIME type of the file")
+    url: str = Field(..., description="URL to access/serve the file")
+
+    model_config = {
+        "from_attributes": True,
+        "json_schema_extra": {
+            "example": {
+                "filename": "screenshot.png",
+                "path": "media/screenshot.png",
+                "size": 245678,
+                "content_type": "image/png",
+                "url": "/media/screenshot.png",
+            }
+        },
+    }
+
+
+class MediaListResponse(BaseModel):
+    """Response model for listing media files."""
+
+    files: List[MediaFile] = Field(..., description="List of media files")
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "files": [
+                    {
+                        "filename": "diagram.svg",
+                        "path": "media/diagram.svg",
+                        "size": 12456,
+                        "content_type": "image/svg+xml",
+                        "url": "/media/diagram.svg",
+                    },
+                    {
+                        "filename": "video.mp4",
+                        "path": "media/video.mp4",
+                        "size": 2456789,
+                        "content_type": "video/mp4",
+                        "url": "/media/video.mp4",
+                    },
+                ]
+            }
+        },
+    }
+
+
+# ============================================================================
 # Error Response Models
 # ============================================================================
 

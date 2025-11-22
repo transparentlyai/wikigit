@@ -14,13 +14,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config.settings import settings
 from app.middleware.auth import AuthMiddleware
-from app.routers import articles, config, directories, health, search
+from app.routers import articles, config, directories, health, media, search
 from app.services.git_service import GitService
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -89,6 +88,7 @@ app.include_router(articles.router)
 app.include_router(directories.router)
 app.include_router(search.router)
 app.include_router(config.router)
+app.include_router(media.router)
 
 
 @app.get("/")
@@ -98,10 +98,11 @@ async def root():
         "message": "WikiGit API",
         "version": "0.1.0",
         "docs": "/docs",
-        "health": "/health"
+        "health": "/health",
     }
 
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)
