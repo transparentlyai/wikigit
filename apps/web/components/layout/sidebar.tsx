@@ -5,7 +5,7 @@
  * Flat design with gray-50 background and blue active states
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { FileText, ChevronRight, ChevronDown, Search, FilePlus, FolderPlus, Edit, Trash2 } from 'lucide-react';
@@ -60,6 +60,9 @@ function TreeNode({ node, level, onRefresh }: TreeNodeProps) {
   const [showNewArticleDialog, setShowNewArticleDialog] = useState(false);
   const [showNewFolderDialog, setShowNewFolderDialog] = useState(false);
 
+  // Auto-expand timer
+  const expandTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   const isDirectory = node.type === 'directory';
   const hasChildren = isDirectory && node.children && node.children.length > 0;
 
@@ -69,6 +72,15 @@ function TreeNode({ node, level, onRefresh }: TreeNodeProps) {
     const expandedNodes = getExpandedNodes();
     setIsExpanded(expandedNodes.has(node.path));
   }, [node.path]);
+
+  // Cleanup expand timer on unmount
+  useEffect(() => {
+    return () => {
+      if (expandTimerRef.current) {
+        clearTimeout(expandTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleToggle = (e: React.MouseEvent) => {
     if (isDirectory) {
@@ -204,11 +216,28 @@ function TreeNode({ node, level, onRefresh }: TreeNodeProps) {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
       setIsDragOver(true);
+
+      // Auto-expand collapsed directory after hovering for 600ms
+      if (!isExpanded && hasChildren && !expandTimerRef.current) {
+        expandTimerRef.current = setTimeout(() => {
+          setIsExpanded(true);
+          const expandedNodes = getExpandedNodes();
+          expandedNodes.add(node.path);
+          saveExpandedNodes(expandedNodes);
+          expandTimerRef.current = null;
+        }, 600);
+      }
     }
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
     setIsDragOver(false);
+
+    // Clear auto-expand timer when leaving
+    if (expandTimerRef.current) {
+      clearTimeout(expandTimerRef.current);
+      expandTimerRef.current = null;
+    }
   };
 
   const handleDrop = async (e: React.DragEvent) => {
@@ -443,6 +472,83 @@ export function Sidebar({ directories, onRefresh }: SidebarProps) {
   const [showRootNewFolderDialog, setShowRootNewFolderDialog] = useState(false);
   const [isRootDragOver, setIsRootDragOver] = useState(false);
 
+  // Auto-scroll refs and state
+  const navRef = useRef<HTMLElement>(null);
+  const scrollAnimationRef = useRef<number | null>(null);
+  const isDraggingRef = useRef(false);
+
+  // Auto-scroll logic
+  useEffect(() => {
+    const handleDragOver = (e: DragEvent) => {
+      if (!navRef.current || !isDraggingRef.current) return;
+
+      const nav = navRef.current;
+      const rect = nav.getBoundingClientRect();
+      const scrollZoneSize = 80; // Size of the edge zone that triggers scrolling
+      const maxScrollSpeed = 15; // Maximum scroll speed in pixels per frame
+
+      const distanceFromTop = e.clientY - rect.top;
+      const distanceFromBottom = rect.bottom - e.clientY;
+
+      let scrollSpeed = 0;
+
+      // Calculate scroll speed based on proximity to edges
+      if (distanceFromTop < scrollZoneSize && distanceFromTop > 0) {
+        // Near top - scroll up
+        const ratio = 1 - distanceFromTop / scrollZoneSize;
+        scrollSpeed = -ratio * maxScrollSpeed;
+      } else if (distanceFromBottom < scrollZoneSize && distanceFromBottom > 0) {
+        // Near bottom - scroll down
+        const ratio = 1 - distanceFromBottom / scrollZoneSize;
+        scrollSpeed = ratio * maxScrollSpeed;
+      }
+
+      // Perform scroll if needed
+      if (scrollSpeed !== 0) {
+        if (!scrollAnimationRef.current) {
+          const scroll = () => {
+            if (navRef.current && scrollSpeed !== 0) {
+              navRef.current.scrollTop += scrollSpeed;
+              scrollAnimationRef.current = requestAnimationFrame(scroll);
+            }
+          };
+          scrollAnimationRef.current = requestAnimationFrame(scroll);
+        }
+      } else if (scrollAnimationRef.current) {
+        cancelAnimationFrame(scrollAnimationRef.current);
+        scrollAnimationRef.current = null;
+      }
+    };
+
+    const handleDragEnd = () => {
+      isDraggingRef.current = false;
+      if (scrollAnimationRef.current) {
+        cancelAnimationFrame(scrollAnimationRef.current);
+        scrollAnimationRef.current = null;
+      }
+    };
+
+    const handleDragStart = () => {
+      isDraggingRef.current = true;
+    };
+
+    // Add global listeners
+    document.addEventListener('dragover', handleDragOver);
+    document.addEventListener('dragend', handleDragEnd);
+    document.addEventListener('drop', handleDragEnd);
+    document.addEventListener('dragstart', handleDragStart);
+
+    return () => {
+      document.removeEventListener('dragover', handleDragOver);
+      document.removeEventListener('dragend', handleDragEnd);
+      document.removeEventListener('drop', handleDragEnd);
+      document.removeEventListener('dragstart', handleDragStart);
+      if (scrollAnimationRef.current) {
+        cancelAnimationFrame(scrollAnimationRef.current);
+      }
+    };
+  }, []);
+
   const handleRootNewArticle = async (name: string) => {
     try {
       // Automatically add .md extension if not present
@@ -552,7 +658,7 @@ export function Sidebar({ directories, onRefresh }: SidebarProps) {
       </div>
 
       {/* Navigation Tree */}
-      <nav className="flex-1 overflow-y-auto py-2">
+      <nav ref={navRef} className="flex-1 overflow-y-auto py-2">
         <ContextMenu>
           <ContextMenuTrigger asChild>
             <div
