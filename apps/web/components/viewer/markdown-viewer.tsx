@@ -59,6 +59,7 @@ export function MarkdownViewer({ content }: MarkdownViewerProps) {
         remarkPlugins={[remarkGfm, remarkAlert]}
         components={{
           code: CodeBlock,
+          pre: ({ children }) => <>{children}</>,
           div: CustomDiv,
           p: ({ children }) => {
             // Check if children contains a fenced code block
@@ -152,12 +153,20 @@ function CodeBlock({ inline, className, children, ...props }: CodeBlockProps) {
           lang: language,
           theme: 'github-dark-dimmed',
         })
-          .then((result) => setHtml(result))
+          .then((result) => {
+            // Extract content between <pre> tags and strip all pre attributes
+            const match = result.match(/<pre[^>]*>([\s\S]*)<\/pre>/);
+            if (match) {
+              setHtml(match[1]);
+            } else {
+              setHtml(result);
+            }
+          })
           .catch(() => {
-            setHtml(`<pre class="bg-[#0d1117] p-4"><code>${escapeHtml(code)}</code></pre>`);
+            setHtml(`<code>${escapeHtml(code)}</code>`);
           });
       } else {
-        setHtml(`<pre class="bg-[#0d1117] p-4 text-[#c9d1d9]"><code>${escapeHtml(code)}</code></pre>`);
+        setHtml(`<code class="text-[#c9d1d9]">${escapeHtml(code)}</code>`);
       }
     }
   }, [children, language, isInline]);
@@ -187,8 +196,8 @@ function CodeBlock({ inline, className, children, ...props }: CodeBlockProps) {
 
   if (html) {
     return (
-      <div className="my-6 rounded-lg overflow-hidden border border-gray-200 bg-gray-50/50 shadow-sm">
-        <div className="flex items-center justify-between px-4 py-2.5 bg-gray-100/50 border-b border-gray-200">
+      <pre className="not-prose my-6 rounded-lg overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-2.5 bg-gray-100">
           <div className="flex items-center gap-2">
             <div className="flex gap-1.5">
               <div className="w-2.5 h-2.5 rounded-full bg-gray-300"></div>
@@ -210,10 +219,10 @@ function CodeBlock({ inline, className, children, ...props }: CodeBlockProps) {
           </button>
         </div>
         <div
-          className="overflow-x-auto bg-[#0d1117] selection:bg-blue-500/30"
+          className="overflow-x-auto bg-[#0d1117] p-4 [&_code]:!bg-transparent [&_code]:!p-0"
           dangerouslySetInnerHTML={{ __html: html }}
         />
-      </div>
+      </pre>
     );
   }
 
