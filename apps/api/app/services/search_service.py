@@ -291,12 +291,12 @@ class SearchService:
                 max_score = max((hit.score for hit in results), default=1.0)
 
                 for hit in results:
-                    # Extract highlighted excerpt from content
-                    excerpt = hit.highlights("content", top=1) or ""
+                    # Extract highlighted excerpt from content with more context
+                    excerpt = hit.highlights("content", top=3) or ""
                     if not excerpt:
-                        # Fall back to first 200 characters if no highlight
+                        # Fall back to first 400 characters if no highlight
                         content = hit["content"] or ""
-                        excerpt = content[:200] + ("..." if len(content) > 200 else "")
+                        excerpt = content[:400] + ("..." if len(content) > 400 else "")
 
                     # Normalize score to 0-1 range
                     normalized_score = hit.score / max_score if max_score > 0 else 0.0
