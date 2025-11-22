@@ -10,6 +10,10 @@ const nextConfig = {
         source: '/api/:path*',
         destination: `http://localhost:${backendPort}/:path*`,
       },
+      {
+        source: '/media/:path*',
+        destination: `http://localhost:${backendPort}/media/:path*`,
+      },
     ]
   },
 

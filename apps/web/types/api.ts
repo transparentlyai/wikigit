@@ -147,6 +147,22 @@ export interface ConfigResponse {
 }
 
 // ============================================================================
+// Media Types
+// ============================================================================
+
+export interface MediaFile {
+  filename: string;
+  path: string;
+  size: number;
+  content_type: string;
+  url: string;
+}
+
+export interface MediaListResponse {
+  files: MediaFile[];
+}
+
+// ============================================================================
 // Health Check Types
 // ============================================================================
 
