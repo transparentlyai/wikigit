@@ -130,9 +130,7 @@ Create your first article by clicking the "New Article" button in the header.
                 # Make initial commit
                 self.repo.index.add(["README.md"])
                 commit_message = format_commit_message(
-                    "Create",
-                    "README.md",
-                    self.settings.author_email
+                    "Create", "README.md", self.settings.author_email
                 )
                 self.repo.index.commit(commit_message)
                 logger.info("Initial commit created")
@@ -169,8 +167,20 @@ Create your first article by clicking the "New Article" button in the header.
 
         # Stage files
         try:
-            self.repo.index.add(file_paths)
-            logger.debug(f"Staged files: {file_paths}")
+            if action == "Delete":
+                # For deleted files, use git add to stage the deletion
+                # Standard Git workflow: delete file, then git add to stage deletion
+                self.repo.git.add(file_paths)
+                logger.debug(f"Staged deletion for files: {file_paths}")
+            elif action == "Rename":
+                # For renames, the filesystem move has already occurred
+                # Use git add --all to stage both the deletions (old paths) and additions (new paths)
+                # This is simpler and more reliable than manually tracking old/new paths
+                self.repo.git.add(A=True)
+                logger.debug("Staged rename using git add --all")
+            else:
+                self.repo.index.add(file_paths)
+                logger.debug(f"Staged files: {file_paths}")
         except GitCommandError as e:
             logger.error(f"Failed to stage files: {e}")
             raise
@@ -227,15 +237,11 @@ Create your first article by clicking the "New Article" button in the header.
                 token = self.settings.github_token
                 if remote_url.startswith("https://github.com"):
                     remote_url = remote_url.replace(
-                        "https://github.com",
-                        f"https://{token}@github.com"
+                        "https://github.com", f"https://{token}@github.com"
                     )
                 elif remote_url.startswith("https://"):
                     # Handle URLs that might already have credentials
-                    remote_url = remote_url.replace(
-                        "https://",
-                        f"https://{token}@"
-                    )
+                    remote_url = remote_url.replace("https://", f"https://{token}@")
 
             # Get or create origin remote
             if "origin" in self.repo.remotes:
@@ -266,9 +272,7 @@ Create your first article by clicking the "New Article" button in the header.
             logger.warning(f"Failed to push to remote repository: {e}")
             return False
 
-    def get_file_history(
-        self, file_path: str, max_count: int = 10
-    ) -> List[dict]:
+    def get_file_history(self, file_path: str, max_count: int = 10) -> List[dict]:
         """
         Get commit history for a specific file.
 
@@ -294,14 +298,16 @@ Create your first article by clicking the "New Article" button in the header.
             history = []
 
             for commit in commits:
-                history.append({
-                    "sha": commit.hexsha,
-                    "author": f"{commit.author.name} <{commit.author.email}>",
-                    "date": datetime.fromtimestamp(
-                        commit.committed_date, tz=timezone.utc
-                    ).isoformat(),
-                    "message": commit.message.strip(),
-                })
+                history.append(
+                    {
+                        "sha": commit.hexsha,
+                        "author": f"{commit.author.name} <{commit.author.email}>",
+                        "date": datetime.fromtimestamp(
+                            commit.committed_date, tz=timezone.utc
+                        ).isoformat(),
+                        "message": commit.message.strip(),
+                    }
+                )
 
             logger.debug(f"Retrieved {len(history)} commits for {file_path}")
             return history
@@ -341,9 +347,7 @@ Create your first article by clicking the "New Article" button in the header.
                 return content
             except KeyError:
                 # File doesn't exist at this commit
-                logger.debug(
-                    f"File {file_path} not found at commit {commit_sha[:7]}"
-                )
+                logger.debug(f"File {file_path} not found at commit {commit_sha[:7]}")
                 return None
 
         except GitCommandError as e:

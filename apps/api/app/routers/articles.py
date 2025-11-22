@@ -24,6 +24,7 @@ from app.models.schemas import (
     Article,
     ArticleCreate,
     ArticleListResponse,
+    ArticleMove,
     ArticleSummary,
     ArticleUpdate,
 )
@@ -712,4 +713,167 @@ async def delete_article(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete article: {str(e)}",
+        )
+
+
+@router.post("/{path:path}/move", response_model=Article)
+async def move_article(
+    path: str, move_data: ArticleMove, user_email: str = Depends(get_current_user)
+) -> Article:
+    """
+    Move or rename an article.
+
+    This endpoint:
+    - Moves the article file to a new location
+    - Updates the search index
+    - Creates a Git commit
+    - Returns the moved article
+
+    Args:
+        path: Current path to article (e.g., "guides/install.md")
+        new_path: New path for article (e.g., "docs/installation.md")
+        user_email: Authenticated user email (from dependency)
+
+    Returns:
+        Article: The moved article
+
+    Raises:
+        HTTPException: 404 if article not found
+        HTTPException: 409 if destination already exists
+        HTTPException: 500 if move fails
+    """
+    new_path = move_data.new_path
+    logger.info(f"Moving article from '{path}' to '{new_path}' by user {user_email}")
+
+    # Ensure paths have .md extension
+    if not path.endswith(".md"):
+        path = f"{path}.md"
+    if not new_path.endswith(".md"):
+        new_path = f"{new_path}.md"
+
+    # Construct full file paths
+    repo_path = settings.repository.repo_path
+    src_file_path = repo_path / path
+    dest_file_path = repo_path / new_path
+
+    # Security: Ensure paths are within repository
+    try:
+        src_file_path = src_file_path.resolve()
+        dest_file_path = dest_file_path.resolve()
+        if not str(src_file_path).startswith(str(repo_path.resolve())):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid source path"
+            )
+        if not str(dest_file_path).startswith(str(repo_path.resolve())):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid destination path",
+            )
+    except Exception as e:
+        logger.error(f"Error resolving paths: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid file path"
+        )
+
+    # Check if source exists
+    if not src_file_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Article not found: {path}"
+        )
+
+    # Check if destination already exists
+    if dest_file_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Destination already exists: {new_path}",
+        )
+
+    try:
+        # Helper function to extract string from metadata
+        def extract_string(value):
+            """Extract string from value that might be a dict or string."""
+            if value is None:
+                return None
+            if isinstance(value, dict):
+                # Try to extract email or name from structured data
+                return value.get("email") or value.get("name") or str(value)
+            return str(value) if value else None
+
+        # Create parent directories if needed
+        dest_file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Read article content
+        metadata, content = frontmatter_service.parse_article(src_file_path)
+
+        # Move file
+        src_file_path.rename(dest_file_path)
+        logger.info(f"Moved file from {src_file_path} to {dest_file_path}")
+
+        # Git commit (stage both old and new paths)
+        git_service.add_and_commit(
+            file_paths=[str(path), str(new_path)],
+            action="Rename",
+            user_email=user_email,
+        )
+        logger.info("Git commit created for move")
+
+        # Push to remote if configured
+        if settings.repository.auto_push:
+            push_success = git_service.push_to_remote()
+            if push_success:
+                logger.info("Pushed to remote repository")
+
+        # Update search index
+        try:
+            search_service.remove_article(path)
+            # Re-index at new location
+            title = metadata.get(
+                "title", new_path.replace(".md", "").replace("-", " ").title()
+            )
+            author = extract_string(metadata.get("author")) or "unknown@wikigit.app"
+            created_at = metadata.get("created_at")
+            updated_at = metadata.get("updated_at")
+            updated_by = extract_string(metadata.get("updated_by")) or author
+
+            search_service.index_article(
+                path=new_path,
+                title=title,
+                content=content,
+                author=author,
+                created_at=created_at,
+                updated_at=updated_at,
+                updated_by=updated_by,
+            )
+            logger.info("Updated search index")
+        except Exception as search_error:
+            logger.error(f"Failed to update search index: {search_error}")
+
+        # Return the moved article
+        article = Article(
+            path=new_path,
+            title=metadata.get(
+                "title", new_path.replace(".md", "").replace("-", " ").title()
+            ),
+            content=content,
+            author=extract_string(metadata.get("author")),
+            created_at=metadata.get("created_at")
+            if isinstance(metadata.get("created_at"), str)
+            else None,
+            updated_at=metadata.get("updated_at")
+            if isinstance(metadata.get("updated_at"), str)
+            else None,
+            updated_by=extract_string(metadata.get("updated_by")),
+        )
+
+        logger.info(f"Successfully moved article from {path} to {new_path}")
+        return article
+
+    except Exception as e:
+        logger.error(f"Failed to move article: {e}")
+        # Try to rollback if possible
+        if dest_file_path.exists() and not src_file_path.exists():
+            dest_file_path.rename(src_file_path)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to move article: {str(e)}",
         )

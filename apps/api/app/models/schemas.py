@@ -134,6 +134,28 @@ class ArticleUpdate(BaseModel):
     }
 
 
+class ArticleMove(BaseModel):
+    """
+    Article move/rename request model.
+
+    Used when moving or renaming an article.
+    """
+
+    new_path: str = Field(
+        ...,
+        description="New relative path (with or without .md extension)",
+        min_length=1,
+    )
+
+    @field_validator("new_path")
+    @classmethod
+    def validate_path_no_traversal(cls, v: str) -> str:
+        """Prevent path traversal attacks."""
+        if ".." in v or v.startswith("/"):
+            raise ValueError("Invalid path: contains '..' or starts with '/'")
+        return v
+
+
 class ArticleSummary(BaseModel):
     """
     Brief article information for list views.
@@ -282,6 +304,28 @@ class DirectoryCreate(BaseModel):
         return v
 
     model_config = {"json_schema_extra": {"example": {"path": "guides/advanced"}}}
+
+
+class DirectoryMove(BaseModel):
+    """
+    Directory move/rename request model.
+
+    Used when moving or renaming a directory.
+    """
+
+    new_path: str = Field(
+        ...,
+        description="New relative directory path",
+        min_length=1,
+    )
+
+    @field_validator("new_path")
+    @classmethod
+    def validate_path_no_traversal(cls, v: str) -> str:
+        """Prevent path traversal attacks."""
+        if ".." in v or v.startswith("/"):
+            raise ValueError("Invalid path: contains '..' or starts with '/'")
+        return v
 
 
 class DirectoryTreeResponse(BaseModel):

@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.config.settings import settings
 from app.middleware.auth import get_current_user, require_admin
-from app.models.schemas import Directory, DirectoryCreate, DirectoryNode
+from app.models.schemas import Directory, DirectoryCreate, DirectoryMove, DirectoryNode
 from app.services.git_service import GitService
 
 logger = logging.getLogger(__name__)
@@ -54,8 +54,8 @@ def build_directory_tree(base_path: Path) -> List[DirectoryNode]:
         directories = []
 
         for item in items:
-            # Skip hidden files and git directory
-            if item.name.startswith(".") or item.name == ".git":
+            # Skip hidden files, git directory, and media directory
+            if item.name.startswith(".") or item.name in [".git", "media"]:
                 continue
 
             if item.is_dir():
@@ -188,11 +188,10 @@ async def create_directory(
         logger.info(f"Created .gitkeep file: {gitkeep_path}")
 
         # Commit to git
-        commit_message = f"create: directory {clean_path}"
         git_service.add_and_commit(
-            files=[str(gitkeep_path.relative_to(repo_path))],
-            message=commit_message,
-            author_email=user,
+            file_paths=[str(gitkeep_path.relative_to(repo_path))],
+            action="Create",
+            user_email=user,
         )
         logger.info(f"Committed directory creation: {clean_path}")
 
@@ -314,4 +313,134 @@ async def delete_directory(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete directory: {str(e)}",
+        )
+
+
+@router.post("/{path:path}/move", response_model=Directory)
+async def move_directory(
+    path: str,
+    move_data: DirectoryMove,
+    user: str = Depends(get_current_user),
+    git_service: GitService = Depends(get_git_service),
+):
+    """
+    Move or rename a directory.
+
+    Moves a directory and all its contents to a new location.
+
+    Args:
+        path: Current directory path
+        move_data: Move request with new path
+        user: Current authenticated user email
+        git_service: Git service instance
+
+    Returns:
+        Directory: Information about the moved directory
+
+    Raises:
+        HTTPException: If directory doesn't exist, destination exists, or move fails
+    """
+    try:
+        new_path = move_data.new_path
+        logger.info(f"Moving directory from '{path}' to '{new_path}' by user {user}")
+
+        # Clean paths
+        clean_src_path = path.strip("/")
+        clean_dest_path = new_path.strip("/")
+
+        # Build full directory paths
+        repo_path = Path(settings.repository.repo_path)
+        src_dir_path = repo_path / clean_src_path
+        dest_dir_path = repo_path / clean_dest_path
+
+        # Security: Ensure paths are within repository
+        try:
+            src_dir_path = src_dir_path.resolve()
+            dest_dir_path = dest_dir_path.resolve()
+            if not str(src_dir_path).startswith(str(repo_path.resolve())):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid source path",
+                )
+            if not str(dest_dir_path).startswith(str(repo_path.resolve())):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid destination path",
+                )
+        except Exception as e:
+            logger.error(f"Error resolving paths: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid directory path"
+            )
+
+        # Check if source exists
+        if not src_dir_path.exists():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Directory not found: {clean_src_path}",
+            )
+
+        if not src_dir_path.is_dir():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Path is not a directory: {clean_src_path}",
+            )
+
+        # Check if destination already exists
+        if dest_dir_path.exists():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Destination already exists: {clean_dest_path}",
+            )
+
+        # Create parent directories if needed
+        dest_dir_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Get all files in the source directory for git
+        files_to_move = []
+        for item in src_dir_path.rglob("*"):
+            if item.is_file() and not any(
+                part.startswith(".git") for part in item.parts
+            ):
+                rel_src_path = item.relative_to(repo_path)
+                # Calculate destination path
+                rel_to_src_dir = item.relative_to(src_dir_path)
+                rel_dest_path = Path(clean_dest_path) / rel_to_src_dir
+                files_to_move.append((str(rel_src_path), str(rel_dest_path)))
+
+        # Move directory
+        src_dir_path.rename(dest_dir_path)
+        logger.info(f"Moved directory from {src_dir_path} to {dest_dir_path}")
+
+        # Git commit (stage all old and new paths)
+        all_paths = []
+        for src, dest in files_to_move:
+            all_paths.append(src)
+            all_paths.append(dest)
+
+        if all_paths:
+            git_service.add_and_commit(
+                file_paths=all_paths,
+                action="Rename",
+                user_email=user,
+            )
+            logger.info("Git commit created for directory move")
+
+            # Push to remote if configured
+            if settings.repository.auto_push and settings.repository.remote_url:
+                git_service.push_to_remote()
+                logger.info("Pushed directory move to remote")
+
+        return Directory(path=clean_dest_path, name=dest_dir_path.name)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to move directory: {e}")
+        # Try to rollback if possible
+        if dest_dir_path.exists() and not src_dir_path.exists():
+            dest_dir_path.rename(src_dir_path)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to move directory: {str(e)}",
         )
