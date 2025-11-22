@@ -6,6 +6,7 @@ search engine library. It handles index creation, document indexing, and search 
 """
 
 import logging
+from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
@@ -58,6 +59,62 @@ class SearchService:
             logger.info(f"Opening existing search index at {self.index_dir}")
             self.ix = index.open_dir(str(self.index_dir))
 
+    @staticmethod
+    def _parse_timestamp(timestamp_value) -> Optional[datetime]:
+        """
+        Parse a timestamp value into a datetime object.
+
+        Handles both datetime objects (from YAML parsing) and ISO 8601 strings.
+
+        Args:
+            timestamp_value: datetime object or ISO 8601 formatted string
+
+        Returns:
+            datetime object or None if parsing fails or input is None
+        """
+        if not timestamp_value:
+            return None
+
+        # If already a datetime object, return it
+        if isinstance(timestamp_value, datetime):
+            return timestamp_value
+
+        # Otherwise try to parse as ISO 8601 string
+        try:
+            return datetime.fromisoformat(str(timestamp_value))
+        except (ValueError, AttributeError) as e:
+            logger.warning(f"Failed to parse timestamp '{timestamp_value}': {e}")
+            return None
+
+    @staticmethod
+    def _normalize_author(author_value, default: str = "unknown") -> str:
+        """
+        Normalize author field to a string.
+
+        Some legacy wiki files have structured author data (dict with id, name, email).
+        This method extracts the email or name from such structures.
+
+        Args:
+            author_value: Author value (can be string or dict)
+            default: Default value if author cannot be determined
+
+        Returns:
+            Author as a string
+        """
+        if not author_value:
+            return default
+
+        # If it's a dict (structured author data), extract email or name
+        if isinstance(author_value, dict):
+            return (
+                author_value.get("email")
+                or author_value.get("name")
+                or str(author_value)
+            )
+
+        # Otherwise return as string
+        return str(author_value)
+
     def rebuild_index(self) -> int:
         """
         Rebuild the entire search index from scratch.
@@ -94,10 +151,19 @@ class SearchService:
 
                     # Extract required fields from metadata (with defaults)
                     title = metadata.get("title", md_file.stem)
-                    author = metadata.get("author", "unknown")
-                    created_at = metadata.get("created_at")
-                    updated_at = metadata.get("updated_at")
-                    updated_by = metadata.get("updated_by", author)
+                    author = self._normalize_author(metadata.get("author"))
+                    created_at = self._parse_timestamp(metadata.get("created_at"))
+                    updated_at = self._parse_timestamp(metadata.get("updated_at"))
+                    updated_by = self._normalize_author(
+                        metadata.get("updated_by"), default=author
+                    )
+
+                    logger.debug(
+                        f"Indexing {article_path}: title={title}, author={author}, "
+                        f"created_at={created_at} ({type(created_at)}), "
+                        f"updated_at={updated_at} ({type(updated_at)}), "
+                        f"content_len={len(content)}"
+                    )
 
                     # Add to index
                     writer.add_document(
@@ -110,7 +176,7 @@ class SearchService:
                         updated_by=updated_by,
                     )
                     indexed_count += 1
-                    logger.debug(f"Indexed: {article_path}")
+                    logger.debug(f"Successfully indexed: {article_path}")
 
                 except Exception as e:
                     logger.error(f"Failed to index {md_file}: {e}")
