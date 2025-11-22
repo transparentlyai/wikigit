@@ -21,6 +21,7 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
 
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState('')
+  const [initialEditContent, setInitialEditContent] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -48,6 +49,7 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
   const handleEdit = () => {
     if (currentArticle) {
       setEditContent(currentArticle.content)
+      setInitialEditContent(currentArticle.content)
       setIsEditing(true)
     }
   }
@@ -155,6 +157,8 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
             value={editContent}
             onChange={setEditContent}
             onSave={handleSave}
+            onCancel={handleCancel}
+            initialValue={initialEditContent}
           />
         </div>
       )}

@@ -7,15 +7,18 @@ import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
 import { syntaxHighlighting, HighlightStyle } from '@codemirror/language';
 import { tags as t } from '@lezer/highlight';
-import { Bold, Italic, Hash, Eye, EyeOff, Save, Strikethrough, Link2, Quote, Code, List, ListOrdered, Image as ImageIcon, Table, Minus, Info, AlertTriangle, Lightbulb, AlertCircle, OctagonAlert } from 'lucide-react';
+import { Bold, Italic, Hash, Eye, EyeOff, Save, Strikethrough, Link2, Quote, Code, List, ListOrdered, Image as ImageIcon, Table, Minus, Info, AlertTriangle, Lightbulb, AlertCircle, OctagonAlert, X } from 'lucide-react';
 import { MarkdownViewer } from '@/components/viewer/markdown-viewer';
 import { MediaManager } from '@/components/media/media-manager';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import type { MediaFile } from '@/types/api';
 
 interface MarkdownEditorProps {
   value: string;
   onChange: (value: string) => void;
   onSave: () => void;
+  onCancel: () => void;
+  initialValue: string;
 }
 
 const markdownHighlighting = HighlightStyle.define([
@@ -39,11 +42,14 @@ const markdownHighlighting = HighlightStyle.define([
   { tag: t.comment, color: '#9ca3af', fontStyle: 'italic' },
 ]);
 
-export function MarkdownEditor({ value, onChange, onSave }: MarkdownEditorProps) {
+export function MarkdownEditor({ value, onChange, onSave, onCancel, initialValue }: MarkdownEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [showMediaManager, setShowMediaManager] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+
+  const hasUnsavedChanges = value !== initialValue;
 
   useEffect(() => {
     if (!editorRef.current) return;
@@ -373,6 +379,19 @@ export function MarkdownEditor({ value, onChange, onSave }: MarkdownEditorProps)
     view.focus();
   };
 
+  const handleCancel = () => {
+    if (hasUnsavedChanges) {
+      setShowCancelConfirm(true);
+    } else {
+      onCancel();
+    }
+  };
+
+  const confirmCancel = () => {
+    setShowCancelConfirm(false);
+    onCancel();
+  };
+
   return (
     <>
       {/* Toolbar - Sticky at top, z-20 */}
@@ -550,10 +569,20 @@ export function MarkdownEditor({ value, onChange, onSave }: MarkdownEditorProps)
           {/* Divider */}
           <div className="w-px h-5 bg-gray-200 mx-2" />
 
+          {/* Cancel Button */}
+          <button
+            onClick={handleCancel}
+            className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50 rounded-md border border-transparent hover:border-gray-200 transition-all"
+            title="Cancel"
+          >
+            <X size={14} />
+            <span>Cancel</span>
+          </button>
+
           {/* Save Button */}
           <button
             onClick={onSave}
-            className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50 rounded-md border border-transparent hover:border-gray-200 transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-all"
             title="Save (Ctrl+S)"
           >
             <Save size={14} />
@@ -589,6 +618,18 @@ export function MarkdownEditor({ value, onChange, onSave }: MarkdownEditorProps)
         isOpen={showMediaManager}
         onSelect={handleMediaSelect}
         onClose={() => setShowMediaManager(false)}
+      />
+
+      {/* Cancel Confirmation Dialog */}
+      <ConfirmDialog
+        open={showCancelConfirm}
+        onOpenChange={setShowCancelConfirm}
+        title="Discard Changes"
+        description="You have unsaved changes. Are you sure you want to cancel editing? All changes will be lost."
+        confirmText="Discard"
+        cancelText="Keep Editing"
+        onConfirm={confirmCancel}
+        variant="destructive"
       />
     </>
   );

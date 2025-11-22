@@ -14,7 +14,12 @@ import { MarkdownEditor } from '@/components/editor/markdown-editor';
 export default function NewArticlePage() {
   const router = useRouter();
   const [path, setPath] = useState('');
-  const [content, setContent] = useState('---\ntitle: New Article\nauthor: user@example.com\n---\n\n# New Article\n\nStart writing your article here...\n');
+  const initialContent = '---\ntitle: New Article\nauthor: user@example.com\n---\n\n# New Article\n\nStart writing your article here...\n';
+  const [content, setContent] = useState(initialContent);
+
+  const handleCancel = () => {
+    router.push('/');
+  };
 
   const handleSave = async () => {
     if (!path.trim()) {
@@ -69,6 +74,8 @@ export default function NewArticlePage() {
           value={content}
           onChange={setContent}
           onSave={handleSave}
+          onCancel={handleCancel}
+          initialValue={initialContent}
         />
       </div>
     </MainLayout>
