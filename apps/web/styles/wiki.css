@@ -770,6 +770,80 @@ body {
   }
 }
 
+/* === CALLOUT CONTENT OVERRIDES === */
+/* Minimal margins and padding for all elements inside callouts */
+.callout-content {
+  line-height: 1.4 !important;
+}
+
+.callout-content h1,
+.callout-content h2,
+.callout-content h3,
+.callout-content h4,
+.callout-content h5,
+.callout-content h6 {
+  margin-top: 0.25rem !important;
+  margin-bottom: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  line-height: 1.3 !important;
+}
+
+.callout-content p {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  line-height: 1.4 !important;
+}
+
+.callout-content p:empty {
+  display: none !important;
+}
+
+.callout-content ul,
+.callout-content ol {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.callout-content li {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.callout-content blockquote {
+  margin-top: 0.25rem !important;
+  margin-bottom: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.callout-content pre {
+  margin-top: 0.25rem !important;
+  margin-bottom: 0 !important;
+}
+
+.callout-content table {
+  margin-top: 0.25rem !important;
+  margin-bottom: 0 !important;
+}
+
+/* Remove margin from first and last elements in callouts */
+.callout-content > *:first-child {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+.callout-content > *:last-child {
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
 /* === UTILITY CLASSES === */
 .text-center { text-align: center; }
 .text-right { text-align: right; }
