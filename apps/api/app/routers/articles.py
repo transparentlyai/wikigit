@@ -565,11 +565,17 @@ async def update_article(
 
         article = Article(
             path=path,
-            title=metadata.get("title", path.replace(".md", "").replace("-", " ").title()),
+            title=metadata.get(
+                "title", path.replace(".md", "").replace("-", " ").title()
+            ),
             content=content,
             author=extract_string(metadata.get("author")),
-            created_at=metadata.get("created_at") if isinstance(metadata.get("created_at"), str) else None,
-            updated_at=metadata.get("updated_at") if isinstance(metadata.get("updated_at"), str) else None,
+            created_at=metadata.get("created_at")
+            if isinstance(metadata.get("created_at"), str)
+            else None,
+            updated_at=metadata.get("updated_at")
+            if isinstance(metadata.get("updated_at"), str)
+            else None,
             updated_by=extract_string(metadata.get("updated_by")),
         )
 

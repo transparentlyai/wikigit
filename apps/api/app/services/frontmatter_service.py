@@ -120,21 +120,16 @@ class FrontmatterService:
         current_time = self.get_current_timestamp()
 
         metadata = {
-            'title': title,
-            'author': author_email,
-            'created_at': current_time,
-            'updated_at': current_time,
-            'updated_by': author_email
+            "title": title,
+            "author": author_email,
+            "created_at": current_time,
+            "updated_at": current_time,
+            "updated_by": author_email,
         }
 
         return self.serialize_article(metadata, content)
 
-    def update_frontmatter(
-        self,
-        file_path: Path,
-        updated_by: str,
-        content: str
-    ) -> str:
+    def update_frontmatter(self, file_path: Path, updated_by: str, content: str) -> str:
         """
         Update frontmatter for an existing article.
 
@@ -188,39 +183,31 @@ class FrontmatterService:
             return str(value) if value else default
 
         # Update only the mutable fields (REQ-ART-014)
-        metadata['updated_at'] = self.get_current_timestamp()
-        metadata['updated_by'] = updated_by
+        metadata["updated_at"] = self.get_current_timestamp()
+        metadata["updated_by"] = updated_by
 
         # Preserve immutable fields: title, author, created_at
         # If created_at is missing, set it to current time (migration case)
-        if 'created_at' not in metadata:
+        if "created_at" not in metadata:
             logger.warning(
                 f"No created_at found in {file_path}, setting to current time"
             )
-            metadata['created_at'] = metadata['updated_at']
+            metadata["created_at"] = metadata["updated_at"]
 
         # Ensure author exists and is a string (migration case)
-        if 'author' not in metadata:
-            logger.warning(
-                f"No author found in {file_path}, setting to updater"
-            )
-            metadata['author'] = updated_by
+        if "author" not in metadata:
+            logger.warning(f"No author found in {file_path}, setting to updater")
+            metadata["author"] = updated_by
         else:
             # Normalize author to string if it's a dict
-            author_value = metadata['author']
+            author_value = metadata["author"]
             if isinstance(author_value, dict):
-                logger.info(
-                    f"Converting structured author to string in {file_path}"
-                )
-                metadata['author'] = normalize_string_field(author_value, updated_by)
+                logger.info(f"Converting structured author to string in {file_path}")
+                metadata["author"] = normalize_string_field(author_value, updated_by)
 
         return self.serialize_article(metadata, content)
 
-    def add_frontmatter_if_missing(
-        self,
-        file_path: Path,
-        default_author: str
-    ) -> None:
+    def add_frontmatter_if_missing(self, file_path: Path, default_author: str) -> None:
         """
         Add frontmatter to a file that doesn't have it (migration helper).
 
@@ -255,7 +242,7 @@ class FrontmatterService:
         # Extract title from content (first H1) or filename
         title = self.extract_title_from_content(content)
         if not title:
-            title = file_path.stem.replace('-', ' ').replace('_', ' ').title()
+            title = file_path.stem.replace("-", " ").replace("_", " ").title()
 
         # Try to get creation date and author from Git history
         author = default_author
@@ -264,23 +251,19 @@ class FrontmatterService:
         try:
             git_metadata = self._get_git_metadata(file_path)
             if git_metadata:
-                author = git_metadata.get('author', default_author)
-                created_at = git_metadata.get('created_at', created_at)
+                author = git_metadata.get("author", default_author)
+                created_at = git_metadata.get("created_at", created_at)
         except Exception as e:
-            logger.warning(
-                f"Could not extract Git metadata for {file_path}: {e}"
-            )
+            logger.warning(f"Could not extract Git metadata for {file_path}: {e}")
 
         # Create frontmatter
         markdown_with_frontmatter = self.create_frontmatter(
-            title=title,
-            author_email=author,
-            content=content
+            title=title, author_email=author, content=content
         )
 
         # Write back to file
         try:
-            file_path.write_text(markdown_with_frontmatter, encoding='utf-8')
+            file_path.write_text(markdown_with_frontmatter, encoding="utf-8")
             logger.info(f"Successfully added frontmatter to {file_path}")
         except Exception as e:
             logger.error(f"Failed to write frontmatter to {file_path}: {e}")
@@ -334,16 +317,12 @@ class FrontmatterService:
             return None
 
         # Try to find ATX-style heading (# Title)
-        atx_match = re.search(r'^#\s+(.+)$', content, re.MULTILINE)
+        atx_match = re.search(r"^#\s+(.+)$", content, re.MULTILINE)
         if atx_match:
             return atx_match.group(1).strip()
 
         # Try to find setext-style heading (underlined with =)
-        setext_match = re.search(
-            r'^(.+)\n=+\s*$',
-            content,
-            re.MULTILINE
-        )
+        setext_match = re.search(r"^(.+)\n=+\s*$", content, re.MULTILINE)
         if setext_match:
             return setext_match.group(1).strip()
 
@@ -362,7 +341,7 @@ class FrontmatterService:
             >>> print(timestamp)
             '2025-11-21T15:30:00Z'
         """
-        return datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+        return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     def _get_git_metadata(self, file_path: Path) -> Optional[dict]:
         """
@@ -383,11 +362,9 @@ class FrontmatterService:
 
             # Get the first commit that introduced this file
             # We use reverse=True to get oldest first
-            commits = list(repo.iter_commits(
-                paths=str(file_path),
-                max_count=1,
-                reverse=True
-            ))
+            commits = list(
+                repo.iter_commits(paths=str(file_path), max_count=1, reverse=True)
+            )
 
             if not commits:
                 return None
@@ -397,15 +374,11 @@ class FrontmatterService:
             # Extract author email and commit date
             author_email = first_commit.author.email
             commit_date = datetime.fromtimestamp(
-                first_commit.committed_date,
-                tz=timezone.utc
+                first_commit.committed_date, tz=timezone.utc
             )
-            created_at = commit_date.strftime('%Y-%m-%dT%H:%M:%SZ')
+            created_at = commit_date.strftime("%Y-%m-%dT%H:%M:%SZ")
 
-            return {
-                'author': author_email,
-                'created_at': created_at
-            }
+            return {"author": author_email, "created_at": created_at}
 
         except (git.InvalidGitRepositoryError, git.GitCommandError, Exception) as e:
             logger.debug(f"Could not get Git metadata for {file_path}: {e}")
