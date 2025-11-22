@@ -399,12 +399,12 @@ async def create_article(
 
         article = Article(
             path=article_data.path,
-            title=metadata["title"],
+            title=metadata.get("title", title),
             content=content,
-            author=metadata["author"],
-            created_at=metadata["created_at"],
-            updated_at=metadata["updated_at"],
-            updated_by=metadata["updated_by"],
+            author=metadata.get("author", user_email),
+            created_at=metadata.get("created_at"),
+            updated_at=metadata.get("updated_at"),
+            updated_by=metadata.get("updated_by", user_email),
         )
 
         # Update search index
@@ -555,12 +555,12 @@ async def update_article(
 
         article = Article(
             path=path,
-            title=metadata["title"],
+            title=metadata.get("title", path.replace(".md", "").replace("-", " ").title()),
             content=content,
-            author=metadata["author"],
-            created_at=metadata["created_at"],
-            updated_at=metadata["updated_at"],
-            updated_by=metadata["updated_by"],
+            author=metadata.get("author"),
+            created_at=metadata.get("created_at"),
+            updated_at=metadata.get("updated_at"),
+            updated_by=metadata.get("updated_by"),
         )
 
         # Update search index
