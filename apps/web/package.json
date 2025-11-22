@@ -20,6 +20,7 @@
     "next": "^15.5.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-hot-toast": "^2.6.0",
     "react-markdown": "^9.0.0",
     "remark-gfm": "^4.0.0",
     "remark-github-blockquote-alert": "^2.0.0",
