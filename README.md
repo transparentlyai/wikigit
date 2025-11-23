@@ -6,7 +6,7 @@ A git-based wiki application with a Wikipedia-inspired interface. WikiGit stores
 
 - **Git-Backed Storage**: All articles stored as markdown files with automatic git commits
 - **Full-Text Search**: Powered by Whoosh for fast, relevant search results
-- **Rich Markdown Editor**: MDXEditor with syntax highlighting, tables, and more
+- **Rich Markdown Editor**: CodeMirror 6 with syntax highlighting, tables, and more
 - **Hierarchical Organization**: Organize articles into directories and subdirectories
 - **Metadata Tracking**: Automatic frontmatter with author, timestamps, and version info
 - **Wikipedia-Inspired UI**: Clean, familiar interface optimized for reading and navigation
@@ -21,7 +21,7 @@ A git-based wiki application with a Wikipedia-inspired interface. WikiGit stores
 - React 19
 - TypeScript
 - Zustand (state management)
-- MDXEditor (markdown editing)
+- CodeMirror 6 (markdown editing)
 - react-markdown + remark-gfm (markdown rendering)
 - Shiki (syntax highlighting)
 
@@ -35,7 +35,7 @@ A git-based wiki application with a Wikipedia-inspired interface. WikiGit stores
 
 ## Prerequisites
 
-- Node.js 18+ and pnpm
+- Node.js 20+ and pnpm
 - Python 3.11+
 - uv (Python package installer)
 - Git
@@ -219,7 +219,7 @@ wikigit/
 **Frontend Components:**
 - `MainLayout`: Header + Sidebar + Content layout
 - `MarkdownViewer`: Article rendering with syntax highlighting
-- `MarkdownEditor`: Rich editing experience with MDXEditor
+- `MarkdownEditor`: Rich editing experience with CodeMirror 6
 - `DirectoryManager`: Admin UI for directory operations
 - `SearchManager`: Admin UI for search index management
 - `ConfigManager`: Admin UI for configuration
@@ -363,8 +363,9 @@ To sync with a remote repository (e.g., GitHub):
 
 ## Documentation
 
-- [Software Requirements Specification (SRS)](docs/SRS.md)
-- [Implementation Plan](docs/IMPLEMENTATION_PLAN.md)
+- [Installation Guide](INSTALL.md)
+- [CLI Reference](CLI.md)
+- [API Client Documentation](apps/web/lib/README.md)
 
 ## License
 
