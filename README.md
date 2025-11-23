@@ -4,15 +4,17 @@ A git-based wiki application with a Wikipedia-inspired interface. WikiGit stores
 
 ## Features
 
-- **Git-Backed Storage**: All articles stored as markdown files with automatic git commits
-- **Full-Text Search**: Powered by Whoosh for fast, relevant search results
-- **Rich Markdown Editor**: CodeMirror 6 with syntax highlighting, tables, and more
-- **Hierarchical Organization**: Organize articles into directories and subdirectories
-- **Metadata Tracking**: Automatic frontmatter with author, timestamps, and version info
-- **Wikipedia-Inspired UI**: Clean, familiar interface optimized for reading and navigation
-- **GCP IAP Authentication**: Seamless integration with Google Cloud Identity-Aware Proxy
-- **Admin Panel**: Manage directories, search index, and configuration
-- **Optional Remote Sync**: Push changes to GitHub or other git remotes
+- **Multi-Repository Support**: Manage multiple git repositories in a single interface.
+- **Git-Backed Storage**: All articles stored as markdown files with automatic git commits.
+- **Advanced Git Sync**: Auto-sync, conflict detection, and per-repository branch management.
+- **Full-Text Search**: Cross-repository search powered by Whoosh.
+- **Rich Markdown Editor**: CodeMirror 6 with syntax highlighting, tables, and media insertion.
+- **Media Management**: Upload and manage images and files directly within the editor.
+- **Hierarchical Organization**: Organize articles into directories and subdirectories.
+- **Metadata Tracking**: Automatic frontmatter with author, timestamps, and version info.
+- **Wikipedia-Inspired UI**: Clean, familiar interface optimized for reading and navigation.
+- **GCP IAP Authentication**: Seamless integration with Google Cloud Identity-Aware Proxy.
+- **Admin Panel**: Manage repositories, directories, search index, and configuration.
 
 ## Tech Stack
 
@@ -73,22 +75,26 @@ nano config.yaml
 **Important Configuration Fields:**
 
 - `app.admins`: List of admin user emails (from GCP IAP)
-- `repository.repo_path`: Path where wiki content will be stored
-- `repository.auto_push`: Enable automatic push to remote
-- `repository.remote_url`: GitHub repository URL (optional)
-- `repository.remote_token`: GitHub personal access token (optional)
+- `multi_repository.repositories_root_dir`: Directory where all repository clones will be stored
+- `multi_repository.auto_sync_interval_minutes`: Interval for automatic pull/push
+- `multi_repository.github.user_id`: GitHub username for repository scanning
 - `search.index_dir`: Path for search index files
 
-### 4. Initialize the Repository
+**Note:** Individual repositories are managed via the Admin UI, not `config.yaml`.
 
-The application will automatically initialize the git repository on first run, but you can also do it manually:
+### 4. Start the Application
+
+The application will automatically create the necessary directories defined in your configuration.
 
 ```bash
-mkdir -p wiki-content
-cd wiki-content
-git init
-cd ..
+# Start in production mode
+wikigit start
+
+# Or development mode
+wikigit dev
 ```
+
+Once running, navigate to the Admin panel to add your first repository.
 
 ## Usage
 
@@ -212,24 +218,27 @@ wikigit/
 ### Key Components
 
 **Backend Services:**
-- `GitService`: Handles git operations (commit, push, history)
+- `MultiRepoGitService`: Manages multiple git repositories, cloning, and syncing
+- `GitService`: Handles core git operations for individual repositories
 - `FrontmatterService`: Manages YAML frontmatter in markdown files
-- `SearchService`: Whoosh-based full-text search
+- `SearchService`: Whoosh-based full-text search across all repositories
 
 **Frontend Components:**
 - `MainLayout`: Header + Sidebar + Content layout
 - `MarkdownViewer`: Article rendering with syntax highlighting
 - `MarkdownEditor`: Rich editing experience with CodeMirror 6
+- `MediaManager`: Interface for uploading and selecting media files
+- `RepositoryList`: Admin UI for managing repositories
 - `DirectoryManager`: Admin UI for directory operations
 - `SearchManager`: Admin UI for search index management
-- `ConfigManager`: Admin UI for configuration
 
 **API Endpoints:**
 - `/articles`: CRUD operations for articles
+- `/repositories`: Repository management (add, remove, sync)
 - `/directories`: Directory management
 - `/search`: Full-text search
+- `/media`: File upload and management
 - `/config`: Configuration management
-- `/health`: Health check
 
 ## Authentication
 
@@ -300,24 +309,28 @@ Directories organize articles into hierarchical sections. They can be created an
 - Parent directories are created automatically
 - Empty directories contain a `.gitkeep` file
 
-## Remote Git Sync
+## Repository Management
 
-To sync with a remote repository (e.g., GitHub):
+WikiGit supports managing multiple git repositories simultaneously.
 
-1. Create a repository on GitHub
-2. Generate a personal access token with `repo` scope
-3. Update `config.yaml`:
-   ```yaml
-   repository:
-     auto_push: true
-     remote_url: https://github.com/username/repo.git
-     remote_token: ${GITHUB_TOKEN}  # or paste token directly
-   ```
-4. Set environment variable (recommended):
-   ```bash
-   export GITHUB_TOKEN=ghp_your_token_here
-   ```
-5. Restart the application
+### Adding Repositories
+
+1. Navigate to the Admin panel
+2. Go to "Repositories"
+3. Click "Scan GitHub" to find your repositories (requires `GITHUB_TOKEN`)
+4. Or manually add a repository by its HTTPS URL
+
+### Syncing
+
+Repositories are automatically synced based on the `auto_sync_interval_minutes` setting. You can also trigger a manual sync from the repository list.
+
+- **Pull**: Fetches changes from the remote.
+- **Push**: Pushes local changes if there are no conflicts.
+- **Conflict Detection**: If both local and remote have changes, sync will pause and alert you.
+
+### Media Management
+
+Upload images, videos, and documents directly via the editor. Files are stored in the `media/` directory and served automatically.
 
 ## Development
 
