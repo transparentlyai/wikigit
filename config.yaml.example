@@ -30,28 +30,18 @@ multi_repository:
   # Default branch for new repositories
   default_branch: main
 
-  # GitHub integration settings
+  # GitHub integration settings (optional, required for cloning/syncing private repos)
   github:
     # Environment variable name containing your GitHub Personal Access Token (PAT)
     # Create a PAT at: https://github.com/settings/tokens
     # Required scopes: repo (for private repos) or public_repo (for public repos only)
     token_env_var: GITHUB_TOKEN
 
-    # Your GitHub username (used to scan for accessible repositories)
+    # Your GitHub username
     user_id: ""  # Example: "octocat"
 
-  # List of configured repositories (managed via admin panel)
-  # Do not edit manually - use the admin panel to add/remove repositories
-  repositories: []
-  # Example repository configuration:
-  # - id: owner/repo-name
-  #   name: repo-name
-  #   owner: owner
-  #   remote_url: https://github.com/owner/repo-name.git
-  #   local_path: owner/repo-name
-  #   enabled: true
-  #   read_only: true
-  #   default_branch: main
-  #   last_synced: null
-  #   sync_status: never
-  #   error_message: null
+  # Repository Management:
+  # Repositories are managed via the RepositoryService and stored in:
+  #   {repositories_root_dir}/config/repositories.json
+  # Use the admin API endpoints to add/remove/configure repositories.
+  # Do NOT manually edit repositories.json - use the API instead.
