@@ -79,7 +79,9 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
           }
         }
 
-        const article = await api.getArticle(articlePath)
+        const article = repositoryId
+          ? await api.getArticle(repositoryId, articlePath)
+          : await api.getArticle(articlePath)
         setCurrentArticle(article)
         setEditContent(article.content)
         setInitialEditContent(article.content)
@@ -118,9 +120,9 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
 
     try {
       setIsSaving(true)
-      const updated = await api.updateArticle(articlePath, {
-        content: editContent,
-      })
+      const updated = repositoryId
+        ? await api.updateArticle(repositoryId, articlePath, { content: editContent })
+        : await api.updateArticle(articlePath, { content: editContent })
       setCurrentArticle(updated)
       setIsEditing(false)
       toast.success('Article saved successfully')
@@ -149,7 +151,11 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
 
     try {
       setIsDeleting(true)
-      await api.deleteArticle(articlePath)
+      if (repositoryId) {
+        await api.deleteArticle(repositoryId, articlePath)
+      } else {
+        await api.deleteArticle(articlePath)
+      }
       toast.success('Article deleted successfully')
       router.push('/')
     } catch (error: any) {

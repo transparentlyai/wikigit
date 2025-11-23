@@ -142,21 +142,32 @@ async function del<T>(endpoint: string): Promise<T> {
 
 /**
  * Get all articles (list view with summaries)
- * GET /api/articles
+ * GET /api/articles or GET /api/repositories/{repositoryId}/articles
+ *
+ * @param repositoryId - Optional repository ID to get articles for a specific repository
  */
-export async function getArticles(): Promise<ArticleListResponse> {
+export async function getArticles(repositoryId?: string): Promise<ArticleListResponse> {
+  if (repositoryId) {
+    return get<ArticleListResponse>(`/api/repositories/${encodeURIComponent(repositoryId)}/articles`);
+  }
   return get<ArticleListResponse>('/api/articles');
 }
 
 /**
  * Get a specific article by path
- * GET /api/articles/{path}
+ * GET /api/articles/{path} or GET /api/repositories/{repositoryId}/articles/{path}
  *
- * @param path - Article path (e.g., "README.md" or "guides/install.md")
+ * @param pathOrRepoId - Article path or repository ID (when using multi-repo)
+ * @param path - Article path (when repository ID is provided)
  */
-export async function getArticle(path: string): Promise<Article> {
-  // Encode path to handle special characters and slashes
-  const encodedPath = encodeURIComponent(path);
+export async function getArticle(pathOrRepoId: string, path?: string): Promise<Article> {
+  if (path) {
+    // Multi-repo mode: repositoryId and path provided
+    const encodedPath = encodeURIComponent(path);
+    return get<Article>(`/api/repositories/${encodeURIComponent(pathOrRepoId)}/articles/${encodedPath}`);
+  }
+  // Single-repo mode: just path provided
+  const encodedPath = encodeURIComponent(pathOrRepoId);
   return get<Article>(`/api/articles/${encodedPath}`);
 }
 
@@ -178,17 +189,25 @@ export async function createArticle(dataOrRepoId: ArticleCreate | string, data?:
 
 /**
  * Update an existing article
- * PUT /api/articles/{path}
+ * PUT /api/articles/{path} or PUT /api/repositories/{repositoryId}/articles/{path}
  *
- * @param path - Article path to update
- * @param data - Updated article content
+ * @param pathOrRepoId - Article path or repository ID (when using multi-repo)
+ * @param dataOrPath - Article update data or article path (when repository ID is provided)
+ * @param data - Article update data (when repository ID is provided)
  */
 export async function updateArticle(
-  path: string,
-  data: ArticleUpdate
+  pathOrRepoId: string,
+  dataOrPath: ArticleUpdate | string,
+  data?: ArticleUpdate
 ): Promise<Article> {
-  const encodedPath = encodeURIComponent(path);
-  return put<Article>(`/api/articles/${encodedPath}`, data);
+  if (typeof dataOrPath === 'string' && data) {
+    // Multi-repo mode: repositoryId, path, and data provided
+    const encodedPath = encodeURIComponent(dataOrPath);
+    return put<Article>(`/api/repositories/${encodeURIComponent(pathOrRepoId)}/articles/${encodedPath}`, data);
+  }
+  // Single-repo mode: path and data provided
+  const encodedPath = encodeURIComponent(pathOrRepoId);
+  return put<Article>(`/api/articles/${encodedPath}`, dataOrPath as ArticleUpdate);
 }
 
 /**
