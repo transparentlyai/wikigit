@@ -20,7 +20,6 @@ from urllib.parse import unquote
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import FileResponse
 
-from app.config.settings import settings
 from app.middleware.auth import get_current_user
 from app.models.schemas import (
     Article,
@@ -33,19 +32,11 @@ from app.models.schemas import (
     DirectoryNode,
     DirectoryTreeResponse,
 )
-from app.services.frontmatter_service import FrontmatterService
-from app.services.repository_service import RepositoryService
+from app.services import frontmatter_service, repository_service
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/repositories/{repository_id}", tags=["articles"])
-
-# Initialize services
-REPOSITORIES_CONFIG_PATH = (
-    settings.multi_repository.root_dir / "config" / "repositories.json"
-)
-repository_service = RepositoryService(REPOSITORIES_CONFIG_PATH)
-frontmatter_service = FrontmatterService()
 
 
 def get_repository_path(repository_id: str) -> Path:
@@ -580,45 +571,63 @@ def build_directory_tree(repo_path: Path, current_path: Path) -> List[DirectoryN
         current_path: Current directory path to scan
 
     Returns:
-        List of directory nodes
+        List of directory nodes (files first, then directories, both alphabetically sorted)
     """
-    nodes = []
+    file_nodes = []
+    dir_nodes = []
 
     try:
-        for item in sorted(current_path.iterdir()):
-            # Skip hidden files and git directory
+        # Separate files and directories
+        items = list(current_path.iterdir())
+        files = sorted([item for item in items if item.is_file()], key=lambda x: x.name)
+        directories = sorted([item for item in items if item.is_dir()], key=lambda x: x.name)
+
+        # Process files first
+        for item in files:
+            # Skip hidden files
+            if item.name.startswith("."):
+                continue
+
+            # Only include markdown files
+            if item.suffix != ".md":
+                continue
+
+            relative_path = item.relative_to(repo_path)
+            node = DirectoryNode(
+                type="file",
+                name=item.name,
+                path=str(relative_path),
+                children=None,
+            )
+            file_nodes.append(node)
+
+        # Process directories
+        for item in directories:
+            # Skip hidden directories and git directory
             if item.name.startswith("."):
                 continue
 
             relative_path = item.relative_to(repo_path)
 
-            if item.is_dir():
-                # Recursively build children
-                children = build_directory_tree(repo_path, item)
-                node = DirectoryNode(
-                    type="directory",
-                    name=item.name,
-                    path=str(relative_path),
-                    children=children,
-                )
-            else:
-                # Only include markdown files
-                if item.suffix == ".md":
-                    node = DirectoryNode(
-                        type="file",
-                        name=item.name,
-                        path=str(relative_path),
-                        children=None,
-                    )
-                else:
-                    continue  # Skip non-markdown files
+            # Recursively build children
+            children = build_directory_tree(repo_path, item)
+            # Only include directory if it contains markdown files
+            if not children:
+                continue
 
-            nodes.append(node)
+            node = DirectoryNode(
+                type="directory",
+                name=item.name,
+                path=str(relative_path),
+                children=children,
+            )
+            dir_nodes.append(node)
 
     except Exception as e:
         logger.warning(f"Error reading directory {current_path}: {e}")
 
-    return nodes
+    # Return files first, then directories
+    return file_nodes + dir_nodes
 
 
 @router.get("/directories", response_model=DirectoryTreeResponse)

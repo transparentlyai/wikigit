@@ -34,10 +34,8 @@ async def get_setup_status():
         issues.append("GitHub user ID not configured")
 
     # Check if any repositories are configured
-    repos_config_path = (
-        settings.multi_repository.root_dir / "config" / "repositories.json"
-    )
-    repository_service = RepositoryService(repos_config_path)
+    from app.services import repository_service
+
     repositories = repository_service.list_repositories()
 
     has_repositories = len(repositories) > 0

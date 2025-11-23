@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config.settings import settings
 from app.middleware.auth import AuthMiddleware
 from app.routers import articles, config, health, repositories, search, setup
-from app.services.repository_service import RepositoryService
+from app.services import repository_service
 from app.services.sync_scheduler import get_scheduler
 
 # Configure logging
@@ -41,15 +41,9 @@ async def lifespan(app: FastAPI):
     logger.info(f"Search index directory: {settings.search.index_dir}")
     logger.info(f"Repositories root directory: {settings.multi_repository.root_dir}")
 
-    # Initialize repository service and sync scheduler
+    # Initialize sync scheduler
     try:
-        # Initialize repository service
-        repos_config_path = (
-            settings.multi_repository.root_dir / "config" / "repositories.json"
-        )
-        repository_service = RepositoryService(repos_config_path)
-
-        # Initialize and start scheduler
+        # Initialize and start scheduler with shared repository service
         scheduler = get_scheduler()
         scheduler.initialize(repository_service)
         scheduler.start()

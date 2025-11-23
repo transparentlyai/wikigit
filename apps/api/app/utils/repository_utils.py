@@ -6,13 +6,7 @@ from pathlib import Path
 
 from fastapi import HTTPException, status
 
-from app.config.settings import settings
-from app.services.repository_service import RepositoryService
-
-
-# Path to repositories configuration
-REPOS_CONFIG_PATH = settings.multi_repository.root_dir / "config" / "repositories.json"
-repository_service = RepositoryService(REPOS_CONFIG_PATH)
+from app.services import repository_service
 
 
 def get_repository_path(repo_id: str) -> Path:

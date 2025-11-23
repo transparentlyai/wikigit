@@ -28,17 +28,11 @@ from app.models.schemas import (
     RepositoryStatus,
     RepositorySyncResponse,
 )
-from app.services.repository_service import RepositoryService
+from app.services import repository_service
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/repositories", tags=["repositories"])
-
-# Initialize repository service
-REPOSITORIES_CONFIG_PATH = (
-    settings.multi_repository.root_dir / "config" / "repositories.json"
-)
-repository_service = RepositoryService(REPOSITORIES_CONFIG_PATH)
 
 
 @router.get("/scan", response_model=List[GitHubRepository])
