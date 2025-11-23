@@ -43,30 +43,12 @@ export function MainLayout({ children, breadcrumbs, onEdit, showEditButton, isRe
     }
   }, []);
 
-  const fetchDirectories = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const response = await fetch('/api/directories');
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch directories: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      setDirectories(data || []);
-    } catch (error) {
-      console.error('Error fetching directories:', error);
-      setError(error instanceof Error ? error.message : 'Failed to load directories');
-    } finally {
-      setLoading(false);
-    }
-  }, [setDirectories, setLoading, setError]);
-
+  // In multi-repository mode, directories are fetched per-repository in the sidebar
+  // No need to fetch a global directory tree
   useEffect(() => {
-    fetchDirectories();
-  }, [fetchDirectories]);
+    setLoading(false);
+    setDirectories([]);
+  }, [setDirectories, setLoading]);
 
   const toggleSidebar = useCallback(() => {
     const newState = !sidebarOpen;
