@@ -15,6 +15,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
 from app.config.settings import settings
+from app.services.multi_repo_git_service import MultiRepoGitService
 from app.services.repository_service import RepositoryService
 from app.services.search_service import SearchService
 
@@ -165,10 +166,14 @@ class SyncScheduler:
 
     async def _reindex_repository(self, repo_id: str, local_path: str):
         """
-        Re-index a repository's search index.
+        Rebuild the entire multi-repository search index.
+
+        This is triggered when a repository has changes. Since the search index
+        is shared across all repositories, we rebuild the entire index to ensure
+        consistency.
 
         Args:
-            repo_id: Repository identifier
+            repo_id: Repository identifier (for logging purposes)
             local_path: Path to the local repository clone
         """
         try:
@@ -177,17 +182,26 @@ class SyncScheduler:
                 logger.error(f"Repository path does not exist: {local_path}")
                 return
 
-            # Create search service for this repository
+            # Create search service and multi-repo service
             search_service = SearchService(
                 search_settings=settings.search, repo_path=repo_path
             )
+            multi_repo_service = MultiRepoGitService()
 
-            # Rebuild the search index
-            document_count = search_service.rebuild_index()
-            logger.info(f"Re-indexed repository {repo_id}: {document_count} documents")
+            # Rebuild the entire multi-repo search index
+            document_count = search_service.rebuild_index(
+                multi_repo_service=multi_repo_service
+            )
+            logger.info(
+                f"Rebuilt multi-repo search index (triggered by {repo_id}): "
+                f"{document_count} documents"
+            )
 
         except Exception as e:
-            logger.error(f"Failed to re-index repository {repo_id}: {e}", exc_info=True)
+            logger.error(
+                f"Failed to rebuild search index (triggered by {repo_id}): {e}",
+                exc_info=True,
+            )
 
 
 # Global scheduler instance
