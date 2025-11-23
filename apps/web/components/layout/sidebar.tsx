@@ -10,9 +10,10 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { FileText, ChevronRight, ChevronDown, Search, FilePlus, FolderPlus, Edit, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { DirectoryNode } from '@/types/api';
+import { DirectoryNode, RepositoryStatus } from '@/types/api';
 import { useWikiStore } from '@/lib/store';
 import { api } from '@/lib/api';
+import { RepositoryNode } from './repository-node';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -32,6 +33,8 @@ interface TreeNodeProps {
   node: DirectoryNode;
   level: number;
   onRefresh: () => void;
+  repositoryId?: string;
+  isReadOnly?: boolean;
 }
 
 const EXPANDED_NODES_KEY = 'wikigit-expanded-nodes';
@@ -47,7 +50,7 @@ function saveExpandedNodes(nodes: Set<string>) {
   localStorage.setItem(EXPANDED_NODES_KEY, JSON.stringify(Array.from(nodes)));
 }
 
-function TreeNode({ node, level, onRefresh }: TreeNodeProps) {
+function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: TreeNodeProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [isExpanded, setIsExpanded] = useState(false);
@@ -106,10 +109,17 @@ function TreeNode({ node, level, onRefresh }: TreeNodeProps) {
       const basePath = isDirectory ? node.path : node.path.split('/').slice(0, -1).join('/');
       const newPath = basePath ? `${basePath}/${articleName}` : articleName;
 
-      await api.createArticle({
-        path: newPath,
-        content: `# ${articleName.replace('.md', '')}\n\nStart writing your article here...`,
-      });
+      if (repositoryId) {
+        await api.createArticle(repositoryId, {
+          path: newPath,
+          content: `# ${articleName.replace('.md', '')}\n\nStart writing your article here...`,
+        });
+      } else {
+        await api.createArticle({
+          path: newPath,
+          content: `# ${articleName.replace('.md', '')}\n\nStart writing your article here...`,
+        });
+      }
 
       toast.success(`Article "${articleName}" created`);
       setShowNewArticleDialog(false);
@@ -125,7 +135,11 @@ function TreeNode({ node, level, onRefresh }: TreeNodeProps) {
       const basePath = isDirectory ? node.path : node.path.split('/').slice(0, -1).join('/');
       const newPath = basePath ? `${basePath}/${name}` : name;
 
-      await api.createDirectory(newPath);
+      if (repositoryId) {
+        await api.createDirectory(repositoryId, newPath);
+      } else {
+        await api.createDirectory(newPath);
+      }
       toast.success(`Folder "${name}" created`);
       setShowNewFolderDialog(false);
       onRefresh();
@@ -158,12 +172,20 @@ function TreeNode({ node, level, onRefresh }: TreeNodeProps) {
       const newPath = pathParts.join('/');
 
       if (isDirectory) {
-        await api.moveDirectory(node.path, newPath);
+        if (repositoryId) {
+          await api.moveDirectory(repositoryId, node.path, newPath);
+        } else {
+          await api.moveDirectory(node.path, newPath);
+        }
         toast.success(`Folder renamed to "${newName}"`);
       } else {
         // For articles, the newName might not have .md extension
         // The API will handle adding it if needed
-        await api.moveArticle(node.path, newPath);
+        if (repositoryId) {
+          await api.moveArticle(repositoryId, node.path, newPath);
+        } else {
+          await api.moveArticle(node.path, newPath);
+        }
         toast.success(`Article renamed to "${newName}"`);
 
         // If renaming the current article, navigate to new location
@@ -182,10 +204,18 @@ function TreeNode({ node, level, onRefresh }: TreeNodeProps) {
   const handleDelete = async () => {
     try {
       if (isDirectory) {
-        await api.deleteDirectory(node.path);
+        if (repositoryId) {
+          await api.deleteDirectory(repositoryId, node.path);
+        } else {
+          await api.deleteDirectory(node.path);
+        }
         toast.success(`Folder "${node.name}" deleted`);
       } else {
-        await api.deleteArticle(node.path);
+        if (repositoryId) {
+          await api.deleteArticle(repositoryId, node.path);
+        } else {
+          await api.deleteArticle(node.path);
+        }
         toast.success(`Article "${node.name}" deleted`);
 
         if (isActive) {
@@ -207,6 +237,7 @@ function TreeNode({ node, level, onRefresh }: TreeNodeProps) {
       path: node.path,
       type: node.type,
       name: node.name,
+      repositoryId: repositoryId || null,
     }));
   };
 
@@ -253,6 +284,13 @@ function TreeNode({ node, level, onRefresh }: TreeNodeProps) {
       const sourcePath = data.path;
       const sourceType = data.type;
       const sourceName = data.name;
+      const sourceRepositoryId = data.repositoryId;
+
+      // Validate same repository
+      if (sourceRepositoryId !== (repositoryId || null)) {
+        toast.error('Cannot move files between repositories');
+        return;
+      }
 
       // Don't allow dropping on self
       if (sourcePath === node.path) return;
@@ -268,10 +306,18 @@ function TreeNode({ node, level, onRefresh }: TreeNodeProps) {
 
       // Move the item
       if (sourceType === 'directory') {
-        await api.moveDirectory(sourcePath, newPath);
+        if (repositoryId) {
+          await api.moveDirectory(repositoryId, sourcePath, newPath);
+        } else {
+          await api.moveDirectory(sourcePath, newPath);
+        }
         toast.success(`Moved folder to ${node.name}`);
       } else {
-        await api.moveArticle(sourcePath, newPath);
+        if (repositoryId) {
+          await api.moveArticle(repositoryId, sourcePath, newPath);
+        } else {
+          await api.moveArticle(sourcePath, newPath);
+        }
         toast.success(`Moved article to ${node.name}`);
       }
 
@@ -366,40 +412,70 @@ function TreeNode({ node, level, onRefresh }: TreeNodeProps) {
         <ContextMenuContent className="w-56">
           {isDirectory ? (
             <>
-              <ContextMenuItem onClick={() => setShowNewArticleDialog(true)}>
+              <ContextMenuItem
+                onClick={() => setShowNewArticleDialog(true)}
+                disabled={isReadOnly}
+              >
                 <FilePlus className="mr-2 h-4 w-4" />
                 New Article
               </ContextMenuItem>
-              <ContextMenuItem onClick={() => setShowNewFolderDialog(true)}>
+              <ContextMenuItem
+                onClick={() => setShowNewFolderDialog(true)}
+                disabled={isReadOnly}
+              >
                 <FolderPlus className="mr-2 h-4 w-4" />
                 New Folder
               </ContextMenuItem>
               <ContextMenuSeparator />
-              <ContextMenuItem onClick={() => setShowRenameDialog(true)}>
+              <ContextMenuItem
+                onClick={() => setShowRenameDialog(true)}
+                disabled={isReadOnly}
+              >
                 <Edit className="mr-2 h-4 w-4" />
                 Rename
               </ContextMenuItem>
               <ContextMenuItem
                 onClick={() => setShowDeleteConfirm(true)}
                 className="text-red-600 focus:text-red-600"
+                disabled={isReadOnly}
               >
                 <Trash2 className="mr-2 h-4 w-4" />
                 Delete
               </ContextMenuItem>
+              {isReadOnly && (
+                <>
+                  <ContextMenuSeparator />
+                  <div className="px-2 py-1.5 text-xs text-gray-500">
+                    This repository is read-only
+                  </div>
+                </>
+              )}
             </>
           ) : (
             <>
-              <ContextMenuItem onClick={() => setShowRenameDialog(true)}>
+              <ContextMenuItem
+                onClick={() => setShowRenameDialog(true)}
+                disabled={isReadOnly}
+              >
                 <Edit className="mr-2 h-4 w-4" />
                 Rename
               </ContextMenuItem>
               <ContextMenuItem
                 onClick={() => setShowDeleteConfirm(true)}
                 className="text-red-600 focus:text-red-600"
+                disabled={isReadOnly}
               >
                 <Trash2 className="mr-2 h-4 w-4" />
                 Delete
               </ContextMenuItem>
+              {isReadOnly && (
+                <>
+                  <ContextMenuSeparator />
+                  <div className="px-2 py-1.5 text-xs text-gray-500">
+                    This repository is read-only
+                  </div>
+                </>
+              )}
             </>
           )}
         </ContextMenuContent>
@@ -408,7 +484,14 @@ function TreeNode({ node, level, onRefresh }: TreeNodeProps) {
       {isDirectory && hasChildren && isExpanded && (
         <div>
           {node.children!.map((child, index) => (
-            <TreeNode key={`${child.type}:${child.path}:${index}`} node={child} level={level + 1} onRefresh={onRefresh} />
+            <TreeNode
+              key={`${child.type}:${child.path}:${index}`}
+              node={child}
+              level={level + 1}
+              onRefresh={onRefresh}
+              repositoryId={repositoryId}
+              isReadOnly={isReadOnly}
+            />
           ))}
         </div>
       )}
@@ -467,8 +550,31 @@ export function Sidebar({ directories, onRefresh }: SidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
 
+  // Multi-repository state
+  const [repositories, setRepositories] = useState<RepositoryStatus[]>([]);
+  const [isLoadingRepos, setIsLoadingRepos] = useState(false);
+
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Fetch repositories on mount
+  useEffect(() => {
+    const fetchRepositories = async () => {
+      setIsLoadingRepos(true);
+      try {
+        const response = await api.listRepositories();
+        setRepositories(response.repositories || []);
+      } catch (error: any) {
+        console.error('Failed to fetch repositories:', error);
+        // Don't show error toast - might be single-repo mode
+        setRepositories([]);
+      } finally {
+        setIsLoadingRepos(false);
+      }
+    };
+
+    fetchRepositories();
+  }, []);
 
   // Handle search
   const handleSearch = () => {
@@ -616,6 +722,13 @@ export function Sidebar({ directories, onRefresh }: SidebarProps) {
       const sourcePath = data.path;
       const sourceType = data.type;
       const sourceName = data.name;
+      const sourceRepositoryId = data.repositoryId;
+
+      // Only allow root drop in single-repo mode (no repositoryId)
+      if (sourceRepositoryId !== null) {
+        toast.error('Cannot move repository files to root. Use repository structure.');
+        return;
+      }
 
       // Calculate new path (root level)
       const newPath = sourceName;
@@ -678,34 +791,48 @@ export function Sidebar({ directories, onRefresh }: SidebarProps) {
 
       {/* Navigation Tree */}
       <nav ref={navRef} className="flex-1 overflow-y-auto py-2">
-        <ContextMenu>
-          <ContextMenuTrigger asChild>
-            <div
-              className={`px-4 mb-2 text-[11px] font-bold uppercase tracking-wider cursor-context-menu rounded-md transition-colors ${
-                isRootDragOver
-                  ? 'bg-blue-100 text-blue-600 border-2 border-blue-500 border-dashed'
-                  : 'text-gray-400'
-              }`}
-              onDragOver={handleRootDragOver}
-              onDragLeave={handleRootDragLeave}
-              onDrop={handleRootDrop}
-            >
-              Workspace
-            </div>
-          </ContextMenuTrigger>
-          <ContextMenuContent className="w-56">
-            <ContextMenuItem onClick={() => setShowRootNewArticleDialog(true)}>
-              <FilePlus className="mr-2 h-4 w-4" />
-              New Article
-            </ContextMenuItem>
-            <ContextMenuItem onClick={() => setShowRootNewFolderDialog(true)}>
-              <FolderPlus className="mr-2 h-4 w-4" />
-              New Folder
-            </ContextMenuItem>
-          </ContextMenuContent>
-        </ContextMenu>
+        <div
+          className={`px-4 mb-2 text-[11px] font-bold uppercase tracking-wider rounded-md transition-colors ${
+            isRootDragOver
+              ? 'bg-blue-100 text-blue-600 border-2 border-blue-500 border-dashed'
+              : 'text-gray-400'
+          }`}
+          onDragOver={handleRootDragOver}
+          onDragLeave={handleRootDragLeave}
+          onDrop={handleRootDrop}
+        >
+          Workspace
+        </div>
 
-        {directories.length === 0 ? (
+        {isLoadingRepos ? (
+          <p className="text-gray-400 text-sm px-4 py-2">Loading repositories...</p>
+        ) : repositories.length > 0 ? (
+          <div>
+            {repositories
+              .filter(repo => repo.enabled)
+              .map((repo) => (
+                <RepositoryNode
+                  key={repo.id}
+                  repository={repo}
+                  onRefresh={onRefresh}
+                  renderTreeNodes={(nodes, repositoryId, isReadOnly) => (
+                    <>
+                      {nodes.map((node, index) => (
+                        <TreeNode
+                          key={`${node.type}:${node.path}:${index}`}
+                          node={node}
+                          level={1}
+                          onRefresh={onRefresh}
+                          repositoryId={repositoryId}
+                          isReadOnly={isReadOnly}
+                        />
+                      ))}
+                    </>
+                  )}
+                />
+              ))}
+          </div>
+        ) : directories.length === 0 ? (
           <p className="text-gray-400 text-sm px-4">No articles yet</p>
         ) : (
           <div>

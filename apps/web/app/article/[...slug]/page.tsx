@@ -10,12 +10,42 @@ import { MarkdownEditor } from '@/components/editor/markdown-editor'
 import { useStore } from '@/lib/store'
 import { api } from '@/lib/api'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import type { RepositoryStatus } from '@/types/api'
+
+/**
+ * Parse article path from slug segments
+ * Handles both multi-repo mode (/article/{repo_id}/path/to/file.md)
+ * and single-repo mode (/article/path/to/file.md)
+ *
+ * Returns [repositoryId, articlePath] where repositoryId is undefined in single-repo mode
+ */
+function parseArticlePath(slug: string[]): [string | undefined, string] {
+  if (slug.length === 0) {
+    return [undefined, '']
+  }
+
+  // Check if the first segment looks like a repository ID (owner/repo format)
+  const firstSegment = slug[0]
+  if (firstSegment.includes('/') && slug.length > 1) {
+    // Multi-repo mode: first segment is repo ID, rest is path
+    const repositoryId = firstSegment
+    const articlePath = slug.slice(1).join('/')
+    return [repositoryId, articlePath]
+  }
+
+  // Single-repo mode: entire slug is the article path
+  const articlePath = slug.join('/')
+  return [undefined, articlePath]
+}
 
 export default function ArticlePage({ params }: { params: Promise<{ slug: string[] }> }) {
   const { slug } = use(params)
-  const articlePath = slug.join('/')
   const router = useRouter()
   const searchParams = useSearchParams()
+
+  // Parse repository ID from slug if present (multi-repo mode)
+  // URL structure: /article/{repo_id}/path/to/file.md or /article/path/to/file.md
+  const [repositoryId, articlePath] = parseArticlePath(slug)
 
   const currentArticle = useStore((state) => state.currentArticle)
   const setCurrentArticle = useStore((state) => state.setCurrentArticle)
@@ -27,23 +57,40 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [repository, setRepository] = useState<RepositoryStatus | null>(null)
+  const [isReadOnly, setIsReadOnly] = useState(false)
 
-  // Fetch article on mount
+  // Fetch repository details and article on mount
   useEffect(() => {
-    const fetchArticle = async () => {
+    const fetchData = async () => {
       try {
         setIsLoading(true)
+
+        // Fetch repository details if repository ID is present
+        if (repositoryId) {
+          try {
+            const repo = await api.getRepository(repositoryId)
+            setRepository(repo)
+            setIsReadOnly(repo.read_only)
+          } catch (error: any) {
+            console.error('Failed to fetch repository:', error)
+            toast.error('Repository not found')
+            // Continue to try loading article even if repo fetch fails
+          }
+        }
+
         const article = await api.getArticle(articlePath)
         setCurrentArticle(article)
         setEditContent(article.content)
         setInitialEditContent(article.content)
 
-        // Check if we should auto-enter edit mode
+        // Check if we should auto-enter edit mode (only if not read-only)
         const shouldEdit = searchParams?.get('edit') === 'true'
-        if (shouldEdit) {
+        if (shouldEdit && !isReadOnly) {
           setIsEditing(true)
           // Remove the query parameter from URL
-          router.replace(`/article/${articlePath}`)
+          const fullPath = repositoryId ? `${repositoryId}/${articlePath}` : articlePath
+          router.replace(`/article/${fullPath}`)
         }
       } catch (error: any) {
         toast.error(error.message || 'Failed to load article')
@@ -53,13 +100,13 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
       }
     }
 
-    fetchArticle()
+    fetchData()
     // searchParams and router are stable references and don't need to be in dependencies
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [articlePath, setCurrentArticle])
+  }, [articlePath, repositoryId, setCurrentArticle])
 
   const handleEdit = () => {
-    if (currentArticle) {
+    if (currentArticle && !isReadOnly) {
       setEditContent(currentArticle.content)
       setInitialEditContent(currentArticle.content)
       setIsEditing(true)
@@ -143,8 +190,10 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
   return (
     <MainLayout
       breadcrumbs={breadcrumbs}
-      onEdit={!isEditing ? handleEdit : undefined}
+      onEdit={!isEditing && !isReadOnly ? handleEdit : undefined}
       showEditButton={!isEditing}
+      isReadOnly={isReadOnly}
+      repository={repository}
     >
       {/* View mode */}
       {!isEditing && (
@@ -163,7 +212,7 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
       )}
 
       {/* Edit mode */}
-      {isEditing && (
+      {isEditing && !isReadOnly && (
         <div className="fixed inset-0 bg-white z-40 flex flex-col">
           <MarkdownEditor
             value={editContent}
@@ -171,6 +220,7 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
             onSave={handleSave}
             onCancel={handleCancel}
             initialValue={initialEditContent}
+            isReadOnly={isReadOnly}
           />
         </div>
       )}

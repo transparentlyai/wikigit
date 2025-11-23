@@ -7,7 +7,7 @@ import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
 import { syntaxHighlighting, HighlightStyle } from '@codemirror/language';
 import { tags as t } from '@lezer/highlight';
-import { Bold, Italic, Hash, Eye, EyeOff, Save, Strikethrough, Link2, Quote, Code, List, ListOrdered, Image as ImageIcon, Table, Minus, Info, AlertTriangle, Lightbulb, AlertCircle, OctagonAlert, X } from 'lucide-react';
+import { Bold, Italic, Hash, Eye, EyeOff, Save, Strikethrough, Link2, Quote, Code, List, ListOrdered, Image as ImageIcon, Table, Minus, Info, AlertTriangle, Lightbulb, AlertCircle, OctagonAlert, X, Lock } from 'lucide-react';
 import { MarkdownViewer } from '@/components/viewer/markdown-viewer';
 import { MediaManager } from '@/components/media/media-manager';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -19,6 +19,7 @@ interface MarkdownEditorProps {
   onSave: () => void;
   onCancel: () => void;
   initialValue: string;
+  isReadOnly?: boolean;
 }
 
 const markdownHighlighting = HighlightStyle.define([
@@ -42,7 +43,7 @@ const markdownHighlighting = HighlightStyle.define([
   { tag: t.comment, color: '#9ca3af', fontStyle: 'italic' },
 ]);
 
-export function MarkdownEditor({ value, onChange, onSave, onCancel, initialValue }: MarkdownEditorProps) {
+export function MarkdownEditor({ value, onChange, onSave, onCancel, initialValue, isReadOnly = false }: MarkdownEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const [showPreview, setShowPreview] = useState(false);
@@ -394,6 +395,14 @@ export function MarkdownEditor({ value, onChange, onSave, onCancel, initialValue
 
   return (
     <>
+      {/* Read-only warning banner */}
+      {isReadOnly && (
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center gap-2 text-sm text-amber-800">
+          <Lock size={16} />
+          <span>This repository is read-only. You cannot save changes.</span>
+        </div>
+      )}
+
       {/* Toolbar - Sticky at top, z-20 */}
       <div className="sticky top-0 z-20 bg-white/95 backdrop-blur border-b border-gray-200">
         <div className="h-10 px-4 flex items-center gap-1">
@@ -582,8 +591,13 @@ export function MarkdownEditor({ value, onChange, onSave, onCancel, initialValue
           {/* Save Button */}
           <button
             onClick={onSave}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-all"
-            title="Save (Ctrl+S)"
+            disabled={isReadOnly}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
+              isReadOnly
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : 'text-white bg-blue-600 hover:bg-blue-700'
+            }`}
+            title={isReadOnly ? 'Cannot save in read-only mode' : 'Save (Ctrl+S)'}
           >
             <Save size={14} />
             <span>Save</span>

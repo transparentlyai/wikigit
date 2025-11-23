@@ -21,6 +21,10 @@ import type {
   ErrorResponse,
   MediaFile,
   MediaListResponse,
+  GitHubRepository,
+  RepositoryStatus,
+  RepositoryListResponse,
+  RepositorySyncResponse,
 } from '@/types/api';
 
 // ============================================================================
@@ -158,12 +162,18 @@ export async function getArticle(path: string): Promise<Article> {
 
 /**
  * Create a new article
- * POST /api/articles
+ * POST /api/articles or POST /api/repositories/{repositoryId}/articles
  *
- * @param data - Article creation data (path, content, optional title)
+ * @param dataOrRepoId - Article creation data or repository ID (when using multi-repo)
+ * @param data - Article creation data (when repository ID is provided)
  */
-export async function createArticle(data: ArticleCreate): Promise<Article> {
-  return post<Article>('/api/articles', data);
+export async function createArticle(dataOrRepoId: ArticleCreate | string, data?: ArticleCreate): Promise<Article> {
+  if (typeof dataOrRepoId === 'string' && data) {
+    // Multi-repo mode: repositoryId and data provided
+    return post<Article>(`/api/repositories/${encodeURIComponent(dataOrRepoId)}/articles`, data);
+  }
+  // Single-repo mode: just data provided
+  return post<Article>('/api/articles', dataOrRepoId as ArticleCreate);
 }
 
 /**
@@ -183,25 +193,39 @@ export async function updateArticle(
 
 /**
  * Delete an article
- * DELETE /api/articles/{path}
+ * DELETE /api/articles/{path} or DELETE /api/repositories/{repositoryId}/articles/{path}
  *
- * @param path - Article path to delete
+ * @param pathOrRepoId - Article path or repository ID (when using multi-repo)
+ * @param path - Article path (when repository ID is provided)
  */
-export async function deleteArticle(path: string): Promise<void> {
-  const encodedPath = encodeURIComponent(path);
+export async function deleteArticle(pathOrRepoId: string, path?: string): Promise<void> {
+  if (path) {
+    // Multi-repo mode: repositoryId and path provided
+    const encodedPath = encodeURIComponent(path);
+    return del<void>(`/api/repositories/${encodeURIComponent(pathOrRepoId)}/articles/${encodedPath}`);
+  }
+  // Single-repo mode: just path provided
+  const encodedPath = encodeURIComponent(pathOrRepoId);
   return del<void>(`/api/articles/${encodedPath}`);
 }
 
 /**
  * Move or rename an article
- * POST /api/articles/{path}/move
+ * POST /api/articles/{path}/move or POST /api/repositories/{repositoryId}/articles/{path}/move
  *
- * @param path - Current article path
- * @param newPath - New article path
+ * @param pathOrRepoId - Current article path or repository ID (when using multi-repo)
+ * @param newPathOrPath - New article path or current path (when repository ID is provided)
+ * @param newPath - New article path (when repository ID is provided)
  */
-export async function moveArticle(path: string, newPath: string): Promise<Article> {
-  const encodedPath = encodeURIComponent(path);
-  return post<Article>(`/api/articles/${encodedPath}/move`, { new_path: newPath });
+export async function moveArticle(pathOrRepoId: string, newPathOrPath: string, newPath?: string): Promise<Article> {
+  if (newPath) {
+    // Multi-repo mode: repositoryId, path, and newPath provided
+    const encodedPath = encodeURIComponent(newPathOrPath);
+    return post<Article>(`/api/repositories/${encodeURIComponent(pathOrRepoId)}/articles/${encodedPath}/move`, { new_path: newPath });
+  }
+  // Single-repo mode: path and newPath provided
+  const encodedPath = encodeURIComponent(pathOrRepoId);
+  return post<Article>(`/api/articles/${encodedPath}/move`, { new_path: newPathOrPath });
 }
 
 // ============================================================================
@@ -210,44 +234,70 @@ export async function moveArticle(path: string, newPath: string): Promise<Articl
 
 /**
  * Get complete directory tree
- * GET /api/directories
+ * GET /api/directories or GET /api/repositories/{repositoryId}/directories
+ *
+ * @param repositoryId - Optional repository ID to get directories for a specific repository
  */
-export async function getDirectories(): Promise<DirectoryTreeResponse> {
+export async function getDirectories(repositoryId?: string): Promise<DirectoryTreeResponse> {
+  if (repositoryId) {
+    return get<DirectoryTreeResponse>(`/api/repositories/${encodeURIComponent(repositoryId)}/directories`);
+  }
   return get<DirectoryTreeResponse>('/api/directories');
 }
 
 /**
  * Create a new directory
- * POST /api/directories
+ * POST /api/directories or POST /api/repositories/{repositoryId}/directories
  *
- * @param path - Directory path to create
+ * @param pathOrRepoId - Directory path or repository ID (when using multi-repo)
+ * @param path - Directory path (when repository ID is provided)
  */
-export async function createDirectory(path: string): Promise<void> {
-  const data: DirectoryCreate = { path };
+export async function createDirectory(pathOrRepoId: string, path?: string): Promise<void> {
+  if (path) {
+    // Multi-repo mode: repositoryId and path provided
+    const data: DirectoryCreate = { path };
+    return post<void>(`/api/repositories/${encodeURIComponent(pathOrRepoId)}/directories`, data);
+  }
+  // Single-repo mode: just path provided
+  const data: DirectoryCreate = { path: pathOrRepoId };
   return post<void>('/api/directories', data);
 }
 
 /**
  * Delete a directory
- * DELETE /api/directories/{path}
+ * DELETE /api/directories/{path} or DELETE /api/repositories/{repositoryId}/directories/{path}
  *
- * @param path - Directory path to delete
+ * @param pathOrRepoId - Directory path or repository ID (when using multi-repo)
+ * @param path - Directory path (when repository ID is provided)
  */
-export async function deleteDirectory(path: string): Promise<void> {
-  const encodedPath = encodeURIComponent(path);
+export async function deleteDirectory(pathOrRepoId: string, path?: string): Promise<void> {
+  if (path) {
+    // Multi-repo mode: repositoryId and path provided
+    const encodedPath = encodeURIComponent(path);
+    return del<void>(`/api/repositories/${encodeURIComponent(pathOrRepoId)}/directories/${encodedPath}`);
+  }
+  // Single-repo mode: just path provided
+  const encodedPath = encodeURIComponent(pathOrRepoId);
   return del<void>(`/api/directories/${encodedPath}`);
 }
 
 /**
  * Move or rename a directory
- * POST /api/directories/{path}/move
+ * POST /api/directories/{path}/move or POST /api/repositories/{repositoryId}/directories/{path}/move
  *
- * @param path - Current directory path
- * @param newPath - New directory path
+ * @param pathOrRepoId - Current directory path or repository ID (when using multi-repo)
+ * @param newPathOrPath - New directory path or current path (when repository ID is provided)
+ * @param newPath - New directory path (when repository ID is provided)
  */
-export async function moveDirectory(path: string, newPath: string): Promise<void> {
-  const encodedPath = encodeURIComponent(path);
-  return post<void>(`/api/directories/${encodedPath}/move`, { new_path: newPath });
+export async function moveDirectory(pathOrRepoId: string, newPathOrPath: string, newPath?: string): Promise<void> {
+  if (newPath) {
+    // Multi-repo mode: repositoryId, path, and newPath provided
+    const encodedPath = encodeURIComponent(newPathOrPath);
+    return post<void>(`/api/repositories/${encodeURIComponent(pathOrRepoId)}/directories/${encodedPath}/move`, { new_path: newPath });
+  }
+  // Single-repo mode: path and newPath provided
+  const encodedPath = encodeURIComponent(pathOrRepoId);
+  return post<void>(`/api/directories/${encodedPath}/move`, { new_path: newPathOrPath });
 }
 
 // ============================================================================
@@ -295,6 +345,129 @@ export async function getConfig(): Promise<ConfigData> {
  */
 export async function updateConfig(data: ConfigUpdate): Promise<ConfigData> {
   return put<ConfigData>('/api/config', data);
+}
+
+// ============================================================================
+// Repository Endpoints
+// ============================================================================
+
+/**
+ * Scan GitHub user's accessible repositories
+ * GET /api/repositories/scan
+ *
+ * Requires GitHub token in config to list user's repositories.
+ * Returns list of accessible GitHub repositories.
+ */
+export async function scanGitHubRepositories(): Promise<GitHubRepository[]> {
+  return get<GitHubRepository[]>('/api/repositories/scan');
+}
+
+/**
+ * List all configured repositories
+ * GET /api/repositories
+ *
+ * Returns all repositories configured in the system with their sync status.
+ */
+export async function listRepositories(): Promise<RepositoryListResponse> {
+  return get<RepositoryListResponse>('/api/repositories');
+}
+
+/**
+ * Get a specific repository by ID
+ * GET /api/repositories/{repositoryId}
+ *
+ * @param repositoryId - Repository identifier
+ */
+export async function getRepository(repositoryId: string): Promise<RepositoryStatus> {
+  return get<RepositoryStatus>(`/api/repositories/${encodeURIComponent(repositoryId)}`);
+}
+
+/**
+ * Add/clone repositories from GitHub
+ * POST /api/repositories
+ *
+ * @param repoIds - Array of repository IDs to add
+ */
+export async function addRepositories(repoIds: string[]): Promise<void> {
+  return post<void>('/api/repositories', { repository_ids: repoIds });
+}
+
+/**
+ * Update repository settings
+ * PUT /api/repositories/{repositoryId}
+ *
+ * @param repositoryId - Repository identifier
+ * @param update - Update object with optional enabled and read_only flags
+ */
+export async function updateRepository(
+  repositoryId: string,
+  update: {
+    enabled?: boolean;
+    read_only?: boolean;
+  }
+): Promise<RepositoryStatus> {
+  return put<RepositoryStatus>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}`,
+    update
+  );
+}
+
+/**
+ * Sync a repository with its remote
+ * POST /api/repositories/{repositoryId}/sync
+ *
+ * Performs a git pull/push sync with the remote repository.
+ *
+ * @param repositoryId - Repository identifier
+ */
+export async function syncRepository(repositoryId: string): Promise<RepositorySyncResponse> {
+  return post<RepositorySyncResponse>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/sync`
+  );
+}
+
+/**
+ * Remove a repository
+ * DELETE /api/repositories/{repositoryId}
+ *
+ * Removes a repository from the system but does not delete local files.
+ *
+ * @param repositoryId - Repository identifier
+ */
+export async function removeRepository(repositoryId: string): Promise<void> {
+  return del<void>(`/api/repositories/${encodeURIComponent(repositoryId)}`);
+}
+
+// ============================================================================
+// GitHub Settings Endpoints
+// ============================================================================
+
+/**
+ * Get current GitHub settings
+ * GET /api/repositories/github/settings
+ */
+export async function getGitHubSettings(): Promise<{ user_id: string; token_env_var: string }> {
+  return get<{ user_id: string; token_env_var: string }>('/api/repositories/github/settings');
+}
+
+/**
+ * Test GitHub connection
+ * POST /api/repositories/github/test
+ *
+ * @param settings - GitHub user ID and token variable name
+ */
+export async function testGitHubConnection(settings: { user_id: string; token_var: string }): Promise<{ status: string; message: string }> {
+  return post<{ status: string; message: string }>('/api/repositories/github/test', settings);
+}
+
+/**
+ * Save GitHub settings
+ * POST /api/repositories/github/settings
+ *
+ * @param settings - GitHub user ID and token variable name
+ */
+export async function saveGitHubSettings(settings: { user_id: string; token_var: string }): Promise<void> {
+  return post<void>('/api/repositories/github/settings', settings);
 }
 
 // ============================================================================
@@ -374,6 +547,18 @@ export const api = {
   // Configuration
   getConfig,
   updateConfig,
+
+  // Repositories
+  scanGitHubRepositories,
+  listRepositories,
+  getRepository,
+  addRepositories,
+  updateRepository,
+  syncRepository,
+  removeRepository,
+  getGitHubSettings,
+  testGitHubConnection,
+  saveGitHubSettings,
 
   // Media
   uploadMedia,

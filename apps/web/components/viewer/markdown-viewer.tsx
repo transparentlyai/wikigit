@@ -19,13 +19,16 @@ interface CodeBlockProps extends ComponentPropsWithoutRef<'code'> {
 function CustomImage({ src, alt, title, width, height, ...props }: ComponentPropsWithoutRef<'img'>) {
   if (!src) return null;
 
+  // Convert Blob to string if needed
+  const srcString = typeof src === 'string' ? src : '';
+
   // Parse query parameters from src for sizing (e.g., image.jpg?width=300)
-  const url = new URL(src, 'http://dummy.com');
+  const url = new URL(srcString, 'http://dummy.com');
   const queryWidth = url.searchParams.get('width');
   const queryHeight = url.searchParams.get('height');
 
   // Clean src by removing query parameters
-  const cleanSrc = src.split('?')[0];
+  const cleanSrc = srcString.split('?')[0];
 
   // Determine final width and height (prioritize inline attributes, then query params)
   const finalWidth = width || queryWidth;

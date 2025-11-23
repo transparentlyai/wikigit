@@ -10,8 +10,9 @@ This module provides:
 
 import os
 import re
+from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings
@@ -179,6 +180,116 @@ class SearchSettings(BaseModel):
         return Path(self.index_path).resolve()
 
 
+class GitHubSettings(BaseModel):
+    """GitHub authentication settings for multi-repository support."""
+
+    model_config = {"populate_by_name": True}
+
+    token_env_var: str = Field(
+        default="GITHUB_TOKEN",
+        description="Environment variable name containing GitHub Personal Access Token"
+    )
+    user_id: str = Field(
+        ...,
+        description="GitHub user ID for API authentication"
+    )
+
+    @property
+    def token(self) -> Optional[str]:
+        """Get GitHub token from environment variable."""
+        return os.environ.get(self.token_env_var)
+
+
+class RepositoryConfig(BaseModel):
+    """Configuration for a single repository in multi-repository mode."""
+
+    model_config = {"populate_by_name": True}
+
+    id: str = Field(
+        ...,
+        description="Repository identifier in 'owner/repo' format"
+    )
+    name: str = Field(
+        ...,
+        description="Repository name (just 'repo' part)"
+    )
+    owner: str = Field(
+        ...,
+        description="Repository owner/organization"
+    )
+    remote_url: str = Field(
+        ...,
+        description="Full remote repository URL"
+    )
+    local_path: str = Field(
+        ...,
+        description="Local path relative to repositories_root_dir (typically 'owner/repo')"
+    )
+    enabled: bool = Field(
+        default=True,
+        description="Whether this repository is enabled for indexing and sync"
+    )
+    read_only: bool = Field(
+        default=True,
+        description="Whether this repository is read-only (no push operations)"
+    )
+    default_branch: str = Field(
+        default="main",
+        description="Default branch to use for this repository"
+    )
+    last_synced: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp of last successful sync"
+    )
+    sync_status: Literal["synced", "pending", "error", "never", "unavailable"] = Field(
+        default="never",
+        description="Current sync status of the repository"
+    )
+    error_message: Optional[str] = Field(
+        default=None,
+        description="Error message if sync_status is 'error'"
+    )
+
+
+class MultiRepositorySettings(BaseModel):
+    """Multi-repository support configuration."""
+
+    model_config = {"populate_by_name": True}
+
+    enabled: bool = Field(
+        default=False,
+        description="Enable multi-repository support (Phase 2 feature)"
+    )
+    repositories_root_dir: str = Field(
+        default="./wiki-repositories",
+        description="Root directory where all repositories are cloned"
+    )
+    auto_sync_interval_minutes: int = Field(
+        default=15,
+        ge=1,
+        description="Interval in minutes between automatic repository syncs"
+    )
+    github: Optional[GitHubSettings] = Field(
+        default=None,
+        description="GitHub authentication settings"
+    )
+    repositories: List[RepositoryConfig] = Field(
+        default_factory=list,
+        description="List of configured repositories"
+    )
+
+    @field_validator('repositories_root_dir', mode='before')
+    @classmethod
+    def expand_path_env_vars(cls, v: str) -> str:
+        """Expand environment variables in path."""
+        return expand_env_vars(v)
+
+    @property
+    def root_dir(self) -> Path:
+        """Get repositories root directory as Path object."""
+        return Path(self.repositories_root_dir).resolve()
+
+
 class Settings(YamlBaseSettings):
     """
     Main settings class that loads configuration from YAML file.
@@ -193,6 +304,7 @@ class Settings(YamlBaseSettings):
     app: AppSettings = Field(default_factory=AppSettings)
     repository: RepositorySettings = Field(default_factory=RepositorySettings)
     search: SearchSettings = Field(default_factory=SearchSettings)
+    multi_repository: MultiRepositorySettings = Field(default_factory=MultiRepositorySettings)
 
     class Config:
         """Pydantic configuration."""
@@ -323,6 +435,9 @@ __all__ = [
     "AppSettings",
     "RepositorySettings",
     "SearchSettings",
+    "GitHubSettings",
+    "RepositoryConfig",
+    "MultiRepositorySettings",
     "Settings",
     "get_settings",
     "settings",

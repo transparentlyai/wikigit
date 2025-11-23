@@ -9,19 +9,22 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Header } from '@/components/layout/header';
 import { Sidebar } from '@/components/layout/sidebar';
 import { useWikiStore } from '@/lib/store';
+import type { RepositoryStatus } from '@/types/api';
 
 interface MainLayoutProps {
   children: React.ReactNode;
   breadcrumbs?: { label: string; href?: string }[];
   onEdit?: () => void;
   showEditButton?: boolean;
+  isReadOnly?: boolean;
+  repository?: RepositoryStatus | null;
 }
 
 const MIN_SIDEBAR_WIDTH = 180;
 const MAX_SIDEBAR_WIDTH = 500;
 const DEFAULT_SIDEBAR_WIDTH = 288;
 
-export function MainLayout({ children, breadcrumbs, onEdit, showEditButton }: MainLayoutProps) {
+export function MainLayout({ children, breadcrumbs, onEdit, showEditButton, isReadOnly = false, repository = null }: MainLayoutProps) {
   const { directories, setDirectories, setLoading, setError } = useWikiStore();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH);
@@ -176,6 +179,8 @@ export function MainLayout({ children, breadcrumbs, onEdit, showEditButton }: Ma
             breadcrumbs={breadcrumbs}
             onEdit={onEdit}
             showEditButton={showEditButton}
+            isReadOnly={isReadOnly}
+            repository={repository}
           />
 
           {/* Main Content Area */}

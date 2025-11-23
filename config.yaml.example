@@ -8,7 +8,7 @@ app:
     - admin@example.com
     - editor@example.com
 
-# Git repository settings
+# Git repository settings (single-repository mode)
 repository:
   repo_path: /home/mauro/projects/wikigit/wiki-content
   default_branch: main
@@ -19,3 +19,40 @@ repository:
 # Search settings
 search:
   index_dir: /home/mauro/projects/wikigit/data/search-index
+
+# Multi-repository settings (optional)
+# Enable this to manage multiple GitHub repositories in one wiki
+multi_repository:
+  enabled: false  # Set to true to enable multi-repository mode
+
+  # Directory where all repository clones will be stored
+  repositories_root_dir: /home/mauro/projects/wikigit/wiki-repositories
+
+  # Auto-sync interval in minutes (pulls remote changes, pushes local changes)
+  auto_sync_interval_minutes: 15
+
+  # GitHub integration settings
+  github:
+    # Environment variable name containing your GitHub Personal Access Token (PAT)
+    # Create a PAT at: https://github.com/settings/tokens
+    # Required scopes: repo (for private repos) or public_repo (for public repos only)
+    token_env_var: GITHUB_TOKEN
+
+    # Your GitHub username (used to scan for accessible repositories)
+    user_id: ""  # Example: "octocat"
+
+  # List of configured repositories (managed via admin panel)
+  # Do not edit manually - use the admin panel to add/remove repositories
+  repositories: []
+  # Example repository configuration:
+  # - id: owner/repo-name
+  #   name: repo-name
+  #   owner: owner
+  #   remote_url: https://github.com/owner/repo-name.git
+  #   local_path: owner/repo-name
+  #   enabled: true
+  #   read_only: true
+  #   default_branch: main
+  #   last_synced: null
+  #   sync_status: never
+  #   error_message: null

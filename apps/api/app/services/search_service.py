@@ -38,6 +38,7 @@ class SearchService:
         self.frontmatter_service = FrontmatterService()
 
         # Define search schema
+        # Updated for multi-repository support with repository_id and repository_name
         self.schema = Schema(
             path=ID(stored=True, unique=True),
             title=TEXT(stored=True),
@@ -46,6 +47,8 @@ class SearchService:
             created_at=DATETIME(stored=True),
             updated_at=DATETIME(stored=True),
             updated_by=TEXT(stored=True),
+            repository_id=ID(stored=True),
+            repository_name=TEXT(stored=True),
         )
 
         # Create index directory if it doesn't exist
@@ -115,11 +118,16 @@ class SearchService:
         # Otherwise return as string
         return str(author_value)
 
-    def rebuild_index(self) -> int:
+    def rebuild_index(self, multi_repo_service=None) -> int:
         """
         Rebuild the entire search index from scratch.
 
-        Scans all markdown files in the repository and indexes them.
+        Supports both single-repository and multi-repository modes:
+        - If multi_repo_service is provided: scans all enabled repositories
+        - Otherwise: scans the single repository at self.repo_path
+
+        Args:
+            multi_repo_service: Optional MultiRepoGitService for multi-repo mode
 
         Returns:
             int: Number of documents indexed
@@ -132,46 +140,43 @@ class SearchService:
 
             # Clear existing index
             writer = self.ix.writer()
-
-            # Find all markdown files
-            md_files = list(self.repo_path.rglob("*.md"))
             indexed_count = 0
 
-            for md_file in md_files:
-                # Skip hidden files and git directory
-                if any(part.startswith(".") for part in md_file.parts):
-                    continue
+            if multi_repo_service:
+                # Multi-repository mode
+                logger.info("Rebuilding index in multi-repository mode")
+                enabled_repos = multi_repo_service.get_all_enabled_repositories()
 
-                try:
-                    # Get article path (relative to repo, without .md extension)
-                    article_path = str(md_file.relative_to(self.repo_path))[:-3]
+                for repo_config in enabled_repos:
+                    local_path = multi_repo_service.root_dir / repo_config.local_path
 
-                    # Parse article with frontmatter
-                    metadata, content = self.frontmatter_service.parse_article(md_file)
+                    # Skip if repository doesn't exist locally
+                    if not local_path.exists() or not (local_path / ".git").exists():
+                        logger.warning(
+                            f"Repository {repo_config.id} not found locally, skipping"
+                        )
+                        continue
 
-                    # Extract required fields from metadata (with defaults)
-                    title = metadata.get("title", md_file.stem)
-                    author = self._normalize_author(metadata.get("author"))
-                    created_at = self._parse_timestamp(metadata.get("created_at"))
-                    updated_at = self._parse_timestamp(metadata.get("updated_at"))
-                    updated_by = self._normalize_author(
-                        metadata.get("updated_by"), default=author
+                    logger.info(f"Indexing repository: {repo_config.id}")
+                    repo_indexed = self._index_repository(
+                        writer,
+                        local_path,
+                        repository_id=repo_config.id,
+                        repository_name=repo_config.name,
                     )
-
-                    writer.add_document(
-                        path=article_path,
-                        title=title,
-                        content=content,
-                        author=author,
-                        created_at=created_at,
-                        updated_at=updated_at,
-                        updated_by=updated_by,
+                    indexed_count += repo_indexed
+                    logger.info(
+                        f"Indexed {repo_indexed} documents from {repo_config.id}"
                     )
-                    indexed_count += 1
-
-                except Exception as e:
-                    logger.error(f"Failed to index {md_file}: {e}")
-                    continue
+            else:
+                # Single repository mode (backward compatibility)
+                logger.info("Rebuilding index in single-repository mode")
+                indexed_count = self._index_repository(
+                    writer,
+                    self.repo_path,
+                    repository_id="",
+                    repository_name="",
+                )
 
             # Commit all changes
             writer.commit()
@@ -183,6 +188,78 @@ class SearchService:
             logger.error(f"Failed to rebuild index: {e}")
             raise
 
+    def _index_repository(
+        self,
+        writer,
+        repo_path: Path,
+        repository_id: str,
+        repository_name: str,
+    ) -> int:
+        """
+        Index all markdown files in a single repository.
+
+        Args:
+            writer: Whoosh index writer
+            repo_path: Path to the repository
+            repository_id: Repository ID (e.g., "owner/repo" or empty for single-repo)
+            repository_name: Repository name (e.g., "repo" or empty for single-repo)
+
+        Returns:
+            Number of documents indexed from this repository
+        """
+        indexed_count = 0
+
+        # Find all markdown files
+        md_files = list(repo_path.rglob("*.md"))
+
+        for md_file in md_files:
+            # Skip hidden files and git directory
+            if any(part.startswith(".") for part in md_file.parts):
+                continue
+
+            try:
+                # Get article path relative to repository root
+                article_path = str(md_file.relative_to(repo_path))
+
+                # In multi-repo mode, prefix with repository ID
+                if repository_id:
+                    # Format: "owner/repo:path/to/file.md"
+                    full_path = f"{repository_id}:{article_path}"
+                else:
+                    # Single-repo mode: just use the path
+                    full_path = article_path
+
+                # Parse article with frontmatter
+                metadata, content = self.frontmatter_service.parse_article(md_file)
+
+                # Extract required fields from metadata (with defaults)
+                title = metadata.get("title", md_file.stem)
+                author = self._normalize_author(metadata.get("author"))
+                created_at = self._parse_timestamp(metadata.get("created_at"))
+                updated_at = self._parse_timestamp(metadata.get("updated_at"))
+                updated_by = self._normalize_author(
+                    metadata.get("updated_by"), default=author
+                )
+
+                writer.add_document(
+                    path=full_path,
+                    title=title,
+                    content=content,
+                    author=author,
+                    created_at=created_at,
+                    updated_at=updated_at,
+                    updated_by=updated_by,
+                    repository_id=repository_id,
+                    repository_name=repository_name,
+                )
+                indexed_count += 1
+
+            except Exception as e:
+                logger.error(f"Failed to index {md_file}: {e}")
+                continue
+
+        return indexed_count
+
     def index_article(
         self,
         path: str,
@@ -192,18 +269,22 @@ class SearchService:
         created_at,
         updated_at,
         updated_by: str,
+        repository_id: str = "",
+        repository_name: str = "",
     ) -> None:
         """
         Index or update a single article in the search index.
 
         Args:
-            path: Article path (unique identifier)
+            path: Article path (unique identifier, may include repository prefix)
             title: Article title
             content: Article content
             author: Original author email
             created_at: Creation timestamp
             updated_at: Last update timestamp
             updated_by: Last updater email
+            repository_id: Repository ID (e.g., "owner/repo" or empty for single-repo)
+            repository_name: Repository name (e.g., "repo" or empty for single-repo)
 
         Raises:
             Exception: If indexing fails
@@ -220,6 +301,8 @@ class SearchService:
                 created_at=created_at,
                 updated_at=updated_at,
                 updated_by=updated_by,
+                repository_id=repository_id,
+                repository_name=repository_name,
             )
 
             writer.commit()
@@ -233,8 +316,12 @@ class SearchService:
         """
         Remove an article from the search index.
 
+        Handles both single-repo and multi-repo path formats:
+        - Single-repo: "path/to/file.md"
+        - Multi-repo: "owner/repo:path/to/file.md"
+
         Args:
-            path: Article path to remove
+            path: Article path to remove (may include repository prefix)
 
         Raises:
             Exception: If removal fails
@@ -301,12 +388,18 @@ class SearchService:
                     # Normalize score to 0-1 range
                     normalized_score = hit.score / max_score if max_score > 0 else 0.0
 
+                    # Extract repository info (available in multi-repo mode)
+                    repository_id = hit.get("repository_id", None) or None
+                    repository_name = hit.get("repository_name", None) or None
+
                     search_results.append(
                         SearchResult(
                             path=hit["path"],
                             title=hit["title"],
                             snippet=excerpt,
                             score=normalized_score,
+                            repository_id=repository_id,
+                            repository_name=repository_name,
                         )
                     )
 

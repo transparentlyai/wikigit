@@ -70,6 +70,8 @@ export interface DirectoryTreeResponse {
 // ============================================================================
 
 export interface SearchResult {
+  repository_id: string;
+  repository_name: string;
   path: string;
   title: string;
   snippet: string;
@@ -106,6 +108,48 @@ export interface RepositoryConfig {
   github_token?: string;
   author_name?: string;
   author_email?: string;
+}
+
+// ============================================================================
+// GitHub & Multi-Repository Types
+// ============================================================================
+
+export interface GitHubRepository {
+  full_name: string;
+  name: string;
+  clone_url: string;
+  private: boolean;
+  description: string | null;
+}
+
+export interface RepositoryStatus {
+  id: string;
+  name: string;
+  owner: string;
+  remote_url: string;
+  enabled: boolean;
+  read_only: boolean;
+  default_branch: string;
+  last_synced: string | null;
+  sync_status: 'synced' | 'pending' | 'error' | 'never' | 'unavailable';
+  error_message: string | null;
+  has_local_changes: boolean;
+  ahead_of_remote: number;
+  behind_of_remote: number;
+}
+
+export interface RepositoryListResponse {
+  repositories: RepositoryStatus[];
+  total: number;
+}
+
+export interface RepositorySyncResponse {
+  repository_id: string;
+  status: 'success' | 'error';
+  message: string;
+  commits_pulled: number;
+  commits_pushed: number;
+  files_changed: number;
 }
 
 export interface SearchConfig {
