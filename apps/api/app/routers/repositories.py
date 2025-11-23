@@ -29,10 +29,34 @@ from app.models.schemas import (
     RepositorySyncResponse,
 )
 from app.services import repository_service
+from app.services.multi_repo_git_service import MultiRepoGitService
+from app.services.search_service import SearchService
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/repositories", tags=["repositories"])
+
+
+def trigger_search_reindex() -> None:
+    """
+    Trigger a full search index rebuild.
+
+    Called when repositories are added, removed, or enabled/disabled
+    to ensure search index stays in sync with repository changes.
+    """
+    try:
+        search_service = SearchService(
+            search_settings=settings.search,
+            repo_path=settings.multi_repository.root_dir,
+        )
+        multi_repo_service = MultiRepoGitService()
+
+        document_count = search_service.rebuild_index(
+            multi_repo_service=multi_repo_service
+        )
+        logger.info(f"Search index rebuilt: {document_count} documents")
+    except Exception as e:
+        logger.error(f"Failed to rebuild search index: {e}")
 
 
 @router.get("/scan", response_model=List[GitHubRepository])
@@ -237,6 +261,9 @@ async def add_repositories(
                 except Exception as e:
                     logger.error(f"Failed to clone {full_name}: {e}")
 
+        # Trigger search reindex after adding repositories
+        trigger_search_reindex()
+
     except ImportError:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -260,7 +287,18 @@ async def update_repository(
     logger.info(f"Updating repository {repository_id} by {user_email}")
 
     try:
+        # Check if enabled status is being changed
+        should_reindex = "enabled" in update
+
         repository_service.update_repository(repository_id, update)
+
+        # Trigger search reindex if enabled status changed
+        if should_reindex:
+            logger.info(
+                f"Repository {repository_id} enabled status changed, triggering reindex"
+            )
+            trigger_search_reindex()
+
         return repository_service.get_repository_status(repository_id)
     except ValueError as e:
         logger.warning(f"Repository not found: {repository_id}")
@@ -325,6 +363,10 @@ async def remove_repository(
     try:
         repository_service.remove_repository(repository_id)
         logger.info(f"Repository {repository_id} removed successfully")
+
+        # Trigger search reindex to remove all articles from deleted repository
+        trigger_search_reindex()
+
     except ValueError as e:
         logger.warning(f"Repository not found: {repository_id}")
         raise HTTPException(
