@@ -109,6 +109,26 @@ def validate_path(path: str) -> str:
     return path
 
 
+def normalize_author_field(value) -> str | None:
+    """
+    Normalize author/updated_by field that might be a dict or string.
+
+    Handles legacy frontmatter where author was a structured object.
+
+    Args:
+        value: Author value from frontmatter (string, dict, or None)
+
+    Returns:
+        Normalized string value or None
+    """
+    if value is None:
+        return None
+    if isinstance(value, dict):
+        # Try to extract email or name from structured data
+        return value.get("email") or value.get("name") or str(value)
+    return str(value) if value else None
+
+
 # ============================================================================
 # Article Endpoints
 # ============================================================================
@@ -151,9 +171,9 @@ async def list_articles(
             summary = ArticleSummary(
                 path=str(relative_path),
                 title=metadata.get("title", md_file.stem),
-                author=metadata.get("author"),
+                author=normalize_author_field(metadata.get("author")),
                 updated_at=metadata.get("updated_at"),
-                updated_by=metadata.get("updated_by"),
+                updated_by=normalize_author_field(metadata.get("updated_by")),
             )
             articles.append(summary)
 
@@ -212,10 +232,10 @@ async def get_article(
             path=path,
             title=metadata.get("title", article_path.stem),
             content=content,
-            author=metadata.get("author"),
+            author=normalize_author_field(metadata.get("author")),
             created_at=metadata.get("created_at"),
             updated_at=metadata.get("updated_at"),
-            updated_by=metadata.get("updated_by"),
+            updated_by=normalize_author_field(metadata.get("updated_by")),
         )
 
     except Exception as e:
@@ -302,10 +322,10 @@ async def create_article(
             path=path,
             title=metadata.get("title", title),
             content=content,
-            author=metadata.get("author"),
+            author=normalize_author_field(metadata.get("author")),
             created_at=metadata.get("created_at"),
             updated_at=metadata.get("updated_at"),
-            updated_by=metadata.get("updated_by"),
+            updated_by=normalize_author_field(metadata.get("updated_by")),
         )
 
     except Exception as e:
@@ -384,10 +404,10 @@ async def update_article(
             path=path,
             title=metadata.get("title", article_path.stem),
             content=content,
-            author=metadata.get("author"),
+            author=normalize_author_field(metadata.get("author")),
             created_at=metadata.get("created_at"),
             updated_at=metadata.get("updated_at"),
-            updated_by=metadata.get("updated_by"),
+            updated_by=normalize_author_field(metadata.get("updated_by")),
         )
 
     except Exception as e:
@@ -530,10 +550,10 @@ async def move_article(
             path=new_path,
             title=metadata.get("title", new_article_path.stem),
             content=content,
-            author=metadata.get("author"),
+            author=normalize_author_field(metadata.get("author")),
             created_at=metadata.get("created_at"),
             updated_at=metadata.get("updated_at"),
-            updated_by=metadata.get("updated_by"),
+            updated_by=normalize_author_field(metadata.get("updated_by")),
         )
 
     except Exception as e:
