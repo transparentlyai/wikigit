@@ -9,7 +9,6 @@ import logging
 from fastapi import APIRouter
 
 from app.config.settings import settings
-from app.services.repository_service import RepositoryService
 
 logger = logging.getLogger(__name__)
 

@@ -667,7 +667,9 @@ def build_directory_tree(repo_path: Path, current_path: Path) -> List[DirectoryN
         # Separate files and directories
         items = list(current_path.iterdir())
         files = sorted([item for item in items if item.is_file()], key=lambda x: x.name)
-        directories = sorted([item for item in items if item.is_dir()], key=lambda x: x.name)
+        directories = sorted(
+            [item for item in items if item.is_dir()], key=lambda x: x.name
+        )
 
         # Process files first
         for item in files:
