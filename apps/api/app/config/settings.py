@@ -15,7 +15,6 @@ from pathlib import Path
 from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator
-from pydantic_settings import BaseSettings
 from pydantic_settings_yaml import YamlBaseSettings
 
 
@@ -311,7 +310,7 @@ def get_settings() -> Settings:
             raise ValueError(error_msg)
 
         logger.info("Configuration loaded successfully")
-        logger.info(f"   Multi-repository mode: enabled")
+        logger.info("   Multi-repository mode: enabled")
         logger.info(
             f"   Repositories root: {settings_instance.multi_repository.root_dir}"
         )

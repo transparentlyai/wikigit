@@ -22,7 +22,4 @@ async def health_check():
     Returns:
         HealthCheck: System status and version information
     """
-    return HealthCheck(
-        status="healthy",
-        version="0.1.0"
-    )
+    return HealthCheck(status="healthy", version="0.1.0")
