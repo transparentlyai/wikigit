@@ -118,16 +118,14 @@ class SearchService:
         # Otherwise return as string
         return str(author_value)
 
-    def rebuild_index(self, multi_repo_service=None) -> int:
+    def rebuild_index(self, multi_repo_service) -> int:
         """
         Rebuild the entire search index from scratch.
 
-        Supports both single-repository and multi-repository modes:
-        - If multi_repo_service is provided: scans all enabled repositories
-        - Otherwise: scans the single repository at self.repo_path
+        Scans all enabled repositories and indexes all markdown files.
 
         Args:
-            multi_repo_service: Optional MultiRepoGitService for multi-repo mode
+            multi_repo_service: MultiRepoGitService instance
 
         Returns:
             int: Number of documents indexed
@@ -142,41 +140,29 @@ class SearchService:
             writer = self.ix.writer()
             indexed_count = 0
 
-            if multi_repo_service:
-                # Multi-repository mode
-                logger.info("Rebuilding index in multi-repository mode")
-                enabled_repos = multi_repo_service.get_all_enabled_repositories()
+            # Get all enabled repositories
+            logger.info("Rebuilding index for all enabled repositories")
+            enabled_repos = multi_repo_service.get_all_enabled_repositories()
 
-                for repo_config in enabled_repos:
-                    local_path = multi_repo_service.root_dir / repo_config.local_path
+            for repo_config in enabled_repos:
+                local_path = multi_repo_service.root_dir / repo_config.local_path
 
-                    # Skip if repository doesn't exist locally
-                    if not local_path.exists() or not (local_path / ".git").exists():
-                        logger.warning(
-                            f"Repository {repo_config.id} not found locally, skipping"
-                        )
-                        continue
-
-                    logger.info(f"Indexing repository: {repo_config.id}")
-                    repo_indexed = self._index_repository(
-                        writer,
-                        local_path,
-                        repository_id=repo_config.id,
-                        repository_name=repo_config.name,
+                # Skip if repository doesn't exist locally
+                if not local_path.exists() or not (local_path / ".git").exists():
+                    logger.warning(
+                        f"Repository {repo_config.id} not found locally, skipping"
                     )
-                    indexed_count += repo_indexed
-                    logger.info(
-                        f"Indexed {repo_indexed} documents from {repo_config.id}"
-                    )
-            else:
-                # Single repository mode (backward compatibility)
-                logger.info("Rebuilding index in single-repository mode")
-                indexed_count = self._index_repository(
+                    continue
+
+                logger.info(f"Indexing repository: {repo_config.id}")
+                repo_indexed = self._index_repository(
                     writer,
-                    self.repo_path,
-                    repository_id="",
-                    repository_name="",
+                    local_path,
+                    repository_id=repo_config.id,
+                    repository_name=repo_config.name,
                 )
+                indexed_count += repo_indexed
+                logger.info(f"Indexed {repo_indexed} documents from {repo_config.id}")
 
             # Commit all changes
             writer.commit()

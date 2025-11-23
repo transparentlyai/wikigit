@@ -77,12 +77,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Add CORS middleware
-# Allow frontend origin from environment variable or default to port 3003
+# Add CORS middleware for local development
 frontend_port = os.getenv("FRONTEND_PORT", "3003")
 allowed_origins = [
     f"http://localhost:{frontend_port}",
-    "http://localhost:3003",  # Keep default for backwards compatibility
+    "http://localhost:3003",  # Default frontend port
 ]
 app.add_middleware(
     CORSMiddleware,

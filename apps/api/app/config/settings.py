@@ -12,7 +12,7 @@ import os
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import List, Literal, Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator
 from pydantic_settings_yaml import YamlBaseSettings
@@ -126,7 +126,12 @@ class GitHubSettings(BaseModel):
 
 
 class RepositoryConfig(BaseModel):
-    """Configuration for a single repository in multi-repository mode."""
+    """
+    Configuration model for a single repository.
+
+    Used for runtime validation when loading repository data from repositories.json.
+    Managed by RepositoryService, not YAML configuration.
+    """
 
     model_config = {"populate_by_name": True}
 
@@ -161,7 +166,12 @@ class RepositoryConfig(BaseModel):
 
 
 class MultiRepositorySettings(BaseModel):
-    """Multi-repository support configuration."""
+    """
+    Multi-repository support configuration.
+
+    Repositories are managed via RepositoryService (repositories.json),
+    not through YAML configuration.
+    """
 
     model_config = {"populate_by_name": True}
 
@@ -184,9 +194,6 @@ class MultiRepositorySettings(BaseModel):
     default_branch: str = Field(default="main", description="Default git branch to use")
     github: Optional[GitHubSettings] = Field(
         default=None, description="GitHub authentication settings"
-    )
-    repositories: List[RepositoryConfig] = Field(
-        default_factory=list, description="List of configured repositories"
     )
 
     @field_validator("repositories_root_dir", mode="before")
