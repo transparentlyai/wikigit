@@ -23,7 +23,7 @@ export default function HomePage() {
         // Check if home page is configured
         if (config.home_page_repository && config.home_page_article) {
           // Redirect to configured home page
-          router.replace(`/article/${config.home_page_repository}/${config.home_page_article}`);
+          router.replace(`/${config.home_page_repository}/${config.home_page_article}`);
         } else {
           // Show welcome page
           setShowWelcome(true);

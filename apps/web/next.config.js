@@ -14,6 +14,11 @@ const nextConfig = {
         source: '/media/:path*',
         destination: `http://localhost:${backendPort}/media/:path*`,
       },
+      // Proxy media files from repositories to backend (media directory)
+      {
+        source: '/:repository_id/media/:path*',
+        destination: `http://localhost:${backendPort}/repositories/:repository_id/media/:path*`,
+      },
     ]
   },
 

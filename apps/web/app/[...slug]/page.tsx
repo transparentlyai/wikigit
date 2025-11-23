@@ -14,7 +14,7 @@ import type { RepositoryStatus } from '@/types/api'
 
 /**
  * Parse article path from slug segments
- * Multi-repo mode: /article/{repo_id}/path/to/file.md
+ * Multi-repo mode: /{repo_id}/path/to/file.md
  *
  * Returns [repositoryId, articlePath]
  */
@@ -24,7 +24,7 @@ function parseArticlePath(slug: string[]): [string | undefined, string] {
   }
 
   // Multi-repo mode: first segment is always the repository ID
-  // Example: /article/transparentlyadmin-wiki-pages/Home.md
+  // Example: /transparentlyadmin-wiki-pages/Home.md
   // slug = ['transparentlyadmin-wiki-pages', 'Home.md']
   if (slug.length >= 2) {
     const repositoryId = slug[0]
@@ -43,7 +43,7 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
   const searchParams = useSearchParams()
 
   // Parse repository ID from slug if present (multi-repo mode)
-  // URL structure: /article/{repo_id}/path/to/file.md or /article/path/to/file.md
+  // URL structure: /{repo_id}/path/to/file.md or /path/to/file.md
   const [repositoryId, articlePath] = parseArticlePath(slug)
 
   const currentArticle = useStore((state) => state.currentArticle)
@@ -91,7 +91,7 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
           setIsEditing(true)
           // Remove the query parameter from URL
           const fullPath = repositoryId ? `${repositoryId}/${articlePath}` : articlePath
-          router.replace(`/article/${fullPath}`)
+          router.replace(`/${fullPath}`)
         }
       } catch (error: any) {
         toast.error(error.message || 'Failed to load article')
@@ -169,12 +169,11 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
   const breadcrumbs = currentArticle
     ? articlePath.split('/').map((segment, index, array) => {
         const label = segment.replace(/-/g, ' ').replace(/\.md$/, '');
-        // Include repository ID in the href for multi-repo mode
         const pathSegments = array.slice(0, index + 1).join('/');
         const href = index < array.length - 1
           ? repositoryId
-            ? `/article/${repositoryId}/${pathSegments}`
-            : `/article/${pathSegments}`
+            ? `/${repositoryId}/${pathSegments}`
+            : `/${pathSegments}`
           : undefined;
         return { label, href };
       })
@@ -210,7 +209,7 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
       {/* View mode */}
       {!isEditing && (
         <>
-          <MarkdownViewer content={currentArticle.content} />
+          <MarkdownViewer content={currentArticle.content} repositoryId={repositoryId} />
 
           <hr className="my-8 border-0 border-t border-gray-200" />
 

@@ -10,16 +10,20 @@ import { Callout } from '@/components/ui/callout';
 
 interface MarkdownViewerProps {
   content: string;
+  repositoryId?: string;
 }
 
 interface CodeBlockProps extends ComponentPropsWithoutRef<'code'> {
   inline?: boolean;
 }
 
-function CustomImage({ src, alt, title, width, height, ...props }: ComponentPropsWithoutRef<'img'>) {
+interface CustomImageProps extends ComponentPropsWithoutRef<'img'> {
+  repositoryId?: string;
+}
+
+function CustomImage({ src, alt, title, width, height, repositoryId, ...props }: CustomImageProps) {
   if (!src) return null;
 
-  // Convert Blob to string if needed
   const srcString = typeof src === 'string' ? src : '';
 
   // Parse query parameters from src for sizing (e.g., image.jpg?width=300)
@@ -28,13 +32,16 @@ function CustomImage({ src, alt, title, width, height, ...props }: ComponentProp
   const queryHeight = url.searchParams.get('height');
 
   // Clean src by removing query parameters
-  const cleanSrc = srcString.split('?')[0];
+  let cleanSrc = srcString.split('?')[0];
 
-  // Determine final width and height (prioritize inline attributes, then query params)
+  // Rewrite repository-relative absolute paths (starting with /)
+  if (cleanSrc.startsWith('/') && repositoryId) {
+    cleanSrc = `/${repositoryId}${cleanSrc}`;
+  }
+
   const finalWidth = width || queryWidth;
   const finalHeight = height || queryHeight;
 
-  // If dimensions are specified, render with those dimensions
   if (finalWidth || finalHeight) {
     return (
       <img
@@ -52,7 +59,6 @@ function CustomImage({ src, alt, title, width, height, ...props }: ComponentProp
     );
   }
 
-  // Default: responsive image
   return (
     <img
       src={cleanSrc}
@@ -65,6 +71,23 @@ function CustomImage({ src, alt, title, width, height, ...props }: ComponentProp
       {...props}
     />
   );
+}
+
+interface CustomLinkProps extends ComponentPropsWithoutRef<'a'> {
+  repositoryId?: string;
+}
+
+function CustomLink({ href, repositoryId, ...props }: CustomLinkProps) {
+  if (!href) return <a {...props} />;
+
+  let finalHref = href;
+
+  // Rewrite repository-relative absolute paths (starting with /)
+  if (href.startsWith('/') && repositoryId) {
+    finalHref = `/${repositoryId}${href}`;
+  }
+
+  return <a href={finalHref} {...props} />;
 }
 
 function CustomDiv({ children, className, ...props }: ComponentPropsWithoutRef<'div'>) {
@@ -103,7 +126,7 @@ function CustomDiv({ children, className, ...props }: ComponentPropsWithoutRef<'
   return <div {...props} className={className}>{children}</div>;
 }
 
-export function MarkdownViewer({ content }: MarkdownViewerProps) {
+export function MarkdownViewer({ content, repositoryId }: MarkdownViewerProps) {
   return (
     <div className="prose max-w-4xl">
       <ReactMarkdown
@@ -111,7 +134,8 @@ export function MarkdownViewer({ content }: MarkdownViewerProps) {
         components={{
           code: CodeBlock,
           pre: ({ children }) => <>{children}</>,
-          img: CustomImage,
+          img: (props) => <CustomImage {...props} repositoryId={repositoryId} />,
+          a: (props) => <CustomLink {...props} repositoryId={repositoryId} />,
           div: CustomDiv,
           p: ({ children }) => {
             // Check if children contains a fenced code block

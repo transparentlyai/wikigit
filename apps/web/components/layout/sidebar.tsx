@@ -70,7 +70,7 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
   const hasChildren = isDirectory && node.children && node.children.length > 0;
 
   // Construct article path with repository ID if in multi-repo mode
-  const articleUrl = repositoryId ? `/article/${repositoryId}/${node.path}` : `/article/${node.path}`;
+  const articleUrl = repositoryId ? `/${repositoryId}/${node.path}` : `/${node.path}`;
   const isActive = pathname === articleUrl;
 
   useEffect(() => {
@@ -127,7 +127,7 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
       setShowNewArticleDialog(false);
       onRefresh?.();
       const articlePath = repositoryId ? `${repositoryId}/${newPath}` : newPath;
-      router.push(`/article/${articlePath}?edit=true`);
+      router.push(`/${articlePath}?edit=true`);
     } catch (error: any) {
       toast.error(error.message || 'Failed to create article');
     }
@@ -194,7 +194,7 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
         // If renaming the current article, navigate to new location
         if (isActive) {
           const articlePath = repositoryId ? `${repositoryId}/${newPath}` : newPath;
-          router.push(`/article/${articlePath}`);
+          router.push(`/${articlePath}`);
         }
       }
 
@@ -329,9 +329,9 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
       onRefresh?.();
 
       // If it was the current article, navigate to new location
-      const sourceArticleUrl = repositoryId ? `/article/${repositoryId}/${sourcePath}` : `/article/${sourcePath}`;
+      const sourceArticleUrl = repositoryId ? `/${repositoryId}/${sourcePath}` : `/${sourcePath}`;
       if (sourceType === 'file' && pathname === sourceArticleUrl) {
-        const newArticleUrl = repositoryId ? `/article/${repositoryId}/${newPath}` : `/article/${newPath}`;
+        const newArticleUrl = repositoryId ? `/${repositoryId}/${newPath}` : `/${newPath}`;
         router.push(newArticleUrl);
       }
     } catch (error: any) {
@@ -694,7 +694,7 @@ export function Sidebar({ directories, onRefresh }: SidebarProps) {
       toast.success(`Article "${articleName}" created`);
       setShowRootNewArticleDialog(false);
       onRefresh?.();
-      router.push(`/article/${articleName}?edit=true`);
+      router.push(`/${articleName}?edit=true`);
     } catch (error: any) {
       toast.error(error.message || 'Failed to create article');
     }
@@ -756,8 +756,8 @@ export function Sidebar({ directories, onRefresh }: SidebarProps) {
       onRefresh?.();
 
       // If it was the current article, navigate to new location
-      if (sourceType === 'file' && pathname === `/article/${sourcePath}`) {
-        router.push(`/article/${newPath}`);
+      if (sourceType === 'file' && pathname === `/${sourcePath}`) {
+        router.push(`/${newPath}`);
       }
     } catch (error: any) {
       toast.error(error.message || 'Failed to move item');

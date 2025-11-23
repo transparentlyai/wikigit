@@ -12,11 +12,13 @@ Phase 6: Multi-Repository Support
 """
 
 import logging
+import mimetypes
 from pathlib import Path
 from typing import List
 from urllib.parse import unquote
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import FileResponse
 
 from app.config.settings import settings
 from app.middleware.auth import get_current_user
@@ -822,3 +824,99 @@ async def move_directory(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to move directory: {str(e)}",
         )
+
+
+# ============================================================================
+# Unified File Serving Endpoint (Catch-all)
+# ============================================================================
+
+
+@router.get("/{path:path}")
+async def serve_file(
+    repository_id: str,
+    path: str,
+    user_email: str = Depends(get_current_user),
+):
+    """
+    Unified file serving endpoint for articles and media.
+
+    If the file is a markdown file (.md), parse and return as Article.
+    Otherwise, serve as static file (images, PDFs, etc.).
+
+    If the file doesn't exist but has no extension, tries common extensions.
+
+    Args:
+        repository_id: Repository identifier
+        path: File path relative to repository root
+        user_email: Authenticated user email
+
+    Returns:
+        Article object for .md files, FileResponse for other files
+
+    Raises:
+        HTTPException: 404 if file not found
+    """
+    logger.info(f"Serving file {path} from repository {repository_id} for {user_email}")
+
+    repo_path = get_repository_path(repository_id)
+    path = validate_path(path)
+
+    file_path = repo_path / path
+
+    # If file doesn't exist and has no extension, try common extensions
+    if not file_path.exists():
+        if not file_path.suffix:
+            # Try common image/media extensions
+            extensions = [
+                ".jpg",
+                ".jpeg",
+                ".png",
+                ".gif",
+                ".svg",
+                ".webp",
+                ".pdf",
+                ".mp4",
+                ".webm",
+            ]
+            for ext in extensions:
+                test_path = repo_path / f"{path}{ext}"
+                if test_path.exists() and test_path.is_file():
+                    file_path = test_path
+                    path = f"{path}{ext}"
+                    break
+
+    if not file_path.exists() or not file_path.is_file():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"File '{path}' not found",
+        )
+
+    # If markdown file, return as Article
+    if file_path.suffix == ".md":
+        try:
+            metadata, content = frontmatter_service.parse_article(file_path)
+
+            return Article(
+                path=path,
+                title=metadata.get("title", file_path.stem),
+                content=content,
+                author=normalize_author_field(metadata.get("author")),
+                created_at=metadata.get("created_at"),
+                updated_at=metadata.get("updated_at"),
+                updated_by=normalize_author_field(metadata.get("updated_by")),
+            )
+        except Exception as e:
+            logger.error(f"Failed to read article {path}: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to read article: {str(e)}",
+            )
+
+    # Otherwise, serve as static file
+    mime_type, _ = mimetypes.guess_type(str(file_path))
+
+    return FileResponse(
+        path=str(file_path),
+        media_type=mime_type,
+        filename=file_path.name,
+    )

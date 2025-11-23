@@ -185,12 +185,13 @@ function SearchContent() {
                 {results.map((result, index) => {
                   const pathParts = result.path.split('/');
                   const relevance = Math.round(result.score * 100);
+                  const articleUrl = result.repository_id ? `/${result.repository_id}/${result.path}` : `/${result.path}`;
 
                   return (
                     <li
                       key={`${result.path}:${index}`}
                       className="group py-5 first:pt-2 hover:bg-gray-50/50 -mx-4 px-4 rounded-xl transition-colors cursor-pointer"
-                      onClick={() => router.push(`/article/${result.path}`)}
+                      onClick={() => router.push(articleUrl)}
                     >
                       <div className="flex items-start gap-4">
                         {/* Icon Column */}
