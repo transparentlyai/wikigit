@@ -13,6 +13,7 @@ Phase 6: Multi-Repository Support
 
 import logging
 import mimetypes
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List
 from urllib.parse import unquote
@@ -33,6 +34,7 @@ from app.models.schemas import (
     DirectoryTreeResponse,
 )
 from app.services import frontmatter_service, repository_service
+from app.services.git_service import GitService
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +76,31 @@ def get_repository_path(repository_id: str) -> Path:
         )
 
     return local_path
+
+
+def get_git_service(repository_id: str) -> GitService:
+    """
+    Get a GitService instance for a repository.
+
+    Args:
+        repository_id: Repository identifier
+
+    Returns:
+        GitService instance for the repository
+
+    Raises:
+        HTTPException: If repository not found or not configured
+    """
+    repo_path = get_repository_path(repository_id)
+    repo_meta = repository_service.get_repository(repository_id)
+
+    return GitService(
+        repo_path=repo_path,
+        author_name="WikiGit",
+        author_email="wikigit@example.com",
+        remote_url=repo_meta.get("remote_url"),
+        auto_push=False,  # We control push through sync operations
+    )
 
 
 def validate_path(path: str) -> str:
@@ -309,6 +336,15 @@ async def create_article(
 
         logger.info(f"Article {path} created successfully")
 
+        # Commit changes to git
+        try:
+            git_service = get_git_service(repository_id)
+            git_service.add_and_commit([path], "Create", user_email)
+            logger.info(f"Committed creation of {path}")
+        except Exception as git_error:
+            logger.warning(f"Failed to commit article creation: {git_error}")
+            # Continue even if git commit fails
+
         # Return created article
         metadata, content = frontmatter_service.parse_article(article_path)
         return Article(
@@ -391,6 +427,15 @@ async def update_article(
 
         logger.info(f"Article {path} updated successfully")
 
+        # Commit changes to git
+        try:
+            git_service = get_git_service(repository_id)
+            git_service.add_and_commit([path], "Update", user_email)
+            logger.info(f"Committed update to {path}")
+        except Exception as git_error:
+            logger.warning(f"Failed to commit article update: {git_error}")
+            # Continue even if git commit fails
+
         # Return updated article
         metadata, content = frontmatter_service.parse_article(article_path)
         return Article(
@@ -458,6 +503,19 @@ async def delete_article(
     try:
         article_path.unlink()
         logger.info(f"Article {path} deleted successfully")
+
+        # Commit deletion to git
+        try:
+            git_service = get_git_service(repository_id)
+            # For deletions, we need to use git's remove functionality
+            if git_service.repo:
+                git_service.repo.index.remove([path])
+                commit_message = f"Delete: {path}\n\nAuthor: {user_email}\nDate: {datetime.now(timezone.utc).isoformat()}"
+                git_service.repo.index.commit(commit_message)
+                logger.info(f"Committed deletion of {path}")
+        except Exception as git_error:
+            logger.warning(f"Failed to commit article deletion: {git_error}")
+            # Continue even if git commit fails
 
     except Exception as e:
         logger.error(f"Failed to delete article {path}: {e}")
@@ -536,6 +594,19 @@ async def move_article(
         old_article_path.rename(new_article_path)
 
         logger.info(f"Article moved from {old_path} to {new_path} successfully")
+
+        # Commit move to git (remove old, add new)
+        try:
+            git_service = get_git_service(repository_id)
+            if git_service.repo:
+                git_service.repo.index.remove([old_path])
+                git_service.repo.index.add([new_path])
+                commit_message = f"Rename: {old_path} → {new_path}\n\nAuthor: {user_email}\nDate: {datetime.now(timezone.utc).isoformat()}"
+                git_service.repo.index.commit(commit_message)
+                logger.info(f"Committed move from {old_path} to {new_path}")
+        except Exception as git_error:
+            logger.warning(f"Failed to commit article move: {git_error}")
+            # Continue even if git commit fails
 
         # Return moved article
         metadata, content = frontmatter_service.parse_article(new_article_path)
@@ -702,7 +773,22 @@ async def create_directory(
 
     try:
         dir_path.mkdir(parents=True, exist_ok=False)
+
+        # Create .gitkeep file so Git tracks the empty directory
+        gitkeep_path = dir_path / ".gitkeep"
+        gitkeep_path.touch()
+
         logger.info(f"Directory {path} created successfully")
+
+        # Commit directory creation to git
+        try:
+            git_service = get_git_service(repository_id)
+            gitkeep_rel_path = f"{path}/.gitkeep"
+            git_service.add_and_commit([gitkeep_rel_path], "Create", user_email)
+            logger.info(f"Committed creation of directory {path}")
+        except Exception as git_error:
+            logger.warning(f"Failed to commit directory creation: {git_error}")
+            # Continue even if git commit fails
 
     except Exception as e:
         logger.error(f"Failed to create directory {path}: {e}")
@@ -755,8 +841,28 @@ async def delete_directory(
     try:
         import shutil
 
+        # Collect all files in the directory for git removal
+        files_to_remove = []
+        for file_path in dir_path.rglob("*"):
+            if file_path.is_file():
+                rel_path = file_path.relative_to(repo_path)
+                files_to_remove.append(str(rel_path))
+
         shutil.rmtree(dir_path)
         logger.info(f"Directory {path} deleted successfully")
+
+        # Commit directory deletion to git
+        if files_to_remove:
+            try:
+                git_service = get_git_service(repository_id)
+                if git_service.repo:
+                    git_service.repo.index.remove(files_to_remove)
+                    commit_message = f"Delete: {path}/ ({len(files_to_remove)} files)\n\nAuthor: {user_email}\nDate: {datetime.now(timezone.utc).isoformat()}"
+                    git_service.repo.index.commit(commit_message)
+                    logger.info(f"Committed deletion of directory {path}")
+            except Exception as git_error:
+                logger.warning(f"Failed to commit directory deletion: {git_error}")
+                # Continue even if git commit fails
 
     except Exception as e:
         logger.error(f"Failed to delete directory {path}: {e}")
@@ -819,6 +925,13 @@ async def move_directory(
         )
 
     try:
+        # Collect all files in the old directory for git removal
+        old_files = []
+        for file_path in old_dir_path.rglob("*"):
+            if file_path.is_file():
+                rel_path = file_path.relative_to(repo_path)
+                old_files.append(str(rel_path))
+
         # Create parent directories if needed
         new_dir_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -826,6 +939,27 @@ async def move_directory(
         old_dir_path.rename(new_dir_path)
 
         logger.info(f"Directory moved from {old_path} to {new_path} successfully")
+
+        # Collect all files in the new directory for git addition
+        new_files = []
+        for file_path in new_dir_path.rglob("*"):
+            if file_path.is_file():
+                rel_path = file_path.relative_to(repo_path)
+                new_files.append(str(rel_path))
+
+        # Commit directory move to git
+        if old_files and new_files:
+            try:
+                git_service = get_git_service(repository_id)
+                if git_service.repo:
+                    git_service.repo.index.remove(old_files)
+                    git_service.repo.index.add(new_files)
+                    commit_message = f"Rename: {old_path}/ → {new_path}/ ({len(new_files)} files)\n\nAuthor: {user_email}\nDate: {datetime.now(timezone.utc).isoformat()}"
+                    git_service.repo.index.commit(commit_message)
+                    logger.info(f"Committed move from {old_path} to {new_path}")
+            except Exception as git_error:
+                logger.warning(f"Failed to commit directory move: {git_error}")
+                # Continue even if git commit fails
 
     except Exception as e:
         logger.error(f"Failed to move directory from {old_path} to {new_path}: {e}")
