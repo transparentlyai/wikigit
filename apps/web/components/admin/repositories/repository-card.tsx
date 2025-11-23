@@ -24,6 +24,7 @@ export function RepositoryCard({
 }: RepositoryCardProps) {
   const [isSyncing, setIsSyncing] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showReadOnlyWarning, setShowReadOnlyWarning] = useState(false)
 
   const handleSync = async () => {
     try {
@@ -45,6 +46,19 @@ export function RepositoryCard({
     } catch (error: any) {
       toast.error(error.message || `Failed to remove ${repository.owner}/${repository.name}`)
     }
+  }
+
+  const handleReadOnlyToggle = (checked: boolean) => {
+    if (!checked && repository.read_only) {
+      setShowReadOnlyWarning(true)
+    } else {
+      onToggleReadOnly(repository.id, checked)
+    }
+  }
+
+  const confirmDisableReadOnly = async () => {
+    await onToggleReadOnly(repository.id, false)
+    setShowReadOnlyWarning(false)
   }
 
   const formatDate = (dateStr?: string | null) => {
@@ -73,7 +87,6 @@ export function RepositoryCard({
           borderRadius: '2px',
         }}
       >
-        {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
           <div>
             <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 'bold' }}>
@@ -89,12 +102,10 @@ export function RepositoryCard({
           <SyncStatusBadge status={repository.sync_status} tooltip={getStatusTooltip()} />
         </div>
 
-        {/* Last Synced */}
         <div style={{ marginBottom: '1rem', fontSize: '0.875rem', color: '#54595d' }}>
           <strong>Last synced:</strong> {formatDate(repository.last_synced)}
         </div>
 
-        {/* Error Message */}
         {repository.error_message && (
           <div
             style={{
@@ -111,7 +122,6 @@ export function RepositoryCard({
           </div>
         )}
 
-        {/* Toggles */}
         <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '1rem' }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
             <input
@@ -127,14 +137,13 @@ export function RepositoryCard({
             <input
               type="checkbox"
               checked={repository.read_only}
-              onChange={(e) => onToggleReadOnly(repository.id, e.target.checked)}
+              onChange={(e) => handleReadOnlyToggle(e.target.checked)}
               style={{ width: '18px', height: '18px', cursor: 'pointer' }}
             />
             <span style={{ fontSize: '0.875rem' }}>Read-only</span>
           </label>
         </div>
 
-        {/* Actions */}
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button
             onClick={handleSync}
@@ -188,6 +197,17 @@ export function RepositoryCard({
         confirmText="Remove"
         cancelText="Cancel"
         onConfirm={handleDelete}
+        variant="destructive"
+      />
+
+      <ConfirmDialog
+        open={showReadOnlyWarning}
+        onOpenChange={setShowReadOnlyWarning}
+        title="⚠️ Warning: Disable Read-Only Mode"
+        description="Disabling read-only mode is NOT RECOMMENDED unless this repository is fully and exclusively managed by this application. The app cannot handle conflict resolution, merges, or complex git operations. For active development repositories, it is strongly recommended to keep read-only mode enabled and use this app only for documentation search. Are you sure you want to proceed?"
+        confirmText="I Understand, Disable Read-Only"
+        cancelText="Cancel"
+        onConfirm={confirmDisableReadOnly}
         variant="destructive"
       />
 
