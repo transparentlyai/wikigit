@@ -463,6 +463,22 @@ class SearchConfig(BaseModel):
     )
 
 
+class MultiRepositoryConfig(BaseModel):
+    """Multi-repository configuration section."""
+
+    auto_sync_interval_minutes: Optional[int] = Field(
+        None, ge=1, le=1440, description="Auto-sync interval in minutes (max 24 hours)"
+    )
+    author_name: Optional[str] = Field(None, description="Git commit author name")
+    author_email: Optional[str] = Field(None, description="Git commit author email")
+    default_branch: Optional[str] = Field(
+        None, description="Default branch for new repositories"
+    )
+    repositories_root_dir: Optional[str] = Field(
+        None, description="Root directory where repositories are stored"
+    )
+
+
 class ConfigUpdate(BaseModel):
     """
     Configuration update request model.
@@ -475,6 +491,10 @@ class ConfigUpdate(BaseModel):
     """
 
     app: Optional[AppConfig] = Field(None, description="Application settings")
+    search: Optional[SearchConfig] = Field(None, description="Search settings")
+    multi_repository: Optional[MultiRepositoryConfig] = Field(
+        None, description="Multi-repository settings"
+    )
 
     model_config = {
         "json_schema_extra": {
@@ -485,6 +505,14 @@ class ConfigUpdate(BaseModel):
                     "domain": "wiki.example.com",
                     "max_file_size_mb": 10,
                     "admins": ["admin@example.com"],
+                },
+                "search": {"index_path": "/path/to/search-index"},
+                "multi_repository": {
+                    "auto_sync_interval_minutes": 15,
+                    "author_name": "WikiGit Bot",
+                    "author_email": "bot@wikigit.app",
+                    "default_branch": "main",
+                    "repositories_root_dir": "/path/to/repositories",
                 },
             }
         }
@@ -499,6 +527,12 @@ class ConfigData(BaseModel):
     index_dir: str
     home_page_repository: Optional[str] = None
     home_page_article: Optional[str] = None
+    # Multi-repository settings
+    auto_sync_interval_minutes: int
+    author_name: str
+    author_email: str
+    default_branch: str
+    repositories_root_dir: str
 
 
 class ConfigResponse(BaseModel):

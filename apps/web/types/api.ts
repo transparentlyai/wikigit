@@ -45,7 +45,7 @@ export interface ArticleListResponse {
 // ============================================================================
 
 export interface DirectoryNode {
-  type: 'directory' | 'file';
+  type: "directory" | "file";
   name: string;
   path: string;
   children?: DirectoryNode[];
@@ -131,7 +131,7 @@ export interface RepositoryStatus {
   read_only: boolean;
   default_branch: string;
   last_synced: string | null;
-  sync_status: 'synced' | 'pending' | 'error' | 'never' | 'unavailable';
+  sync_status: "synced" | "pending" | "error" | "never" | "unavailable";
   error_message: string | null;
   has_local_changes: boolean;
   ahead_of_remote: number;
@@ -145,7 +145,7 @@ export interface RepositoryListResponse {
 
 export interface RepositorySyncResponse {
   repository_id: string;
-  status: 'success' | 'error';
+  status: "success" | "error";
   message: string;
   commits_pulled: number;
   commits_pushed: number;
@@ -157,12 +157,26 @@ export interface SearchConfig {
   rebuild_on_startup?: boolean;
 }
 
+export interface MultiRepositoryConfig {
+  auto_sync_interval_minutes?: number;
+  author_name?: string;
+  author_email?: string;
+  default_branch?: string;
+  repositories_root_dir?: string;
+}
+
 export interface ConfigData {
   app_name: string;
   admins: string[];
   index_dir: string;
   home_page_repository?: string | null;
   home_page_article?: string | null;
+  // Multi-repository settings
+  auto_sync_interval_minutes: number;
+  author_name: string;
+  author_email: string;
+  default_branch: string;
+  repositories_root_dir: string;
 }
 
 export interface ConfigUpdate {
@@ -172,6 +186,8 @@ export interface ConfigUpdate {
     home_page_repository?: string | null;
     home_page_article?: string | null;
   };
+  search?: SearchConfig;
+  multi_repository?: MultiRepositoryConfig;
 }
 
 export interface ConfigResponse {
@@ -202,7 +218,7 @@ export interface MediaListResponse {
 // ============================================================================
 
 export interface HealthCheck {
-  status: 'healthy' | 'unhealthy';
+  status: "healthy" | "unhealthy";
   version: string;
   timestamp: string;
 }

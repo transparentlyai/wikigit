@@ -1,19 +1,34 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import toast from 'react-hot-toast';
-import { api } from '@/lib/api';
-import { Settings, Save, RefreshCw } from 'lucide-react';
-import type { ConfigData } from '@/types/api';
-import { HomePageSelector } from './home-page-selector';
+import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
+import { api } from "@/lib/api";
+import { Settings, Save, RefreshCw } from "lucide-react";
+import type { ConfigData } from "@/types/api";
+import { HomePageSelector } from "./home-page-selector";
+import { GitConfiguration } from "./git-configuration";
+import { SyncSettings } from "./sync-settings";
+import { DirectoryPaths } from "./directory-paths";
 
 export function ConfigManager() {
   const [config, setConfig] = useState<ConfigData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  const [appName, setAppName] = useState('');
-  const [admins, setAdmins] = useState('');
+  const [appName, setAppName] = useState("");
+  const [admins, setAdmins] = useState("");
+
+  // Git configuration state
+  const [authorName, setAuthorName] = useState("");
+  const [authorEmail, setAuthorEmail] = useState("");
+  const [defaultBranch, setDefaultBranch] = useState("");
+
+  // Sync settings state
+  const [autoSyncInterval, setAutoSyncInterval] = useState(15);
+
+  // Directory paths state
+  const [repositoriesRootDir, setRepositoriesRootDir] = useState("");
+  const [indexDir, setIndexDir] = useState("");
 
   useEffect(() => {
     fetchConfig();
@@ -25,9 +40,15 @@ export function ConfigManager() {
       const configData = await api.getConfig();
       setConfig(configData);
       setAppName(configData.app_name);
-      setAdmins(configData.admins.join('\n'));
+      setAdmins(configData.admins.join("\n"));
+      setAuthorName(configData.author_name);
+      setAuthorEmail(configData.author_email);
+      setDefaultBranch(configData.default_branch);
+      setAutoSyncInterval(configData.auto_sync_interval_minutes);
+      setRepositoriesRootDir(configData.repositories_root_dir);
+      setIndexDir(configData.index_dir);
     } catch (error: any) {
-      toast.error(error.message || 'Failed to load configuration');
+      toast.error(error.message || "Failed to load configuration");
     } finally {
       setIsLoading(false);
     }
@@ -40,7 +61,7 @@ export function ConfigManager() {
       setIsSaving(true);
 
       const adminsList = admins
-        .split('\n')
+        .split("\n")
         .map((line) => line.trim())
         .filter((line) => line.length > 0);
 
@@ -49,12 +70,22 @@ export function ConfigManager() {
           name: appName,
           admins: adminsList,
         },
+        multi_repository: {
+          author_name: authorName,
+          author_email: authorEmail,
+          default_branch: defaultBranch,
+          auto_sync_interval_minutes: autoSyncInterval,
+          repositories_root_dir: repositoriesRootDir,
+        },
+        search: {
+          index_path: indexDir,
+        },
       });
 
       setConfig(updatedConfig);
-      toast.success('Configuration saved successfully');
+      toast.success("Configuration saved successfully");
     } catch (error: any) {
-      toast.error(error.message || 'Failed to save configuration');
+      toast.error(error.message || "Failed to save configuration");
     } finally {
       setIsSaving(false);
     }
@@ -63,14 +94,20 @@ export function ConfigManager() {
   const handleReset = () => {
     if (config) {
       setAppName(config.app_name);
-      setAdmins(config.admins.join('\n'));
+      setAdmins(config.admins.join("\n"));
+      setAuthorName(config.author_name);
+      setAuthorEmail(config.author_email);
+      setDefaultBranch(config.default_branch);
+      setAutoSyncInterval(config.auto_sync_interval_minutes);
+      setRepositoriesRootDir(config.repositories_root_dir);
+      setIndexDir(config.index_dir);
     }
   };
 
   if (isLoading) {
     return (
-      <div style={{ textAlign: 'center', padding: '2rem' }}>
-        <p style={{ color: '#54595d' }}>Loading configuration...</p>
+      <div style={{ textAlign: "center", padding: "2rem" }}>
+        <p style={{ color: "#54595d" }}>Loading configuration...</p>
       </div>
     );
   }
@@ -83,11 +120,11 @@ export function ConfigManager() {
     <div>
       <h2
         style={{
-          fontSize: '1.5rem',
-          marginBottom: '1rem',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem',
+          fontSize: "1.5rem",
+          marginBottom: "1rem",
+          display: "flex",
+          alignItems: "center",
+          gap: "0.5rem",
         }}
       >
         <Settings size={24} />
@@ -99,27 +136,52 @@ export function ConfigManager() {
 
       {/* Application Settings Form */}
       <form onSubmit={handleSave}>
+        {/* Git Configuration */}
+        <GitConfiguration
+          authorName={authorName}
+          setAuthorName={setAuthorName}
+          authorEmail={authorEmail}
+          setAuthorEmail={setAuthorEmail}
+          defaultBranch={defaultBranch}
+          setDefaultBranch={setDefaultBranch}
+        />
+
+        {/* Sync Settings */}
+        <SyncSettings
+          autoSyncInterval={autoSyncInterval}
+          setAutoSyncInterval={setAutoSyncInterval}
+        />
+
+        {/* Directory Paths */}
+        <DirectoryPaths
+          repositoriesRootDir={repositoriesRootDir}
+          setRepositoriesRootDir={setRepositoriesRootDir}
+          indexDir={indexDir}
+          setIndexDir={setIndexDir}
+        />
         <div
           style={{
-            padding: '1.5rem',
-            backgroundColor: '#f8f9fa',
-            border: '1px solid #a2a9b1',
-            borderRadius: '2px',
-            marginBottom: '2rem',
+            padding: "1.5rem",
+            backgroundColor: "#f8f9fa",
+            border: "1px solid #a2a9b1",
+            borderRadius: "2px",
+            marginBottom: "2rem",
           }}
         >
-          <h3 style={{ marginTop: 0, marginBottom: '1rem', fontSize: '1.125rem' }}>
+          <h3
+            style={{ marginTop: 0, marginBottom: "1rem", fontSize: "1.125rem" }}
+          >
             Application Settings
           </h3>
 
-          <div style={{ marginBottom: '1rem' }}>
+          <div style={{ marginBottom: "1rem" }}>
             <label
               htmlFor="app-name"
               style={{
-                display: 'block',
-                marginBottom: '0.5rem',
-                fontWeight: 'bold',
-                fontSize: '0.875rem',
+                display: "block",
+                marginBottom: "0.5rem",
+                fontWeight: "bold",
+                fontSize: "0.875rem",
               }}
             >
               Application Name
@@ -131,23 +193,23 @@ export function ConfigManager() {
               onChange={(e) => setAppName(e.target.value)}
               required
               style={{
-                width: '100%',
-                padding: '0.5rem',
-                border: '1px solid #a2a9b1',
-                borderRadius: '2px',
-                fontSize: '1rem',
+                width: "100%",
+                padding: "0.5rem",
+                border: "1px solid #a2a9b1",
+                borderRadius: "2px",
+                fontSize: "1rem",
               }}
             />
           </div>
 
-          <div style={{ marginBottom: '1rem' }}>
+          <div style={{ marginBottom: "1rem" }}>
             <label
               htmlFor="admins"
               style={{
-                display: 'block',
-                marginBottom: '0.5rem',
-                fontWeight: 'bold',
-                fontSize: '0.875rem',
+                display: "block",
+                marginBottom: "0.5rem",
+                fontWeight: "bold",
+                fontSize: "0.875rem",
               }}
             >
               Admin Users (one email per line)
@@ -159,57 +221,64 @@ export function ConfigManager() {
               required
               rows={5}
               style={{
-                width: '100%',
-                padding: '0.5rem',
-                border: '1px solid #a2a9b1',
-                borderRadius: '2px',
-                fontSize: '1rem',
-                fontFamily: 'monospace',
+                width: "100%",
+                padding: "0.5rem",
+                border: "1px solid #a2a9b1",
+                borderRadius: "2px",
+                fontSize: "1rem",
+                fontFamily: "monospace",
               }}
             />
-            <small style={{ display: 'block', marginTop: '0.25rem', color: '#54595d' }}>
-              Admin users have access to this admin panel and can manage repositories.
+            <small
+              style={{
+                display: "block",
+                marginTop: "0.25rem",
+                color: "#54595d",
+              }}
+            >
+              Admin users have access to this admin panel and can manage
+              repositories.
             </small>
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div style={{ display: "flex", gap: "0.5rem" }}>
           <button
             type="submit"
             disabled={isSaving}
             style={{
-              padding: '0.75rem 1.5rem',
-              backgroundColor: '#3366cc',
-              color: 'white',
-              border: 'none',
-              borderRadius: '2px',
-              cursor: isSaving ? 'not-allowed' : 'pointer',
-              fontSize: '0.875rem',
+              padding: "0.75rem 1.5rem",
+              backgroundColor: "#3366cc",
+              color: "white",
+              border: "none",
+              borderRadius: "2px",
+              cursor: isSaving ? "not-allowed" : "pointer",
+              fontSize: "0.875rem",
               opacity: isSaving ? 0.6 : 1,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              fontWeight: 'bold',
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              fontWeight: "bold",
             }}
           >
             <Save size={16} />
-            {isSaving ? 'Saving...' : 'Save Configuration'}
+            {isSaving ? "Saving..." : "Save Configuration"}
           </button>
           <button
             type="button"
             onClick={handleReset}
             disabled={isSaving}
             style={{
-              padding: '0.75rem 1.5rem',
-              backgroundColor: '#eaecf0',
-              color: '#202122',
-              border: '1px solid #a2a9b1',
-              borderRadius: '2px',
-              cursor: isSaving ? 'not-allowed' : 'pointer',
-              fontSize: '0.875rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
+              padding: "0.75rem 1.5rem",
+              backgroundColor: "#eaecf0",
+              color: "#202122",
+              border: "1px solid #a2a9b1",
+              borderRadius: "2px",
+              cursor: isSaving ? "not-allowed" : "pointer",
+              fontSize: "0.875rem",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
             }}
           >
             <RefreshCw size={16} />
