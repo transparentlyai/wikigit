@@ -23,8 +23,6 @@ from typing import List, Optional
 from git import Repo
 from git.exc import GitCommandError
 
-from app.config.settings import RepositorySettings
-
 logger = logging.getLogger(__name__)
 
 
@@ -56,16 +54,32 @@ class GitService:
     including initialization, commits, remote push, and history queries.
     """
 
-    def __init__(self, repo_path: Path, settings: RepositorySettings):
+    def __init__(
+        self,
+        repo_path: Path,
+        author_name: str = "WikiGit Bot",
+        author_email: str = "bot@wikigit.app",
+        remote_url: Optional[str] = None,
+        auto_push: bool = False,
+        github_token: Optional[str] = None,
+    ):
         """
         Initialize Git service.
 
         Args:
             repo_path: Path to the Git repository
-            settings: Repository settings from config
+            author_name: Git commit author name
+            author_email: Git commit author email
+            remote_url: Optional remote repository URL
+            auto_push: Whether to automatically push to remote
+            github_token: Optional GitHub token for authentication
         """
         self.repo_path = repo_path
-        self.settings = settings
+        self.author_name = author_name
+        self.author_email = author_email
+        self.remote_url = remote_url
+        self.auto_push = auto_push
+        self.github_token = github_token
         self.repo: Optional[Repo] = None
 
         # Ensure repository path exists
@@ -92,8 +106,8 @@ class GitService:
 
             # Configure Git author
             with self.repo.config_writer() as config:
-                config.set_value("user", "name", self.settings.author_name)
-                config.set_value("user", "email", self.settings.author_email)
+                config.set_value("user", "name", self.author_name)
+                config.set_value("user", "email", self.author_email)
 
             # Create initial README.md with frontmatter if repo is empty
             readme_path = self.repo_path / "README.md"
@@ -102,10 +116,10 @@ class GitService:
                 timestamp = datetime.now(timezone.utc).isoformat()
                 initial_content = f"""---
 title: Welcome to WikiGit
-author: {self.settings.author_email}
+author: {self.author_email}
 created_at: {timestamp}
 updated_at: {timestamp}
-updated_by: {self.settings.author_email}
+updated_by: {self.author_email}
 ---
 
 # Welcome to WikiGit
@@ -130,7 +144,7 @@ Create your first article by clicking the "New Article" button in the header.
                 # Make initial commit
                 self.repo.index.add(["README.md"])
                 commit_message = format_commit_message(
-                    "Create", "README.md", self.settings.author_email
+                    "Create", "README.md", self.author_email
                 )
                 self.repo.index.commit(commit_message)
                 logger.info("Initial commit created")
@@ -140,8 +154,8 @@ Create your first article by clicking the "New Article" button in the header.
 
             # Ensure Git author is configured
             with self.repo.config_writer() as config:
-                config.set_value("user", "name", self.settings.author_name)
-                config.set_value("user", "email", self.settings.author_email)
+                config.set_value("user", "name", self.author_name)
+                config.set_value("user", "email", self.author_email)
 
     def add_and_commit(
         self, file_paths: List[str], action: str, user_email: str
@@ -150,55 +164,44 @@ Create your first article by clicking the "New Article" button in the header.
         Stage files and create a commit.
 
         Args:
-            file_paths: List of file paths relative to repository root
-            action: Action type (Create, Update, Delete, Rename, Config)
+            file_paths: List of file paths to stage (relative to repo root)
+            action: Action type (Create, Update, Delete, etc.)
             user_email: Email of the user making the change
 
         Returns:
-            Commit SHA
+            The commit SHA hash
 
         Raises:
-            GitCommandError: If Git operation fails
+            RuntimeError: If Git operations fail
 
-        Implements REQ-GIT-002, REQ-GIT-003, REQ-GIT-005.
+        Implements:
+        - REQ-GIT-002: Automatic commits
+        - REQ-GIT-003: Formatted commit messages
         """
         if not self.repo:
             raise RuntimeError("Git repository not initialized")
 
-        # Stage files
         try:
-            if action == "Delete":
-                # For deleted files, use git add to stage the deletion
-                # Standard Git workflow: delete file, then git add to stage deletion
-                self.repo.git.add(file_paths)
-                logger.debug(f"Staged deletion for files: {file_paths}")
-            elif action == "Rename":
-                # For renames, the filesystem move has already occurred
-                # Use git add --all to stage both the deletions (old paths) and additions (new paths)
-                # This is simpler and more reliable than manually tracking old/new paths
-                self.repo.git.add(A=True)
-                logger.debug("Staged rename using git add --all")
+            # Stage the files
+            self.repo.index.add(file_paths)
+            logger.info(f"Staged {len(file_paths)} file(s) for commit")
+
+            # Create commit message
+            if len(file_paths) == 1:
+                commit_message = format_commit_message(
+                    action, file_paths[0], user_email
+                )
             else:
-                self.repo.index.add(file_paths)
-                logger.debug(f"Staged files: {file_paths}")
-        except GitCommandError as e:
-            logger.error(f"Failed to stage files: {e}")
-            raise
+                # Multiple files
+                commit_message = f"{action}: {len(file_paths)} files\n\nAuthor: {user_email}\nDate: {datetime.now(timezone.utc).isoformat()}"
 
-        # Create commit message
-        # Use first filename if multiple files
-        filename = file_paths[0] if file_paths else "multiple files"
-        commit_message = format_commit_message(action, filename, user_email)
-
-        # Create commit
-        try:
+            # Create commit
             commit = self.repo.index.commit(commit_message)
-            commit_sha = commit.hexsha
-            logger.info(
-                f"Created commit {commit_sha[:7]} for {action.lower()}: {filename}"
-            )
-            return commit_sha
-        except GitCommandError as e:
+            logger.info(f"Created commit {commit.hexsha[:8]} for {action}")
+
+            return commit.hexsha
+
+        except Exception as e:
             logger.error(f"Failed to create commit: {e}")
             raise
 
@@ -210,31 +213,34 @@ Create your first article by clicking the "New Article" button in the header.
         Uses GitHub token for authentication if provided.
 
         Returns:
-            True on success, False on failure
+            True if push succeeded, False otherwise
 
-        Implements REQ-GIT-004, REQ-GIT-006, REQ-GIT-007.
+        Implements:
+        - REQ-GIT-004: Optional remote push
+        - REQ-GIT-006: Graceful push failure handling
+        - REQ-GIT-007: GitHub token authentication
         """
         if not self.repo:
             logger.error("Cannot push: Git repository not initialized")
             return False
 
         # Check if remote is configured
-        if not self.settings.has_remote:
+        if not self.remote_url:
             logger.debug("No remote repository configured, skipping push")
             return False
 
         # Check if auto-push is enabled
-        if not self.settings.auto_push:
+        if not self.auto_push:
             logger.debug("Auto-push is disabled, skipping push")
             return False
 
         try:
             # Configure remote if needed
-            remote_url = self.settings.remote_url
-            if self.settings.has_github_token and "github.com" in remote_url:
+            remote_url = self.remote_url
+            if self.github_token and "github.com" in remote_url:
                 # Inject token into URL for authentication
                 # REQ-SEC-002: Don't expose token in logs
-                token = self.settings.github_token
+                token = self.github_token
                 if remote_url.startswith("https://github.com"):
                     remote_url = remote_url.replace(
                         "https://github.com", f"https://{token}@github.com"
@@ -247,7 +253,7 @@ Create your first article by clicking the "New Article" button in the header.
             if "origin" in self.repo.remotes:
                 origin = self.repo.remote("origin")
                 # Update URL if changed (without logging it)
-                if origin.url != self.settings.remote_url:
+                if origin.url != self.remote_url:
                     origin.set_url(remote_url)
             else:
                 origin = self.repo.create_remote("origin", remote_url)
@@ -259,12 +265,11 @@ Create your first article by clicking the "New Article" button in the header.
             return True
 
         except GitCommandError as e:
-            # REQ-GIT-006: Handle push failures gracefully
-            # REQ-SEC-002: Don't expose credentials in logs
+            # Git command failed (push rejected, network error, etc.)
             error_msg = str(e)
             # Sanitize error message to remove potential tokens
-            if self.settings.has_github_token:
-                error_msg = error_msg.replace(self.settings.github_token, "***")
+            if self.github_token:
+                error_msg = error_msg.replace(self.github_token, "***")
             logger.warning(f"Failed to push to remote repository: {error_msg}")
             return False
         except Exception as e:
@@ -277,81 +282,45 @@ Create your first article by clicking the "New Article" button in the header.
         Get commit history for a specific file.
 
         Args:
-            file_path: Path to file relative to repository root
+            file_path: Path to the file (relative to repo root)
             max_count: Maximum number of commits to return
 
         Returns:
-            List of commit dictionaries with fields:
-            - sha: Commit SHA
-            - author: Author name and email
-            - date: Commit date (ISO 8601)
-            - message: Commit message
+            List of commit dictionaries with metadata
 
         Raises:
-            GitCommandError: If Git operation fails
+            RuntimeError: If Git operations fail
         """
         if not self.repo:
             raise RuntimeError("Git repository not initialized")
 
         try:
-            commits = list(self.repo.iter_commits(paths=file_path, max_count=max_count))
-            history = []
-
-            for commit in commits:
-                history.append(
+            commits = []
+            for commit in self.repo.iter_commits(paths=file_path, max_count=max_count):
+                commits.append(
                     {
                         "sha": commit.hexsha,
-                        "author": f"{commit.author.name} <{commit.author.email}>",
-                        "date": datetime.fromtimestamp(
-                            commit.committed_date, tz=timezone.utc
-                        ).isoformat(),
-                        "message": commit.message.strip(),
+                        "message": commit.message,
+                        "author": commit.author.name,
+                        "email": commit.author.email,
+                        "date": commit.committed_datetime.isoformat(),
                     }
                 )
+            return commits
 
-            logger.debug(f"Retrieved {len(history)} commits for {file_path}")
-            return history
+        except Exception as e:
+            logger.error(f"Failed to get file history: {e}")
+            raise RuntimeError(f"Failed to get file history: {e}")
 
-        except GitCommandError as e:
-            logger.error(f"Failed to get file history for {file_path}: {e}")
-            raise
-
-    def get_file_content_at_commit(
-        self, file_path: str, commit_sha: str
-    ) -> Optional[str]:
+    def get_latest_commit(self, file_path: str) -> Optional[dict]:
         """
-        Get file content at a specific commit.
+        Get the latest commit for a specific file.
 
         Args:
-            file_path: Path to file relative to repository root
-            commit_sha: Commit SHA to retrieve content from
+            file_path: Path to the file (relative to repo root)
 
         Returns:
-            File content as string, or None if file doesn't exist at that commit
-
-        Raises:
-            GitCommandError: If Git operation fails
+            Commit dictionary or None if no commits found
         """
-        if not self.repo:
-            raise RuntimeError("Git repository not initialized")
-
-        try:
-            commit = self.repo.commit(commit_sha)
-            try:
-                # Get file content from commit
-                blob = commit.tree / file_path
-                content = blob.data_stream.read().decode("utf-8")
-                logger.debug(
-                    f"Retrieved content for {file_path} at commit {commit_sha[:7]}"
-                )
-                return content
-            except KeyError:
-                # File doesn't exist at this commit
-                logger.debug(f"File {file_path} not found at commit {commit_sha[:7]}")
-                return None
-
-        except GitCommandError as e:
-            logger.error(
-                f"Failed to get content for {file_path} at commit {commit_sha}: {e}"
-            )
-            raise
+        history = self.get_file_history(file_path, max_count=1)
+        return history[0] if history else None

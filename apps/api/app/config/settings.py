@@ -40,7 +40,7 @@ def expand_env_vars(value: str) -> str:
         return value
 
     # Find all ${VAR} patterns
-    pattern = re.compile(r'\$\{([^}]+)\}')
+    pattern = re.compile(r"\$\{([^}]+)\}")
 
     def replace_var(match):
         var_name = match.group(1)
@@ -55,102 +55,24 @@ class AppSettings(BaseModel):
     model_config = {"populate_by_name": True}
 
     name: str = Field(
-        default="WikiGit",
-        alias="app_name",
-        description="Application name"
+        default="WikiGit", alias="app_name", description="Application name"
     )
     description: str = Field(
-        default="Git-based Wiki Application",
-        description="Application description"
+        default="Git-based Wiki Application", description="Application description"
     )
-    domain: str = Field(
-        default="localhost:3003",
-        description="Application domain"
-    )
+    domain: str = Field(default="localhost:3003", description="Application domain")
     max_file_size_mb: int = Field(
-        default=10,
-        ge=1,
-        le=100,
-        description="Maximum file upload size in megabytes"
+        default=10, ge=1, le=100, description="Maximum file upload size in megabytes"
     )
     admins: list[str] = Field(
         default_factory=list,
-        description="List of admin user emails (from GCP IAP or other auth)"
+        description="List of admin user emails (from GCP IAP or other auth)",
     )
 
     @property
     def max_file_size_bytes(self) -> int:
         """Get max file size in bytes."""
         return self.max_file_size_mb * 1024 * 1024
-
-
-class RepositorySettings(BaseModel):
-    """Git repository settings."""
-
-    model_config = {"populate_by_name": True}
-
-    path: str = Field(
-        default="./wiki-content",
-        alias="repo_path",
-        description="Path to the git repository directory"
-    )
-    default_branch: str = Field(
-        default="main",
-        description="Default git branch to use"
-    )
-    remote_url: Optional[str] = Field(
-        default=None,
-        description="Optional remote repository URL (e.g., https://github.com/user/repo.git)"
-    )
-    remote_token: Optional[str] = Field(
-        default=None,
-        description="Remote repository access token for authentication"
-    )
-    auto_push: bool = Field(
-        default=False,
-        description="Automatically push to remote on every commit"
-    )
-    github_token: Optional[str] = Field(
-        default=None,
-        description="GitHub personal access token for authentication (deprecated, use remote_token)"
-    )
-    author_name: str = Field(
-        default="WikiGit Bot",
-        description="Git commit author name"
-    )
-    author_email: str = Field(
-        default="bot@wikigit.app",
-        description="Git commit author email"
-    )
-
-    @field_validator('remote_url', 'remote_token', 'github_token', mode='before')
-    @classmethod
-    def expand_env_variables(cls, v: Optional[str]) -> Optional[str]:
-        """Expand environment variables in string fields."""
-        if v is None or v == "":
-            return None
-        return expand_env_vars(v)
-
-    @field_validator('path', mode='before')
-    @classmethod
-    def expand_path_env_vars(cls, v: str) -> str:
-        """Expand environment variables in path."""
-        return expand_env_vars(v)
-
-    @property
-    def repo_path(self) -> Path:
-        """Get repository path as Path object."""
-        return Path(self.path).resolve()
-
-    @property
-    def has_remote(self) -> bool:
-        """Check if remote repository is configured."""
-        return self.remote_url is not None and self.remote_url != ""
-
-    @property
-    def has_github_token(self) -> bool:
-        """Check if GitHub token is configured."""
-        return self.github_token is not None and self.github_token != ""
 
 
 class SearchSettings(BaseModel):
@@ -161,14 +83,13 @@ class SearchSettings(BaseModel):
     index_path: str = Field(
         default="./data/whoosh_index",
         alias="index_dir",
-        description="Path to the Whoosh search index directory"
+        description="Path to the Whoosh search index directory",
     )
     rebuild_on_startup: bool = Field(
-        default=True,
-        description="Rebuild search index on application startup"
+        default=True, description="Rebuild search index on application startup"
     )
 
-    @field_validator('index_path', mode='before')
+    @field_validator("index_path", mode="before")
     @classmethod
     def expand_path_env_vars(cls, v: str) -> str:
         """Expand environment variables in path."""
@@ -187,12 +108,9 @@ class GitHubSettings(BaseModel):
 
     token_env_var: str = Field(
         default="GITHUB_TOKEN",
-        description="Environment variable name containing GitHub Personal Access Token"
+        description="Environment variable name containing GitHub Personal Access Token",
     )
-    user_id: str = Field(
-        ...,
-        description="GitHub user ID for API authentication"
-    )
+    user_id: str = Field(..., description="GitHub user ID for API authentication")
 
     @property
     def token(self) -> Optional[str]:
@@ -205,49 +123,33 @@ class RepositoryConfig(BaseModel):
 
     model_config = {"populate_by_name": True}
 
-    id: str = Field(
-        ...,
-        description="Repository identifier in 'owner/repo' format"
-    )
-    name: str = Field(
-        ...,
-        description="Repository name (just 'repo' part)"
-    )
-    owner: str = Field(
-        ...,
-        description="Repository owner/organization"
-    )
-    remote_url: str = Field(
-        ...,
-        description="Full remote repository URL"
-    )
+    id: str = Field(..., description="Repository identifier in 'owner/repo' format")
+    name: str = Field(..., description="Repository name (just 'repo' part)")
+    owner: str = Field(..., description="Repository owner/organization")
+    remote_url: str = Field(..., description="Full remote repository URL")
     local_path: str = Field(
         ...,
-        description="Local path relative to repositories_root_dir (typically 'owner/repo')"
+        description="Local path relative to repositories_root_dir (typically 'owner/repo')",
     )
     enabled: bool = Field(
         default=True,
-        description="Whether this repository is enabled for indexing and sync"
+        description="Whether this repository is enabled for indexing and sync",
     )
     read_only: bool = Field(
         default=True,
-        description="Whether this repository is read-only (no push operations)"
+        description="Whether this repository is read-only (no push operations)",
     )
     default_branch: str = Field(
-        default="main",
-        description="Default branch to use for this repository"
+        default="main", description="Default branch to use for this repository"
     )
     last_synced: Optional[datetime] = Field(
-        default=None,
-        description="Timestamp of last successful sync"
+        default=None, description="Timestamp of last successful sync"
     )
     sync_status: Literal["synced", "pending", "error", "never", "unavailable"] = Field(
-        default="never",
-        description="Current sync status of the repository"
+        default="never", description="Current sync status of the repository"
     )
     error_message: Optional[str] = Field(
-        default=None,
-        description="Error message if sync_status is 'error'"
+        default=None, description="Error message if sync_status is 'error'"
     )
 
 
@@ -256,29 +158,31 @@ class MultiRepositorySettings(BaseModel):
 
     model_config = {"populate_by_name": True}
 
-    enabled: bool = Field(
-        default=False,
-        description="Enable multi-repository support (Phase 2 feature)"
-    )
+    enabled: bool = Field(default=True, description="Enable multi-repository support")
     repositories_root_dir: str = Field(
         default="./wiki-repositories",
-        description="Root directory where all repositories are cloned"
+        description="Root directory where all repositories are cloned",
     )
     auto_sync_interval_minutes: int = Field(
         default=15,
         ge=1,
-        description="Interval in minutes between automatic repository syncs"
+        description="Interval in minutes between automatic repository syncs",
     )
+    author_name: str = Field(
+        default="WikiGit Bot", description="Git commit author name"
+    )
+    author_email: str = Field(
+        default="bot@wikigit.app", description="Git commit author email"
+    )
+    default_branch: str = Field(default="main", description="Default git branch to use")
     github: Optional[GitHubSettings] = Field(
-        default=None,
-        description="GitHub authentication settings"
+        default=None, description="GitHub authentication settings"
     )
     repositories: List[RepositoryConfig] = Field(
-        default_factory=list,
-        description="List of configured repositories"
+        default_factory=list, description="List of configured repositories"
     )
 
-    @field_validator('repositories_root_dir', mode='before')
+    @field_validator("repositories_root_dir", mode="before")
     @classmethod
     def expand_path_env_vars(cls, v: str) -> str:
         """Expand environment variables in path."""
@@ -302,9 +206,10 @@ class Settings(YamlBaseSettings):
     """
 
     app: AppSettings = Field(default_factory=AppSettings)
-    repository: RepositorySettings = Field(default_factory=RepositorySettings)
     search: SearchSettings = Field(default_factory=SearchSettings)
-    multi_repository: MultiRepositorySettings = Field(default_factory=MultiRepositorySettings)
+    multi_repository: MultiRepositorySettings = Field(
+        default_factory=MultiRepositorySettings
+    )
 
     class Config:
         """Pydantic configuration."""
@@ -356,6 +261,7 @@ def get_settings() -> Settings:
         ValueError: If config.yaml has validation errors
     """
     import logging
+
     logger = logging.getLogger(__name__)
 
     config_path = Path(__file__).parent.parent.parent.parent.parent / "config.yaml"
@@ -375,12 +281,6 @@ def get_settings() -> Settings:
         # Validate critical configuration
         errors = []
 
-        # Validate repository path exists or can be created
-        repo_path = settings_instance.repository.repo_path
-        if not repo_path.exists():
-            logger.warning(f"Repository path does not exist: {repo_path}")
-            logger.warning("It will be created on first use")
-
         # Validate at least one admin is configured
         if not settings_instance.app.admins:
             errors.append("No admin users configured in app.admins")
@@ -390,28 +290,23 @@ def get_settings() -> Settings:
                 if "@" not in email or "." not in email.split("@")[1]:
                     errors.append(f"Invalid admin email format: {email}")
 
-        # Validate auto_push requires remote_url
-        if settings_instance.repository.auto_push and not settings_instance.repository.remote_url:
-            errors.append("auto_push is enabled but remote_url is not configured")
-
-        # Validate remote_url format if provided
-        if settings_instance.repository.remote_url:
-            remote = settings_instance.repository.remote_url
-            if not (remote.startswith("http://") or remote.startswith("https://") or remote.startswith("git@")):
-                errors.append(f"Invalid remote_url format: {remote}")
-
         # If there are validation errors, fail fast
         if errors:
-            error_msg = "\n".join([
-                "Configuration validation failed:",
-                *errors,
-                f"\nPlease fix the errors in: {config_path}"
-            ])
+            error_msg = "\n".join(
+                [
+                    "Configuration validation failed:",
+                    *errors,
+                    f"\nPlease fix the errors in: {config_path}",
+                ]
+            )
             logger.error(error_msg)
             raise ValueError(error_msg)
 
         logger.info("Configuration loaded successfully")
-        logger.info(f"   Repository: {settings_instance.repository.repo_path}")
+        logger.info(f"   Multi-repository mode: enabled")
+        logger.info(
+            f"   Repositories root: {settings_instance.multi_repository.root_dir}"
+        )
         logger.info(f"   Search index: {settings_instance.search.index_dir}")
         logger.info(f"   Admins: {len(settings_instance.app.admins)} configured")
 
@@ -433,7 +328,6 @@ settings = get_settings()
 
 __all__ = [
     "AppSettings",
-    "RepositorySettings",
     "SearchSettings",
     "GitHubSettings",
     "RepositoryConfig",

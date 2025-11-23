@@ -8,28 +8,27 @@ app:
     - admin@example.com
     - editor@example.com
 
-# Git repository settings (single-repository mode)
-repository:
-  repo_path: /home/mauro/projects/wikigit/wiki-content
-  default_branch: main
-  auto_push: false
-  remote_url: ""  # Optional: https://github.com/username/repo.git
-  remote_token: ""  # Optional: GitHub personal access token (use ${GITHUB_TOKEN} for env var)
-
 # Search settings
 search:
   index_dir: /home/mauro/projects/wikigit/data/search-index
 
-# Multi-repository settings (optional)
-# Enable this to manage multiple GitHub repositories in one wiki
+# Multi-repository settings
+# WikiGit now uses multi-repository mode exclusively
 multi_repository:
-  enabled: false  # Set to true to enable multi-repository mode
+  enabled: true
 
   # Directory where all repository clones will be stored
   repositories_root_dir: /home/mauro/projects/wikigit/wiki-repositories
 
   # Auto-sync interval in minutes (pulls remote changes, pushes local changes)
   auto_sync_interval_minutes: 15
+
+  # Git commit author settings
+  author_name: WikiGit Bot
+  author_email: bot@wikigit.app
+
+  # Default branch for new repositories
+  default_branch: main
 
   # GitHub integration settings
   github:

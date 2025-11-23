@@ -2,6 +2,7 @@
 Configuration management endpoints for WikiGit API.
 
 This module provides endpoints for viewing and updating application configuration.
+Repository-specific settings are managed through the /repositories endpoints.
 """
 
 import logging
@@ -25,7 +26,7 @@ async def get_config(_user: str = Depends(require_admin)):
     Get current application configuration.
 
     Returns the current configuration settings including app name, admins,
-    repository settings, and search settings.
+    and search settings. Repository settings are managed through /repositories endpoints.
 
     Requires admin privileges.
 
@@ -39,11 +40,6 @@ async def get_config(_user: str = Depends(require_admin)):
         return ConfigData(
             app_name=settings.app.name,
             admins=settings.app.admins,
-            repo_path=str(settings.repository.repo_path),
-            default_branch=settings.repository.default_branch,
-            auto_push=settings.repository.auto_push,
-            remote_url=settings.repository.remote_url,
-            github_token=settings.repository.remote_token,
             index_dir=str(settings.search.index_dir),
         )
 
@@ -64,6 +60,8 @@ async def update_config(
 
     Updates the config.yaml file with new settings. Only provided fields
     are updated; omitted fields retain their current values.
+
+    Repository settings are managed through /repositories endpoints.
 
     Requires admin privileges.
 
@@ -95,23 +93,6 @@ async def update_config(
             if config_update.app.admins is not None:
                 config_data["app"]["admins"] = config_update.app.admins
 
-        # Update repository settings if provided
-        if config_update.repository is not None:
-            if "repository" not in config_data:
-                config_data["repository"] = {}
-            if config_update.repository.auto_push is not None:
-                config_data["repository"]["auto_push"] = (
-                    config_update.repository.auto_push
-                )
-            if config_update.repository.remote_url is not None:
-                config_data["repository"]["remote_url"] = (
-                    config_update.repository.remote_url
-                )
-            if config_update.repository.github_token is not None:
-                config_data["repository"]["remote_token"] = (
-                    config_update.repository.github_token
-                )
-
         with open(config_file, "w") as f:
             yaml.safe_dump(config_data, f, default_flow_style=False)
 
@@ -120,15 +101,10 @@ async def update_config(
             "Configuration updated. Restart the application to apply changes."
         )
 
-        # Return updated configuration (from memory, not reloaded)
+        # Return updated configuration
         return ConfigData(
             app_name=config_data["app"]["app_name"],
             admins=config_data["app"]["admins"],
-            repo_path=config_data["repository"]["repo_path"],
-            default_branch=config_data["repository"]["default_branch"],
-            auto_push=config_data["repository"]["auto_push"],
-            remote_url=config_data["repository"].get("remote_url"),
-            github_token=config_data["repository"].get("remote_token"),
             index_dir=config_data["search"]["index_dir"],
         )
 

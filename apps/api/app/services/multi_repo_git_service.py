@@ -17,7 +17,7 @@ from git.exc import GitCommandError
 from app.config.settings import (
     MultiRepositorySettings,
     RepositoryConfig,
-    RepositorySettings,
+    settings,
 )
 from app.services.git_service import GitService
 
@@ -27,15 +27,15 @@ logger = logging.getLogger(__name__)
 class MultiRepoGitService:
     """Service for managing multiple Git repositories."""
 
-    def __init__(self, multi_repo_settings: MultiRepositorySettings):
+    def __init__(self, multi_repo_settings: Optional[MultiRepositorySettings] = None):
         """
         Initialize multi-repository Git service.
 
         Args:
-            multi_repo_settings: Multi-repository configuration settings
+            multi_repo_settings: Multi-repository configuration settings (defaults to global settings)
         """
-        self.settings = multi_repo_settings
-        self.root_dir = multi_repo_settings.root_dir
+        self.settings = multi_repo_settings or settings.multi_repository
+        self.root_dir = self.settings.root_dir
 
         # Ensure root directory exists
         self.root_dir.mkdir(parents=True, exist_ok=True)
@@ -419,18 +419,14 @@ class MultiRepoGitService:
             )
             return None
 
-        # Create RepositorySettings for this repo
-        repo_settings = RepositorySettings(
-            path=str(local_path),
-            default_branch=repo_config.default_branch,
+        # Create and cache GitService
+        git_service = GitService(
+            repo_path=local_path,
+            author_name=self.settings.author_name,
+            author_email=self.settings.author_email,
             remote_url=repo_config.remote_url,
             auto_push=False,  # Controlled by sync operation
-            author_name="WikiGit Bot",
-            author_email="bot@wikigit.app",
         )
-
-        # Create and cache GitService
-        git_service = GitService(local_path, repo_settings)
         self._git_services[repo_config.id] = git_service
 
         logger.debug(f"Created GitService for repository {repo_config.id}")

@@ -448,19 +448,6 @@ class AppConfig(BaseModel):
     admins: Optional[list[str]] = Field(None, description="List of admin user emails")
 
 
-class RepositoryConfig(BaseModel):
-    """Repository configuration section."""
-
-    path: Optional[str] = Field(None, description="Local repository path")
-    remote_url: Optional[str] = Field(None, description="Remote Git repository URL")
-    auto_push: Optional[bool] = Field(
-        None, description="Enable automatic push to remote"
-    )
-    github_token: Optional[str] = Field(None, description="GitHub authentication token")
-    author_name: Optional[str] = Field(None, description="Git commit author name")
-    author_email: Optional[str] = Field(None, description="Git commit author email")
-
-
 class SearchConfig(BaseModel):
     """Search configuration section."""
 
@@ -476,15 +463,12 @@ class ConfigUpdate(BaseModel):
 
     Allows admins to update application settings.
     All fields are optional to support partial updates.
+    Repository settings are managed through /repositories endpoints.
 
     Ref: SRS Section 3.6 - Admin Configuration
     """
 
     app: Optional[AppConfig] = Field(None, description="Application settings")
-    repository: Optional[RepositoryConfig] = Field(
-        None, description="Repository settings"
-    )
-    search: Optional[SearchConfig] = Field(None, description="Search settings")
 
     model_config = {
         "json_schema_extra": {
@@ -496,26 +480,16 @@ class ConfigUpdate(BaseModel):
                     "max_file_size_mb": 10,
                     "admins": ["admin@example.com"],
                 },
-                "repository": {
-                    "remote_url": "https://github.com/user/wiki.git",
-                    "auto_push": True,
-                },
-                "search": {"rebuild_on_startup": True},
             }
         }
     }
 
 
 class ConfigData(BaseModel):
-    """Simplified configuration data for frontend."""
+    """Simplified configuration data for frontend. Repository settings managed via /repositories."""
 
     app_name: str
     admins: List[str]
-    repo_path: str
-    default_branch: str
-    auto_push: bool
-    remote_url: Optional[str] = None
-    github_token: Optional[str] = None
     index_dir: str
 
 
@@ -523,7 +497,6 @@ class ConfigResponse(BaseModel):
     """Complete configuration response model."""
 
     app: AppConfig
-    repository: RepositoryConfig
     search: SearchConfig
 
     model_config = {"from_attributes": True}
@@ -815,7 +788,9 @@ class RepositoryStatus(BaseModel):
     sync_status: Literal["synced", "pending", "error", "never", "unavailable"] = Field(
         ..., description="Current sync status"
     )
-    error_message: Optional[str] = Field(None, description="Error message if sync failed")
+    error_message: Optional[str] = Field(
+        None, description="Error message if sync failed"
+    )
     has_local_changes: bool = Field(
         default=False, description="Whether there are uncommitted local changes"
     )
@@ -851,7 +826,9 @@ class RepositoryStatus(BaseModel):
 class RepositoryListResponse(BaseModel):
     """Response model for listing repositories."""
 
-    repositories: List[RepositoryStatus] = Field(..., description="List of repositories")
+    repositories: List[RepositoryStatus] = Field(
+        ..., description="List of repositories"
+    )
     total: int = Field(..., ge=0, description="Total number of repositories")
 
     model_config = {

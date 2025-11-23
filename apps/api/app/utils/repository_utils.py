@@ -3,7 +3,6 @@ Utility functions for multi-repository support.
 """
 
 from pathlib import Path
-from typing import Optional
 
 from fastapi import HTTPException, status
 
@@ -12,31 +11,23 @@ from app.services.repository_service import RepositoryService
 
 
 # Path to repositories configuration
-REPOS_CONFIG_PATH = settings.repository.repo_path / "config" / "repositories.json"
+REPOS_CONFIG_PATH = settings.multi_repository.root_dir / "config" / "repositories.json"
 repository_service = RepositoryService(REPOS_CONFIG_PATH)
 
 
-def get_repository_path(repo_id: Optional[str] = None) -> Path:
+def get_repository_path(repo_id: str) -> Path:
     """
     Get the path to a repository.
 
-    In single-repository mode (repo_id is None), returns the configured repo_path.
-    In multi-repository mode, returns the path to the specified repository.
-
     Args:
-        repo_id: Repository identifier (None for single-repository mode)
+        repo_id: Repository identifier
 
     Returns:
         Path to the repository
 
     Raises:
-        HTTPException: If repository not found in multi-repository mode
+        HTTPException: If repository not found
     """
-    if repo_id is None:
-        # Single-repository mode
-        return settings.repository.repo_path
-
-    # Multi-repository mode
     try:
         repo = repository_service.get_repository(repo_id)
         return Path(repo["local_path"])
@@ -47,21 +38,16 @@ def get_repository_path(repo_id: Optional[str] = None) -> Path:
         )
 
 
-def check_repository_writable(repo_id: Optional[str] = None) -> None:
+def check_repository_writable(repo_id: str) -> None:
     """
     Check if a repository is writable (not read-only).
 
     Args:
-        repo_id: Repository identifier (None for single-repository mode)
+        repo_id: Repository identifier
 
     Raises:
-        HTTPException: If repository is read-only
+        HTTPException: If repository is read-only or not found
     """
-    if repo_id is None:
-        # Single-repository mode - always writable
-        return
-
-    # Multi-repository mode - check read_only flag
     try:
         repo = repository_service.get_repository(repo_id)
         if repo.get("read_only", False):
@@ -76,28 +62,19 @@ def check_repository_writable(repo_id: Optional[str] = None) -> None:
         )
 
 
-def get_repository_info(repo_id: Optional[str] = None) -> dict:
+def get_repository_info(repo_id: str) -> dict:
     """
     Get repository information.
 
     Args:
-        repo_id: Repository identifier (None for single-repository mode)
+        repo_id: Repository identifier
 
     Returns:
         Dictionary with repository info (id, name, etc.)
 
     Raises:
-        HTTPException: If repository not found in multi-repository mode
+        HTTPException: If repository not found
     """
-    if repo_id is None:
-        # Single-repository mode
-        return {
-            "id": "default",
-            "name": settings.app.name,
-            "read_only": False,
-        }
-
-    # Multi-repository mode
     try:
         return repository_service.get_repository(repo_id)
     except ValueError:

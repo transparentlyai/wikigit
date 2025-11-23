@@ -134,8 +134,8 @@ class SyncScheduler:
                 # Perform sync
                 result = self.repository_service.sync_repository(
                     repo_id=repo_id,
-                    author_name=settings.repository.author_name,
-                    author_email=settings.repository.author_email,
+                    author_name=settings.multi_repository.author_name,
+                    author_email=settings.multi_repository.author_email,
                 )
 
                 if result["status"] == "success":

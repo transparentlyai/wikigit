@@ -36,7 +36,7 @@ router = APIRouter(prefix="/repositories", tags=["repositories"])
 
 # Initialize repository service
 REPOSITORIES_CONFIG_PATH = (
-    settings.repository.repo_path / "config" / "repositories.json"
+    settings.multi_repository.root_dir / "config" / "repositories.json"
 )
 repository_service = RepositoryService(REPOSITORIES_CONFIG_PATH)
 
@@ -226,7 +226,7 @@ async def add_repositories(
 
                     repo_data = response.json()
                     repo_id = full_name.replace("/", "-").lower()
-                    local_path = settings.repository.repo_path / "repos" / repo_id
+                    local_path = settings.multi_repository.root_dir / "repos" / repo_id
 
                     repository_service.clone_repository(
                         repo_id=repo_id,
@@ -293,8 +293,8 @@ async def sync_repository(
     try:
         result = repository_service.sync_repository(
             repository_id,
-            author_name=settings.repository.author_name,
-            author_email=settings.repository.author_email,
+            author_name=settings.multi_repository.author_name,
+            author_email=settings.multi_repository.author_email,
         )
 
         return RepositorySyncResponse(
