@@ -21,6 +21,7 @@ from urllib.parse import unquote
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import FileResponse
 
+from app.config.settings import settings
 from app.middleware.auth import get_current_user
 from app.models.schemas import (
     Article,
@@ -35,6 +36,7 @@ from app.models.schemas import (
 )
 from app.services import frontmatter_service, repository_service
 from app.services.git_service import GitService
+from app.services.search_service import SearchService
 
 logger = logging.getLogger(__name__)
 
@@ -147,6 +149,146 @@ def normalize_author_field(value) -> str | None:
         # Try to extract email or name from structured data
         return value.get("email") or value.get("name") or str(value)
     return str(value) if value else None
+
+
+def get_search_service(repository_id: str) -> SearchService:
+    """
+    Get a SearchService instance for indexing operations.
+
+    Args:
+        repository_id: Repository identifier
+
+    Returns:
+        SearchService instance
+    """
+    repo_path = get_repository_path(repository_id)
+    return SearchService(search_settings=settings.search, repo_path=repo_path)
+
+
+def update_search_index(
+    repository_id: str,
+    path: str,
+    title: str,
+    content: str,
+    author: str,
+    created_at,
+    updated_at,
+    updated_by: str,
+) -> None:
+    """
+    Update the search index for an article.
+
+    Args:
+        repository_id: Repository identifier
+        path: Article path
+        title: Article title
+        content: Article content
+        author: Original author
+        created_at: Creation timestamp
+        updated_at: Update timestamp
+        updated_by: Last updater
+    """
+    try:
+        search_service = get_search_service(repository_id)
+        repo_meta = repository_service.get_repository(repository_id)
+
+        # Create full path for multi-repo index (format: "owner/repo:path/to/file.md")
+        indexed_path = f"{repository_id}:{path}"
+
+        search_service.index_article(
+            path=indexed_path,
+            title=title,
+            content=content,
+            author=author,
+            created_at=created_at,
+            updated_at=updated_at,
+            updated_by=updated_by,
+            repository_id=repository_id,
+            repository_name=repo_meta.get("name", repository_id),
+        )
+        logger.info(f"Updated search index for article: {indexed_path}")
+    except Exception as e:
+        # Log error but don't fail the operation
+        logger.error(f"Failed to update search index for {path}: {e}")
+
+
+def remove_from_search_index(repository_id: str, path: str) -> None:
+    """
+    Remove an article from the search index.
+
+    Args:
+        repository_id: Repository identifier
+        path: Article path
+    """
+    try:
+        search_service = get_search_service(repository_id)
+
+        # Create full path for multi-repo index (format: "owner/repo:path/to/file.md")
+        indexed_path = f"{repository_id}:{path}"
+
+        search_service.remove_article(indexed_path)
+        logger.info(f"Removed article from search index: {indexed_path}")
+    except Exception as e:
+        # Log error but don't fail the operation
+        logger.error(f"Failed to remove article from search index {path}: {e}")
+
+
+def remove_directory_from_search_index(
+    repository_id: str, directory_path: Path, repo_path: Path
+) -> None:
+    """
+    Remove all markdown articles in a directory from the search index.
+
+    Args:
+        repository_id: Repository identifier
+        directory_path: Absolute path to the directory
+        repo_path: Repository root path
+    """
+    try:
+        # Find all markdown files in the directory
+        for md_file in directory_path.rglob("*.md"):
+            if md_file.is_file():
+                # Get relative path from repo root
+                rel_path = str(md_file.relative_to(repo_path))
+                remove_from_search_index(repository_id, rel_path)
+    except Exception as e:
+        logger.error(f"Failed to remove directory from search index: {e}")
+
+
+def index_directory_articles(
+    repository_id: str, directory_path: Path, repo_path: Path
+) -> None:
+    """
+    Index all markdown articles in a directory.
+
+    Args:
+        repository_id: Repository identifier
+        directory_path: Absolute path to the directory
+        repo_path: Repository root path
+    """
+    try:
+        # Find all markdown files in the directory
+        for md_file in directory_path.rglob("*.md"):
+            if md_file.is_file():
+                # Get relative path from repo root
+                rel_path = str(md_file.relative_to(repo_path))
+
+                # Parse the article
+                metadata, content = frontmatter_service.parse_article(md_file)
+
+                # Index the article
+                update_search_index(
+                    repository_id=repository_id,
+                    path=rel_path,
+                    title=metadata.get("title", md_file.stem),
+                    content=content,
+                    author=normalize_author_field(metadata.get("author")) or "",
+                    created_at=metadata.get("created_at"),
+                    updated_at=metadata.get("updated_at"),
+                    updated_by=normalize_author_field(metadata.get("updated_by")) or "",
+                )
+    except Exception as e:
+        logger.error(f"Failed to index directory articles: {e}")
 
 
 # ============================================================================
@@ -349,8 +491,22 @@ async def create_article(
             logger.warning(f"Failed to commit/push article creation: {git_error}")
             # Continue even if git commit/push fails
 
-        # Return created article
+        # Parse article for response
         metadata, content = frontmatter_service.parse_article(article_path)
+
+        # Update search index
+        update_search_index(
+            repository_id=repository_id,
+            path=path,
+            title=metadata.get("title", title),
+            content=content,
+            author=normalize_author_field(metadata.get("author")) or user_email,
+            created_at=metadata.get("created_at"),
+            updated_at=metadata.get("updated_at"),
+            updated_by=normalize_author_field(metadata.get("updated_by")) or user_email,
+        )
+
+        # Return created article
         return Article(
             path=path,
             title=metadata.get("title", title),
@@ -444,8 +600,22 @@ async def update_article(
             logger.warning(f"Failed to commit/push article update: {git_error}")
             # Continue even if git commit/push fails
 
-        # Return updated article
+        # Parse article for response
         metadata, content = frontmatter_service.parse_article(article_path)
+
+        # Update search index
+        update_search_index(
+            repository_id=repository_id,
+            path=path,
+            title=metadata.get("title", article_path.stem),
+            content=content,
+            author=normalize_author_field(metadata.get("author")) or user_email,
+            created_at=metadata.get("created_at"),
+            updated_at=metadata.get("updated_at"),
+            updated_by=normalize_author_field(metadata.get("updated_by")) or user_email,
+        )
+
+        # Return updated article
         return Article(
             path=path,
             title=metadata.get("title", article_path.stem),
@@ -528,6 +698,9 @@ async def delete_article(
         except Exception as git_error:
             logger.warning(f"Failed to commit/push article deletion: {git_error}")
             # Continue even if git commit/push fails
+
+        # Remove from search index
+        remove_from_search_index(repository_id, path)
 
     except Exception as e:
         logger.error(f"Failed to delete article {path}: {e}")
@@ -624,8 +797,23 @@ async def move_article(
             logger.warning(f"Failed to commit/push article move: {git_error}")
             # Continue even if git commit/push fails
 
-        # Return moved article
+        # Parse article for response
         metadata, content = frontmatter_service.parse_article(new_article_path)
+
+        # Update search index: remove old path and index new path
+        remove_from_search_index(repository_id, old_path)
+        update_search_index(
+            repository_id=repository_id,
+            path=new_path,
+            title=metadata.get("title", new_article_path.stem),
+            content=content,
+            author=normalize_author_field(metadata.get("author")) or user_email,
+            created_at=metadata.get("created_at"),
+            updated_at=metadata.get("updated_at"),
+            updated_by=normalize_author_field(metadata.get("updated_by")) or user_email,
+        )
+
+        # Return moved article
         return Article(
             path=new_path,
             title=metadata.get("title", new_article_path.stem),
@@ -863,6 +1051,9 @@ async def delete_directory(
     try:
         import shutil
 
+        # Remove all articles in the directory from search index (before deleting)
+        remove_directory_from_search_index(repository_id, dir_path, repo_path)
+
         # Collect all files in the directory for git removal
         files_to_remove = []
         for file_path in dir_path.rglob("*"):
@@ -951,6 +1142,9 @@ async def move_directory(
         )
 
     try:
+        # Remove old directory from search index (before moving)
+        remove_directory_from_search_index(repository_id, old_dir_path, repo_path)
+
         # Collect all files in the old directory for git removal
         old_files = []
         for file_path in old_dir_path.rglob("*"):
@@ -990,6 +1184,9 @@ async def move_directory(
             except Exception as git_error:
                 logger.warning(f"Failed to commit/push directory move: {git_error}")
                 # Continue even if git commit/push fails
+
+        # Index new directory location in search
+        index_directory_articles(repository_id, new_dir_path, repo_path)
 
     except Exception as e:
         logger.error(f"Failed to move directory from {old_path} to {new_path}: {e}")
