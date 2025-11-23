@@ -69,7 +69,9 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
   const isDirectory = node.type === 'directory';
   const hasChildren = isDirectory && node.children && node.children.length > 0;
 
-  const isActive = pathname === `/article/${node.path}`;
+  // Construct article path with repository ID if in multi-repo mode
+  const articleUrl = repositoryId ? `/article/${repositoryId}/${node.path}` : `/article/${node.path}`;
+  const isActive = pathname === articleUrl;
 
   useEffect(() => {
     const expandedNodes = getExpandedNodes();
@@ -124,7 +126,8 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
       toast.success(`Article "${articleName}" created`);
       setShowNewArticleDialog(false);
       onRefresh?.();
-      router.push(`/article/${newPath}?edit=true`);
+      const articlePath = repositoryId ? `${repositoryId}/${newPath}` : newPath;
+      router.push(`/article/${articlePath}?edit=true`);
     } catch (error: any) {
       toast.error(error.message || 'Failed to create article');
     }
@@ -190,7 +193,8 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
 
         // If renaming the current article, navigate to new location
         if (isActive) {
-          router.push(`/article/${newPath}`);
+          const articlePath = repositoryId ? `${repositoryId}/${newPath}` : newPath;
+          router.push(`/article/${articlePath}`);
         }
       }
 
@@ -325,8 +329,10 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
       onRefresh?.();
 
       // If it was the current article, navigate to new location
-      if (sourceType === 'file' && pathname === `/article/${sourcePath}`) {
-        router.push(`/article/${newPath}`);
+      const sourceArticleUrl = repositoryId ? `/article/${repositoryId}/${sourcePath}` : `/article/${sourcePath}`;
+      if (sourceType === 'file' && pathname === sourceArticleUrl) {
+        const newArticleUrl = repositoryId ? `/article/${repositoryId}/${newPath}` : `/article/${newPath}`;
+        router.push(newArticleUrl);
       }
     } catch (error: any) {
       toast.error(error.message || 'Failed to move item');
@@ -392,7 +398,7 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
 
     return (
       <Link
-        href={`/article/${node.path}`}
+        href={articleUrl}
         className={className}
         style={{ paddingLeft }}
         draggable

@@ -14,26 +14,25 @@ import type { RepositoryStatus } from '@/types/api'
 
 /**
  * Parse article path from slug segments
- * Handles both multi-repo mode (/article/{repo_id}/path/to/file.md)
- * and single-repo mode (/article/path/to/file.md)
+ * Multi-repo mode: /article/{repo_id}/path/to/file.md
  *
- * Returns [repositoryId, articlePath] where repositoryId is undefined in single-repo mode
+ * Returns [repositoryId, articlePath]
  */
 function parseArticlePath(slug: string[]): [string | undefined, string] {
   if (slug.length === 0) {
     return [undefined, '']
   }
 
-  // Check if the first segment looks like a repository ID (owner/repo format)
-  const firstSegment = slug[0]
-  if (firstSegment.includes('/') && slug.length > 1) {
-    // Multi-repo mode: first segment is repo ID, rest is path
-    const repositoryId = firstSegment
+  // Multi-repo mode: first segment is always the repository ID
+  // Example: /article/transparentlyadmin-wiki-pages/Home.md
+  // slug = ['transparentlyadmin-wiki-pages', 'Home.md']
+  if (slug.length >= 2) {
+    const repositoryId = slug[0]
     const articlePath = slug.slice(1).join('/')
     return [repositoryId, articlePath]
   }
 
-  // Single-repo mode: entire slug is the article path
+  // Fallback for malformed URLs
   const articlePath = slug.join('/')
   return [undefined, articlePath]
 }
@@ -168,10 +167,17 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
 
   // Generate breadcrumbs from article path
   const breadcrumbs = currentArticle
-    ? articlePath.split('/').map((segment, index, array) => ({
-        label: segment.replace(/-/g, ' ').replace(/\.md$/, ''),
-        href: index < array.length - 1 ? `/article/${array.slice(0, index + 1).join('/')}` : undefined
-      }))
+    ? articlePath.split('/').map((segment, index, array) => {
+        const label = segment.replace(/-/g, ' ').replace(/\.md$/, '');
+        // Include repository ID in the href for multi-repo mode
+        const pathSegments = array.slice(0, index + 1).join('/');
+        const href = index < array.length - 1
+          ? repositoryId
+            ? `/article/${repositoryId}/${pathSegments}`
+            : `/article/${pathSegments}`
+          : undefined;
+        return { label, href };
+      })
     : [];
 
   if (isLoading) {
