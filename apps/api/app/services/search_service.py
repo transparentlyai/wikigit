@@ -207,13 +207,11 @@ class SearchService:
                 # Get article path relative to repository root
                 article_path = str(md_file.relative_to(repo_path))
 
-                # In multi-repo mode, prefix with repository ID
+                # Use prefixed path for uniqueness in index, but store repo info separately
                 if repository_id:
-                    # Format: "owner/repo:path/to/file.md"
-                    full_path = f"{repository_id}:{article_path}"
+                    indexed_path = f"{repository_id}:{article_path}"
                 else:
-                    # Single-repo mode: just use the path
-                    full_path = article_path
+                    indexed_path = article_path
 
                 # Parse article with frontmatter
                 metadata, content = self.frontmatter_service.parse_article(md_file)
@@ -228,7 +226,7 @@ class SearchService:
                 )
 
                 writer.add_document(
-                    path=full_path,
+                    path=indexed_path,
                     title=title,
                     content=content,
                     author=author,
@@ -378,9 +376,17 @@ class SearchService:
                     repository_id = hit.get("repository_id", None) or None
                     repository_name = hit.get("repository_name", None) or None
 
+                    # Extract article path (strip repository prefix if present)
+                    full_path = hit["path"]
+                    if repository_id and ":" in full_path:
+                        # Path format is "repo-id:article/path.md"
+                        article_path = full_path.split(":", 1)[1]
+                    else:
+                        article_path = full_path
+
                     search_results.append(
                         SearchResult(
-                            path=hit["path"],
+                            path=article_path,
                             title=hit["title"],
                             snippet=excerpt,
                             score=normalized_score,

@@ -192,11 +192,8 @@ def update_search_index(
         search_service = get_search_service(repository_id)
         repo_meta = repository_service.get_repository(repository_id)
 
-        # Create full path for multi-repo index (format: "owner/repo:path/to/file.md")
-        indexed_path = f"{repository_id}:{path}"
-
         search_service.index_article(
-            path=indexed_path,
+            path=f"{repository_id}:{path}",
             title=title,
             content=content,
             author=author,
@@ -206,7 +203,7 @@ def update_search_index(
             repository_id=repository_id,
             repository_name=repo_meta.get("name", repository_id),
         )
-        logger.info(f"Updated search index for article: {indexed_path}")
+        logger.info(f"Updated search index for article: {repository_id}/{path}")
     except Exception as e:
         # Log error but don't fail the operation
         logger.error(f"Failed to update search index for {path}: {e}")
