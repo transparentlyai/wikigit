@@ -52,7 +52,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
     """
 
     # Endpoints that bypass authentication
-    SKIP_AUTH_PATHS = {"/health", "/healthz", "/"}
+    SKIP_AUTH_PATHS = {"/health", "/healthz", "/", "/setup/status"}
 
     def __init__(self, app):
         """Initialize the authentication middleware."""

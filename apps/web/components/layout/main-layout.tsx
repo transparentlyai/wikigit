@@ -6,6 +6,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { Header } from '@/components/layout/header';
 import { Sidebar } from '@/components/layout/sidebar';
 import { useWikiStore } from '@/lib/store';
@@ -30,6 +31,8 @@ export function MainLayout({ children, breadcrumbs, onEdit, showEditButton, isRe
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH);
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     const savedWidth = localStorage.getItem('sidebarWidth');
@@ -49,6 +52,22 @@ export function MainLayout({ children, breadcrumbs, onEdit, showEditButton, isRe
     setLoading(false);
     setDirectories([]);
   }, [setDirectories, setLoading]);
+
+  // Check setup status and redirect to admin if not configured
+  useEffect(() => {
+    if (pathname.startsWith('/admin')) {
+      return;
+    }
+
+    fetch('/api/setup/status')
+      .then(res => res.json())
+      .then(data => {
+        if (!data.setup_complete && data.redirect_to) {
+          router.push(data.redirect_to);
+        }
+      })
+      .catch(err => console.error('Failed to check setup status:', err));
+  }, [pathname, router]);
 
   const toggleSidebar = useCallback(() => {
     const newState = !sidebarOpen;
@@ -117,7 +136,7 @@ export function MainLayout({ children, breadcrumbs, onEdit, showEditButton, isRe
           `}
           style={{ width: sidebarOpen ? `${sidebarWidth}px` : '0' }}
         >
-          <Sidebar directories={directories} onRefresh={fetchDirectories} />
+          <Sidebar directories={directories} />
         </aside>
 
         {/* Resize Handle - only visible when sidebar is open */}

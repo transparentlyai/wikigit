@@ -26,13 +26,13 @@ import { InputDialog } from '@/components/ui/input-dialog';
 
 interface SidebarProps {
   directories: DirectoryNode[];
-  onRefresh: () => void;
+  onRefresh?: () => void;
 }
 
 interface TreeNodeProps {
   node: DirectoryNode;
   level: number;
-  onRefresh: () => void;
+  onRefresh?: () => void;
   repositoryId?: string;
   isReadOnly?: boolean;
 }
@@ -123,7 +123,7 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
 
       toast.success(`Article "${articleName}" created`);
       setShowNewArticleDialog(false);
-      onRefresh();
+      onRefresh?.();
       router.push(`/article/${newPath}?edit=true`);
     } catch (error: any) {
       toast.error(error.message || 'Failed to create article');
@@ -142,7 +142,7 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
       }
       toast.success(`Folder "${name}" created`);
       setShowNewFolderDialog(false);
-      onRefresh();
+      onRefresh?.();
 
       if (isDirectory) {
         setIsExpanded(true);
@@ -195,7 +195,7 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
       }
 
       setShowRenameDialog(false);
-      onRefresh();
+      onRefresh?.();
     } catch (error: any) {
       toast.error(error.message || 'Failed to rename');
     }
@@ -224,7 +224,7 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
       }
 
       setShowDeleteConfirm(false);
-      onRefresh();
+      onRefresh?.();
     } catch (error: any) {
       toast.error(error.message || 'Failed to delete');
     }
@@ -322,7 +322,7 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
       }
 
       // Refresh the tree
-      onRefresh();
+      onRefresh?.();
 
       // If it was the current article, navigate to new location
       if (sourceType === 'file' && pathname === `/article/${sourcePath}`) {
@@ -683,7 +683,7 @@ export function Sidebar({ directories, onRefresh }: SidebarProps) {
 
       toast.success(`Article "${articleName}" created`);
       setShowRootNewArticleDialog(false);
-      onRefresh();
+      onRefresh?.();
       router.push(`/article/${articleName}?edit=true`);
     } catch (error: any) {
       toast.error(error.message || 'Failed to create article');
@@ -695,7 +695,7 @@ export function Sidebar({ directories, onRefresh }: SidebarProps) {
       await api.createDirectory(name);
       toast.success(`Folder "${name}" created`);
       setShowRootNewFolderDialog(false);
-      onRefresh();
+      onRefresh?.();
     } catch (error: any) {
       toast.error(error.message || 'Failed to create folder');
     }
@@ -743,7 +743,7 @@ export function Sidebar({ directories, onRefresh }: SidebarProps) {
       }
 
       // Refresh the tree
-      onRefresh();
+      onRefresh?.();
 
       // If it was the current article, navigate to new location
       if (sourceType === 'file' && pathname === `/article/${sourcePath}`) {
