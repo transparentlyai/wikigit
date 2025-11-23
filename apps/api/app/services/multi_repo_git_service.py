@@ -6,6 +6,9 @@ This module provides Git operations for managing multiple repositories:
 - Sync repositories (pull/push with conflict detection)
 - Get repository status (git status info)
 - Manage per-repository GitService instances
+
+Repository configuration is loaded from RepositoryService (repositories.json),
+not from YAML settings.
 """
 
 import logging
@@ -20,6 +23,7 @@ from app.config.settings import (
     settings,
 )
 from app.services.git_service import GitService
+from app.services import repository_service
 
 logger = logging.getLogger(__name__)
 
@@ -436,10 +440,31 @@ class MultiRepoGitService:
         """
         Get all enabled repositories from configuration.
 
+        Reads from the RepositoryService (repositories.json) instead of YAML settings
+        to get the actual configured repositories.
+
         Returns:
             List of enabled repository configurations
         """
-        return [repo for repo in self.settings.repositories if repo.enabled]
+        # Get repositories from RepositoryService (reads from repositories.json)
+        repos_dicts = repository_service.list_repositories()
+
+        # Convert dicts to RepositoryConfig objects and filter for enabled
+        enabled_repos = []
+        for repo_dict in repos_dicts:
+            if repo_dict.get("enabled", False):
+                try:
+                    # Create RepositoryConfig from dict
+                    repo_config = RepositoryConfig(**repo_dict)
+                    enabled_repos.append(repo_config)
+                except Exception as e:
+                    logger.error(
+                        f"Failed to parse repository config for {repo_dict.get('id')}: {e}"
+                    )
+                    continue
+
+        logger.debug(f"Found {len(enabled_repos)} enabled repositories")
+        return enabled_repos
 
     def _inject_token_into_url(self, remote_url: str) -> str:
         """
