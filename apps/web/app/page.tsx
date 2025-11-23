@@ -1,14 +1,51 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { WelcomePage } from "@/components/welcome/welcome-page";
+import { api } from "@/lib/api";
 
 export default function HomePage() {
   const router = useRouter();
+  const [isLoading, setIsLoading] = useState(true);
+  const [showWelcome, setShowWelcome] = useState(false);
 
   useEffect(() => {
-    router.replace("/article/home");
+    const checkHomePageConfig = async () => {
+      try {
+        const config = await api.getConfig();
+
+        // Check if home page is configured
+        if (config.home_page_repository && config.home_page_article) {
+          // Redirect to configured home page
+          router.replace(`/article/${config.home_page_repository}/${config.home_page_article}`);
+        } else {
+          // Show welcome page
+          setShowWelcome(true);
+        }
+      } catch (error) {
+        console.error("Failed to fetch config:", error);
+        // Show welcome page on error
+        setShowWelcome(true);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkHomePageConfig();
   }, [router]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-gray-600">Loading...</p>
+      </div>
+    );
+  }
+
+  if (showWelcome) {
+    return <WelcomePage />;
+  }
 
   return null;
 }

@@ -446,6 +446,12 @@ class AppConfig(BaseModel):
         None, ge=1, le=100, description="Maximum file size in MB"
     )
     admins: Optional[list[str]] = Field(None, description="List of admin user emails")
+    home_page_repository: Optional[str] = Field(
+        None, description="Repository ID for home page"
+    )
+    home_page_article: Optional[str] = Field(
+        None, description="Article path for home page"
+    )
 
 
 class SearchConfig(BaseModel):
@@ -491,6 +497,8 @@ class ConfigData(BaseModel):
     app_name: str
     admins: List[str]
     index_dir: str
+    home_page_repository: Optional[str] = None
+    home_page_article: Optional[str] = None
 
 
 class ConfigResponse(BaseModel):

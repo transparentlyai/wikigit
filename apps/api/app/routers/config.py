@@ -41,6 +41,8 @@ async def get_config(_user: str = Depends(require_admin)):
             app_name=settings.app.name,
             admins=settings.app.admins,
             index_dir=str(settings.search.index_dir),
+            home_page_repository=settings.app.home_page_repository,
+            home_page_article=settings.app.home_page_article,
         )
 
     except Exception as e:
@@ -92,6 +94,14 @@ async def update_config(
                 config_data["app"]["app_name"] = config_update.app.name
             if config_update.app.admins is not None:
                 config_data["app"]["admins"] = config_update.app.admins
+            if config_update.app.home_page_repository is not None:
+                config_data["app"]["home_page_repository"] = (
+                    config_update.app.home_page_repository
+                )
+            if config_update.app.home_page_article is not None:
+                config_data["app"]["home_page_article"] = (
+                    config_update.app.home_page_article
+                )
 
         with open(config_file, "w") as f:
             yaml.safe_dump(config_data, f, default_flow_style=False)
@@ -106,6 +116,8 @@ async def update_config(
             app_name=config_data["app"]["app_name"],
             admins=config_data["app"]["admins"],
             index_dir=config_data["search"]["index_dir"],
+            home_page_repository=config_data["app"].get("home_page_repository"),
+            home_page_article=config_data["app"].get("home_page_article"),
         )
 
     except HTTPException:

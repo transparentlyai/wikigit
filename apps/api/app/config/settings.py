@@ -68,6 +68,14 @@ class AppSettings(BaseModel):
         default_factory=list,
         description="List of admin user emails (from GCP IAP or other auth)",
     )
+    home_page_repository: Optional[str] = Field(
+        default=None,
+        description="Repository ID for home page (e.g., 'owner/repo')",
+    )
+    home_page_article: Optional[str] = Field(
+        default=None,
+        description="Article path for home page (e.g., 'home.md')",
+    )
 
     @property
     def max_file_size_bytes(self) -> int:

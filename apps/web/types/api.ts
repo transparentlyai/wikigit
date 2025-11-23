@@ -160,26 +160,17 @@ export interface SearchConfig {
 export interface ConfigData {
   app_name: string;
   admins: string[];
-  repo_path: string;
-  default_branch: string;
-  auto_push: boolean;
-  remote_url?: string;
-  github_token?: string;
   index_dir: string;
+  home_page_repository?: string | null;
+  home_page_article?: string | null;
 }
 
 export interface ConfigUpdate {
   app?: {
     name?: string;
     admins?: string[];
-  };
-  repository?: {
-    auto_push?: boolean;
-    remote_url?: string;
-    github_token?: string;
-  };
-  search?: {
-    index_dir?: string;
+    home_page_repository?: string | null;
+    home_page_article?: string | null;
   };
 }
 

@@ -1,105 +1,103 @@
-'use client'
+'use client';
 
-import { useEffect, useState } from 'react'
-import toast from 'react-hot-toast'
-import { api } from '@/lib/api'
-import { Settings, Save, RefreshCw } from 'lucide-react'
-import type { ConfigData } from '@/types/api'
+import { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
+import { api } from '@/lib/api';
+import { Settings, Save, RefreshCw } from 'lucide-react';
+import type { ConfigData } from '@/types/api';
+import { HomePageSelector } from './home-page-selector';
 
 export function ConfigManager() {
-  const [config, setConfig] = useState<ConfigData | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [isSaving, setIsSaving] = useState(false)
+  const [config, setConfig] = useState<ConfigData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
-  // Form state
-  const [appName, setAppName] = useState('')
-  const [admins, setAdmins] = useState('')
-  const [autoPush, setAutoPush] = useState(false)
-  const [remoteUrl, setRemoteUrl] = useState('')
-  const [remoteToken, setRemoteToken] = useState('')
+  const [appName, setAppName] = useState('');
+  const [admins, setAdmins] = useState('');
 
   useEffect(() => {
-    fetchConfig()
-  }, [])
+    fetchConfig();
+  }, []);
 
   const fetchConfig = async () => {
     try {
-      setIsLoading(true)
-      const configData = await api.getConfig()
-      setConfig(configData)
-
-      // Populate form fields
-      setAppName(configData.app_name)
-      setAdmins(configData.admins.join('\n'))
-      setAutoPush(configData.auto_push)
-      setRemoteUrl(configData.remote_url || '')
-      setRemoteToken(configData.github_token || '')
+      setIsLoading(true);
+      const configData = await api.getConfig();
+      setConfig(configData);
+      setAppName(configData.app_name);
+      setAdmins(configData.admins.join('\n'));
     } catch (error: any) {
-      toast.error(error.message || 'Failed to load configuration')
+      toast.error(error.message || 'Failed to load configuration');
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     try {
-      setIsSaving(true)
+      setIsSaving(true);
 
-      // Parse admins from textarea (one per line)
       const adminsList = admins
         .split('\n')
-        .map(line => line.trim())
-        .filter(line => line.length > 0)
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0);
 
       const updatedConfig = await api.updateConfig({
         app: {
           name: appName,
           admins: adminsList,
         },
-        repository: {
-          auto_push: autoPush,
-          remote_url: remoteUrl || undefined,
-          github_token: remoteToken || undefined,
-        },
-      })
+      });
 
-      setConfig(updatedConfig)
-      toast.success('Configuration saved successfully. Restart the application to apply changes.')
+      setConfig(updatedConfig);
+      toast.success('Configuration saved successfully');
     } catch (error: any) {
-      toast.error(error.message || 'Failed to save configuration')
+      toast.error(error.message || 'Failed to save configuration');
     } finally {
-      setIsSaving(false)
+      setIsSaving(false);
     }
-  }
+  };
 
   const handleReset = () => {
     if (config) {
-      setAppName(config.app_name)
-      setAdmins(config.admins.join('\n'))
-      setAutoPush(config.auto_push)
-      setRemoteUrl(config.remote_url || '')
-      setRemoteToken(config.github_token || '')
+      setAppName(config.app_name);
+      setAdmins(config.admins.join('\n'));
     }
-  }
+  };
 
   if (isLoading) {
     return (
       <div style={{ textAlign: 'center', padding: '2rem' }}>
         <p style={{ color: '#54595d' }}>Loading configuration...</p>
       </div>
-    )
+    );
+  }
+
+  if (!config) {
+    return null;
   }
 
   return (
     <div>
-      <h2 style={{ fontSize: '1.5rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+      <h2
+        style={{
+          fontSize: '1.5rem',
+          marginBottom: '1rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+        }}
+      >
         <Settings size={24} />
         Configuration Settings
       </h2>
 
-      {/* Configuration Form */}
+      {/* Home Page Configuration */}
+      <HomePageSelector config={config} onSave={fetchConfig} />
+
+      {/* Application Settings Form */}
       <form onSubmit={handleSave}>
         <div
           style={{
@@ -114,7 +112,6 @@ export function ConfigManager() {
             Application Settings
           </h3>
 
-          {/* App Name */}
           <div style={{ marginBottom: '1rem' }}>
             <label
               htmlFor="app-name"
@@ -143,7 +140,6 @@ export function ConfigManager() {
             />
           </div>
 
-          {/* Admins */}
           <div style={{ marginBottom: '1rem' }}>
             <label
               htmlFor="admins"
@@ -172,149 +168,11 @@ export function ConfigManager() {
               }}
             />
             <small style={{ display: 'block', marginTop: '0.25rem', color: '#54595d' }}>
-              Admin users have access to this admin panel and can delete directories.
+              Admin users have access to this admin panel and can manage repositories.
             </small>
           </div>
         </div>
 
-        {/* Repository Settings */}
-        <div
-          style={{
-            padding: '1.5rem',
-            backgroundColor: '#f8f9fa',
-            border: '1px solid #a2a9b1',
-            borderRadius: '2px',
-            marginBottom: '2rem',
-          }}
-        >
-          <h3 style={{ marginTop: 0, marginBottom: '1rem', fontSize: '1.125rem' }}>
-            Repository Settings
-          </h3>
-
-          {/* Read-only fields */}
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', fontSize: '0.875rem' }}>
-              Repository Path (read-only)
-            </label>
-            <input
-              type="text"
-              value={config?.repo_path || ''}
-              disabled
-              style={{
-                width: '100%',
-                padding: '0.5rem',
-                border: '1px solid #a2a9b1',
-                borderRadius: '2px',
-                fontSize: '1rem',
-                backgroundColor: '#eaecf0',
-                color: '#54595d',
-              }}
-            />
-          </div>
-
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', fontSize: '0.875rem' }}>
-              Default Branch (read-only)
-            </label>
-            <input
-              type="text"
-              value={config?.default_branch || ''}
-              disabled
-              style={{
-                width: '100%',
-                padding: '0.5rem',
-                border: '1px solid #a2a9b1',
-                borderRadius: '2px',
-                fontSize: '1rem',
-                backgroundColor: '#eaecf0',
-                color: '#54595d',
-              }}
-            />
-          </div>
-
-          {/* Auto Push */}
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={autoPush}
-                onChange={(e) => setAutoPush(e.target.checked)}
-                style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-              />
-              <span style={{ fontWeight: 'bold', fontSize: '0.875rem' }}>
-                Automatically push changes to remote repository
-              </span>
-            </label>
-            <small style={{ display: 'block', marginTop: '0.25rem', marginLeft: '26px', color: '#54595d' }}>
-              When enabled, all commits will be automatically pushed to the remote repository.
-            </small>
-          </div>
-
-          {/* Remote URL */}
-          <div style={{ marginBottom: '1rem' }}>
-            <label
-              htmlFor="remote-url"
-              style={{
-                display: 'block',
-                marginBottom: '0.5rem',
-                fontWeight: 'bold',
-                fontSize: '0.875rem',
-              }}
-            >
-              Remote Repository URL (optional)
-            </label>
-            <input
-              id="remote-url"
-              type="text"
-              value={remoteUrl}
-              onChange={(e) => setRemoteUrl(e.target.value)}
-              placeholder="https://github.com/username/repo.git"
-              style={{
-                width: '100%',
-                padding: '0.5rem',
-                border: '1px solid #a2a9b1',
-                borderRadius: '2px',
-                fontSize: '1rem',
-                fontFamily: 'monospace',
-              }}
-            />
-          </div>
-
-          {/* Remote Token */}
-          <div style={{ marginBottom: '1rem' }}>
-            <label
-              htmlFor="remote-token"
-              style={{
-                display: 'block',
-                marginBottom: '0.5rem',
-                fontWeight: 'bold',
-                fontSize: '0.875rem',
-              }}
-            >
-              Remote Repository Token (optional)
-            </label>
-            <input
-              id="remote-token"
-              type="password"
-              value={remoteToken}
-              onChange={(e) => setRemoteToken(e.target.value)}
-              placeholder="ghp_..."
-              style={{
-                width: '100%',
-                padding: '0.5rem',
-                border: '1px solid #a2a9b1',
-                borderRadius: '2px',
-                fontSize: '1rem',
-                fontFamily: 'monospace',
-              }}
-            />
-            <small style={{ display: 'block', marginTop: '0.25rem', color: '#54595d' }}>
-              Personal access token for authentication when pushing to remote.
-            </small>
-          </div>
-        </div>
-
-        {/* Action Buttons */}
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button
             type="submit"
@@ -359,20 +217,6 @@ export function ConfigManager() {
           </button>
         </div>
       </form>
-
-      {/* Information */}
-      <div
-        style={{
-          marginTop: '2rem',
-          padding: '1rem',
-          backgroundColor: '#fef6e8',
-          border: '1px solid #f4c7a8',
-          borderRadius: '2px',
-        }}
-      >
-        <strong>Important:</strong> Configuration changes require an application restart to take effect.
-        After saving, restart the backend service using <code style={{ backgroundColor: '#fff', padding: '2px 4px' }}>wikigit restart</code>
-      </div>
     </div>
-  )
+  );
 }
