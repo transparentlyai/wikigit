@@ -341,6 +341,9 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
 
   const paddingLeft = `${level * 12 + 12}px`;
 
+  // Display name without .md extension for files
+  const displayName = isDirectory ? node.name : node.name.replace(/\.md$/, '');
+
   const renderContent = () => {
     const chevron = isDirectory && hasChildren && (
       <span className={`opacity-50 ${isActive ? 'text-blue-500' : ''}`}>
@@ -362,7 +365,7 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
       <>
         {chevron}
         {icon}
-        <span className="truncate">{node.name}</span>
+        <span className="truncate">{displayName}</span>
       </>
     );
 
