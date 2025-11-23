@@ -13,7 +13,7 @@ import toast from 'react-hot-toast';
 
 interface RepositoryNodeProps {
   repository: RepositoryStatus;
-  onRefresh: () => void;
+  onRefresh?: () => void;
   renderTreeNodes: (nodes: DirectoryNode[], repositoryId: string, isReadOnly: boolean) => React.ReactNode;
 }
 

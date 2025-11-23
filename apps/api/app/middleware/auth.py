@@ -58,8 +58,12 @@ class AuthMiddleware(BaseHTTPMiddleware):
         """Initialize the authentication middleware."""
         super().__init__(app)
         if DEV_MODE:
-            dev_user = DEV_USER or (settings.app.admins[0] if settings.app.admins else "dev@wikigit.local")
-            logger.warning(f"DEVELOPMENT MODE ENABLED - Authentication bypassed, using user: {dev_user}")
+            dev_user = DEV_USER or (
+                settings.app.admins[0] if settings.app.admins else "dev@wikigit.local"
+            )
+            logger.warning(
+                f"DEVELOPMENT MODE ENABLED - Authentication bypassed, using user: {dev_user}"
+            )
         else:
             logger.info("AuthMiddleware initialized - IAP authentication required")
 
@@ -80,9 +84,13 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         # Development mode: bypass IAP authentication
         if DEV_MODE:
-            dev_user = DEV_USER or (settings.app.admins[0] if settings.app.admins else "dev@wikigit.local")
+            dev_user = DEV_USER or (
+                settings.app.admins[0] if settings.app.admins else "dev@wikigit.local"
+            )
             request.state.user_email = dev_user
-            logger.debug(f"Dev mode: {dev_user} accessing {request.method} {request.url.path}")
+            logger.debug(
+                f"Dev mode: {dev_user} accessing {request.method} {request.url.path}"
+            )
             return await call_next(request)
 
         # Extract the IAP authentication header
@@ -108,9 +116,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             )
             return JSONResponse(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                content={
-                    "detail": "Authentication failed. Invalid IAP header format."
-                },
+                content={"detail": "Authentication failed. Invalid IAP header format."},
             )
 
         # Store user email in request state for downstream access
@@ -193,7 +199,9 @@ def get_current_user(request: Request) -> str:
     user_email = getattr(request.state, "user_email", None)
 
     if not user_email:
-        logger.error("Attempted to access authenticated route without user_email in request.state")
+        logger.error(
+            "Attempted to access authenticated route without user_email in request.state"
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required. User not authenticated.",
