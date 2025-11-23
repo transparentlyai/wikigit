@@ -93,6 +93,7 @@ async function get<T>(endpoint: string): Promise<T> {
       'Content-Type': 'application/json',
     },
     credentials: 'include',
+    cache: 'no-store', // Disable caching to always get fresh data
   });
 
   return handleResponse<T>(response);

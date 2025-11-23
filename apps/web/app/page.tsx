@@ -1,17 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { WelcomePage } from "@/components/welcome/welcome-page";
 import { api } from "@/lib/api";
 
 export default function HomePage() {
   const router = useRouter();
+  const pathname = usePathname();
   const [isLoading, setIsLoading] = useState(true);
   const [showWelcome, setShowWelcome] = useState(false);
 
   useEffect(() => {
     const checkHomePageConfig = async () => {
+      // Reset state for fresh check
+      setIsLoading(true);
+      setShowWelcome(false);
+
       try {
         const config = await api.getConfig();
 
@@ -33,7 +38,7 @@ export default function HomePage() {
     };
 
     checkHomePageConfig();
-  }, [router]);
+  }, [router, pathname]);
 
   if (isLoading) {
     return (

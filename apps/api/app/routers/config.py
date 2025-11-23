@@ -90,26 +90,37 @@ async def update_config(
         if config_update.app is not None:
             if "app" not in config_data:
                 config_data["app"] = {}
-            if config_update.app.name is not None:
-                config_data["app"]["app_name"] = config_update.app.name
-            if config_update.app.admins is not None:
-                config_data["app"]["admins"] = config_update.app.admins
-            if config_update.app.home_page_repository is not None:
-                config_data["app"]["home_page_repository"] = (
-                    config_update.app.home_page_repository
-                )
-            if config_update.app.home_page_article is not None:
-                config_data["app"]["home_page_article"] = (
-                    config_update.app.home_page_article
-                )
+
+            # Get only the fields that were explicitly set
+            app_updates = config_update.app.model_dump(exclude_unset=True)
+
+            if "name" in app_updates:
+                config_data["app"]["app_name"] = app_updates["name"]
+            if "admins" in app_updates:
+                config_data["app"]["admins"] = app_updates["admins"]
+            if "home_page_repository" in app_updates:
+                config_data["app"]["home_page_repository"] = app_updates[
+                    "home_page_repository"
+                ]
+            if "home_page_article" in app_updates:
+                config_data["app"]["home_page_article"] = app_updates[
+                    "home_page_article"
+                ]
 
         with open(config_file, "w") as f:
             yaml.safe_dump(config_data, f, default_flow_style=False)
 
         logger.info("Configuration file updated successfully")
-        logger.warning(
-            "Configuration updated. Restart the application to apply changes."
+
+        # Reload the in-memory settings to apply changes immediately
+        settings.app.name = config_data["app"]["app_name"]
+        settings.app.admins = config_data["app"]["admins"]
+        settings.app.home_page_repository = config_data["app"].get(
+            "home_page_repository"
         )
+        settings.app.home_page_article = config_data["app"].get("home_page_article")
+
+        logger.info("In-memory configuration updated (no restart required)")
 
         # Return updated configuration
         return ConfigData(
