@@ -4,9 +4,11 @@ import { useState } from 'react'
 import toast from 'react-hot-toast'
 import { Search, Download, GitBranch, Lock, Globe } from 'lucide-react'
 import { api } from '@/lib/api'
+import { useWikiStore } from '@/lib/store'
 import type { GitHubRepository } from '@/types/api'
 
 export function RepositoryScanner() {
+  const triggerRepositoryRefresh = useWikiStore((state) => state.triggerRepositoryRefresh)
   const [isScanning, setIsScanning] = useState(false)
   const [repositories, setRepositories] = useState<GitHubRepository[]>([])
   const [selectedRepos, setSelectedRepos] = useState<Set<string>>(new Set())
@@ -57,6 +59,8 @@ export function RepositoryScanner() {
       toast.success(`Successfully cloned ${repoNames.length} repositories`)
       setSelectedRepos(new Set())
       setRepositories([])
+      // Trigger sidebar refresh to show newly added repositories
+      triggerRepositoryRefresh()
     } catch (error: any) {
       toast.error(error.message || 'Failed to clone repositories')
     } finally {

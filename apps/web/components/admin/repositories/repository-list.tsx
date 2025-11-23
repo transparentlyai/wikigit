@@ -5,9 +5,11 @@ import toast from 'react-hot-toast'
 import { Database, RefreshCw } from 'lucide-react'
 import { RepositoryCard } from './repository-card'
 import { api } from '@/lib/api'
+import { useWikiStore } from '@/lib/store'
 import type { RepositoryStatus } from '@/types/api'
 
 export function RepositoryList() {
+  const triggerRepositoryRefresh = useWikiStore((state) => state.triggerRepositoryRefresh)
   const [repositories, setRepositories] = useState<RepositoryStatus[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
@@ -37,6 +39,8 @@ export function RepositoryList() {
     await api.removeRepository(id)
     // Remove from local state
     setRepositories(repositories.filter((r) => r.id !== id))
+    // Trigger sidebar refresh to remove the repository
+    triggerRepositoryRefresh()
   }
 
   const handleToggleEnabled = async (id: string, enabled: boolean) => {
@@ -45,6 +49,8 @@ export function RepositoryList() {
     setRepositories(
       repositories.map((r) => (r.id === id ? { ...r, enabled } : r))
     )
+    // Trigger sidebar refresh to show/hide the repository
+    triggerRepositoryRefresh()
     toast.success(`Repository ${enabled ? 'enabled' : 'disabled'}`)
   }
 

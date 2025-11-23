@@ -54,6 +54,10 @@ interface WikiGitStore {
   clearError: () => void;
   toggleSidebar: () => void;
 
+  // Repository Refresh
+  repositoryRefreshTrigger: number;
+  triggerRepositoryRefresh: () => void;
+
   // Reset Actions
   reset: () => void;
 }
@@ -84,6 +88,9 @@ const initialState = {
   isLoading: false,
   error: null,
   isSidebarOpen: true,
+
+  // Repository Refresh
+  repositoryRefreshTrigger: 0,
 };
 
 // ============================================================================
@@ -116,6 +123,10 @@ export const useWikiStore = create<WikiGitStore>((set) => ({
   setError: (error) => set({ error }),
   clearError: () => set({ error: null }),
   toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
+
+  // Repository Actions
+  triggerRepositoryRefresh: () =>
+    set((state) => ({ repositoryRefreshTrigger: state.repositoryRefreshTrigger + 1 })),
 
   // Reset Actions
   reset: () => set(initialState),

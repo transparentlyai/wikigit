@@ -547,6 +547,7 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
 
 export function Sidebar({ directories, onRefresh }: SidebarProps) {
   const appName = useWikiStore((state) => state.appName);
+  const repositoryRefreshTrigger = useWikiStore((state) => state.repositoryRefreshTrigger);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -557,7 +558,7 @@ export function Sidebar({ directories, onRefresh }: SidebarProps) {
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Fetch repositories on mount
+  // Fetch repositories on mount and when refresh is triggered
   useEffect(() => {
     const fetchRepositories = async () => {
       setIsLoadingRepos(true);
@@ -574,7 +575,7 @@ export function Sidebar({ directories, onRefresh }: SidebarProps) {
     };
 
     fetchRepositories();
-  }, []);
+  }, [repositoryRefreshTrigger]);
 
   // Handle search
   const handleSearch = () => {
