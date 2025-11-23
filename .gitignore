@@ -106,3 +106,6 @@ config.yaml
 
 # uv
 uv.lock
+
+# Temporary files
+tmp/
