@@ -102,6 +102,7 @@ class RepositoryService:
         Returns:
             Repository metadata dict
         """
+        self._load_repositories()
         logger.info(f"Adding repository: {repo_id}")
 
         repo_metadata = {
@@ -139,6 +140,7 @@ class RepositoryService:
         Raises:
             ValueError: If repository not found
         """
+        self._load_repositories()
         if repo_id not in self.repositories:
             raise ValueError(f"Repository {repo_id} not found")
 
@@ -167,6 +169,7 @@ class RepositoryService:
         Raises:
             ValueError: If repository not found
         """
+        self._load_repositories()
         if repo_id not in self.repositories:
             raise ValueError(f"Repository {repo_id} not found")
 
@@ -179,6 +182,7 @@ class RepositoryService:
         Returns:
             List of repository metadata dicts
         """
+        self._load_repositories()
         return list(self.repositories.values())
 
     def remove_repository(self, repo_id: str) -> None:
@@ -191,6 +195,7 @@ class RepositoryService:
         Raises:
             ValueError: If repository not found
         """
+        self._load_repositories()
         if repo_id not in self.repositories:
             raise ValueError(f"Repository {repo_id} not found")
 
@@ -229,6 +234,7 @@ class RepositoryService:
         Returns:
             Sync result dict with status and statistics
         """
+        self._load_repositories()
         if repo_id not in self.repositories:
             raise ValueError(f"Repository {repo_id} not found")
 
@@ -295,11 +301,14 @@ class RepositoryService:
                     logger.warning(f"Push operation failed for {repo_id}: {e}")
 
             # Update repository sync status
-            repo_meta["last_synced"] = datetime.now(timezone.utc).isoformat()
-            repo_meta["sync_status"] = "synced"
-            repo_meta["error_message"] = None
-
-            self._save_repositories()
+            # Reload to ensure we don't overwrite other concurrent changes
+            self._load_repositories()
+            if repo_id in self.repositories:
+                repo_meta = self.repositories[repo_id]
+                repo_meta["last_synced"] = datetime.now(timezone.utc).isoformat()
+                repo_meta["sync_status"] = "synced"
+                repo_meta["error_message"] = None
+                self._save_repositories()
 
             result = {
                 "repository_id": repo_id,
@@ -317,10 +326,14 @@ class RepositoryService:
             logger.error(f"Sync failed for repository {repo_id}: {e}")
 
             # Update error status
-            repo_meta["sync_status"] = "error"
-            repo_meta["error_message"] = str(e)
-            repo_meta["last_synced"] = datetime.now(timezone.utc).isoformat()
-            self._save_repositories()
+            # Reload to ensure we don't overwrite other concurrent changes
+            self._load_repositories()
+            if repo_id in self.repositories:
+                repo_meta = self.repositories[repo_id]
+                repo_meta["sync_status"] = "error"
+                repo_meta["error_message"] = str(e)
+                repo_meta["last_synced"] = datetime.now(timezone.utc).isoformat()
+                self._save_repositories()
 
             return {
                 "repository_id": repo_id,
