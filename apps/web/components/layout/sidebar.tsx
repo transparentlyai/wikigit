@@ -5,7 +5,7 @@
  * Flat design with gray-50 background and blue active states
  */
 
-import { useEffect, useState, useRef } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { FileText, ChevronRight, ChevronDown, Search, FilePlus, FolderPlus, Edit, Trash2 } from 'lucide-react';
@@ -855,7 +855,7 @@ export function Sidebar({ directories, onRefresh }: SidebarProps) {
 
       {/* Sidebar Footer */}
       <div className="p-4 border-t border-gray-200/50 text-xs text-gray-500 flex justify-between items-center">
-        <span>v2.4.0</span>
+        <span>v{process.env.NEXT_PUBLIC_APP_VERSION}</span>
         <Link href="/admin" className="hover:text-gray-800 transition-colors">
           Settings
         </Link>

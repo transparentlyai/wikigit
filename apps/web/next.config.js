@@ -2,6 +2,10 @@
 const nextConfig = {
   output: 'standalone',
 
+  env: {
+    NEXT_PUBLIC_APP_VERSION: process.env.npm_package_version,
+  },
+
   // Proxy API requests to FastAPI backend
   async rewrites() {
     const backendPort = process.env.BACKEND_PORT || '8000'
