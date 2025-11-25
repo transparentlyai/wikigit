@@ -44,14 +44,23 @@ A git-based wiki application with a Wikipedia-inspired interface. WikiGit stores
 
 ## Installation
 
-### 1. Clone the Repository
+### Quick Install (Recommended)
+
+```bash
+# Run the automated installer
+./install.sh
+```
+
+### Manual Installation
+
+#### 1. Clone the Repository
 
 ```bash
 git clone <repository-url>
 cd wikigit
 ```
 
-### 2. Install Dependencies
+#### 2. Install Dependencies
 
 ```bash
 # Install pnpm if not already installed
@@ -62,7 +71,7 @@ pnpm install
 cd apps/api && uv sync && cd ../..
 ```
 
-### 3. Configure the Application
+#### 3. Configure the Application
 
 ```bash
 # Copy example config
@@ -82,7 +91,7 @@ nano config.yaml
 
 **Note:** Individual repositories are managed via the Admin UI, not `config.yaml`.
 
-### 4. Start the Application
+#### 4. Start the Application
 
 The application will automatically create the necessary directories defined in your configuration.
 
@@ -107,13 +116,13 @@ Start both frontend and backend in development mode with hot reload:
 wikigit dev
 
 # Start with custom ports
-wikigit dev --frontend-port 3005 --backend-port 8001
+wikigit dev --frontend-port 8008 --backend-port 9010
 ```
 
 This starts:
-- Frontend: http://localhost:3000 (default) with Next.js fast refresh
-- Backend API: http://localhost:8000 (default) with FastAPI auto-reload
-- API Docs: http://localhost:8000/docs
+- Frontend: http://localhost:8008 (default) with Next.js fast refresh
+- Backend API: http://localhost:9009 (default) with FastAPI auto-reload
+- API Docs: http://localhost:9009/docs
 
 **Port Configuration:**
 You can configure ports via:
@@ -122,10 +131,10 @@ You can configure ports via:
 
 ```bash
 # Using environment variables
-WIKIGIT_FRONTEND_PORT=3005 wikigit dev
+WIKIGIT_FRONTEND_PORT=8008 wikigit dev
 
 # Using CLI options (takes precedence)
-wikigit dev --frontend-port 3005 --backend-port 8080
+wikigit dev --frontend-port 8008 --backend-port 9010
 
 # Custom logs directory
 wikigit dev --logs /var/log/wikigit
@@ -140,7 +149,7 @@ wikigit dev --logs /var/log/wikigit
 wikigit start
 
 # Start with custom ports
-wikigit start --frontend-port 3005 --backend-port 8001
+wikigit start --frontend-port 8008 --backend-port 9010
 
 # Start with custom logs directory
 wikigit start --logs /var/log/wikigit
@@ -172,8 +181,8 @@ wikigit logs frontend -f
 ```
 
 **CLI Options:**
-- `wikigit start --frontend-port <port>`: Set custom frontend port (default: 3000)
-- `wikigit start --backend-port <port>`: Set custom backend port (default: 8000)
+- `wikigit start --frontend-port <port>`: Set custom frontend port (default: 8008)
+- `wikigit start --backend-port <port>`: Set custom backend port (default: 9009)
 - `wikigit start --logs <path>`: Set custom logs directory (default: /tmp/wikigit)
 - `wikigit start --rebuild`: Force rebuild the frontend before starting
 - `wikigit dev`: Development mode with hot reload
