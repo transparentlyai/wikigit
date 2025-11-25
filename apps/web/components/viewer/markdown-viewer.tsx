@@ -34,9 +34,9 @@ function CustomImage({ src, alt, title, width, height, repositoryId, ...props }:
   // Clean src by removing query parameters
   let cleanSrc = srcString.split('?')[0];
 
-  // Rewrite repository-relative absolute paths (starting with /)
+  // Rewrite repository-relative absolute paths (starting with /) to point to the API
   if (cleanSrc.startsWith('/') && repositoryId) {
-    cleanSrc = `/${repositoryId}${cleanSrc}`;
+    cleanSrc = `/api/repositories/${repositoryId}${cleanSrc}`;
   }
 
   const finalWidth = width || queryWidth;

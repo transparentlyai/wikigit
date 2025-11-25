@@ -5,12 +5,15 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { MainLayout } from '@/components/layout/main-layout'
 import { MarkdownViewer } from '@/components/viewer/markdown-viewer'
+import { CodeViewer } from '@/components/viewer/code-viewer'
 import { ArticleMetadata } from '@/components/viewer/article-metadata'
 import { MarkdownEditor } from '@/components/editor/markdown-editor'
 import { useStore } from '@/lib/store'
 import { api } from '@/lib/api'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import type { RepositoryStatus } from '@/types/api'
+
+const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico', '.bmp']
 
 /**
  * Parse article path from slug segments
@@ -59,6 +62,10 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
   const [repository, setRepository] = useState<RepositoryStatus | null>(null)
   const [isReadOnly, setIsReadOnly] = useState(false)
 
+  // Determine file type
+  const isMarkdown = articlePath.toLowerCase().endsWith('.md')
+  const isImage = IMAGE_EXTENSIONS.some(ext => articlePath.toLowerCase().endsWith(ext))
+
   // Fetch repository details and article on mount
   useEffect(() => {
     const fetchData = async () => {
@@ -78,24 +85,37 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
           }
         }
 
-        const article = repositoryId
-          ? await api.getArticle(repositoryId, articlePath)
-          : await api.getArticle(articlePath)
-        setCurrentArticle(article)
-        setEditContent(article.content)
-        setInitialEditContent(article.content)
+        if (isImage) {
+          // For images, we don't need to fetch content, just set dummy article data
+          setCurrentArticle({
+            path: articlePath,
+            title: articlePath.split('/').pop() || articlePath,
+            content: '', // Content not used for images
+            author: null,
+            created_at: null,
+            updated_at: null,
+            updated_by: null,
+          })
+        } else {
+          const article = repositoryId
+            ? await api.getArticle(repositoryId, articlePath)
+            : await api.getArticle(articlePath)
+          setCurrentArticle(article)
+          setEditContent(article.content)
+          setInitialEditContent(article.content)
+        }
 
-        // Check if we should auto-enter edit mode (only if not read-only)
+        // Check if we should auto-enter edit mode (only if not read-only and is markdown)
         const shouldEdit = searchParams?.get('edit') === 'true'
-        if (shouldEdit && !isReadOnly) {
+        if (shouldEdit && !isReadOnly && isMarkdown) {
           setIsEditing(true)
           // Remove the query parameter from URL
           const fullPath = repositoryId ? `${repositoryId}/${articlePath}` : articlePath
           router.replace(`/${fullPath}`)
         }
       } catch (error: any) {
-        toast.error(error.message || 'Failed to load article')
-        console.error('Failed to fetch article:', error)
+        toast.error(error.message || 'Failed to load file')
+        console.error('Failed to fetch file:', error)
       } finally {
         setIsLoading(false)
       }
@@ -104,10 +124,10 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
     fetchData()
     // searchParams and router are stable references and don't need to be in dependencies
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [articlePath, repositoryId, setCurrentArticle])
+  }, [articlePath, repositoryId, setCurrentArticle, isMarkdown, isImage])
 
   const handleEdit = () => {
-    if (currentArticle && !isReadOnly) {
+    if (currentArticle && !isReadOnly && isMarkdown) {
       setEditContent(currentArticle.content)
       setInitialEditContent(currentArticle.content)
       setIsEditing(true)
@@ -155,11 +175,11 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
       } else {
         await api.deleteArticle(articlePath)
       }
-      toast.success('Article deleted successfully')
+      toast.success('File deleted successfully')
       router.push('/')
     } catch (error: any) {
-      toast.error(error.message || 'Failed to delete article')
-      console.error('Failed to delete article:', error)
+      toast.error(error.message || 'Failed to delete file')
+      console.error('Failed to delete file:', error)
       setIsDeleting(false)
       setShowDeleteConfirm(false)
     }
@@ -182,18 +202,18 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
   if (isLoading) {
     return (
       <MainLayout>
-        <p className="text-gray-600">Loading article...</p>
+        <p className="text-gray-600">Loading...</p>
       </MainLayout>
     )
   }
 
   if (!currentArticle) {
     return (
-      <MainLayout breadcrumbs={[{ label: 'Article Not Found' }]}>
+      <MainLayout breadcrumbs={[{ label: 'Not Found' }]}>
         <h1 className="text-4xl font-bold text-gray-900 tracking-tighter mb-6 mt-2 pb-4 border-b border-gray-100">
-          Article Not Found
+          File Not Found
         </h1>
-        <p className="text-gray-600">The article "{articlePath}" could not be found.</p>
+        <p className="text-gray-600">The file "{articlePath}" could not be found.</p>
       </MainLayout>
     )
   }
@@ -201,15 +221,31 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
   return (
     <MainLayout
       breadcrumbs={breadcrumbs}
-      onEdit={!isEditing && !isReadOnly ? handleEdit : undefined}
-      showEditButton={!isEditing}
+      onEdit={!isEditing && !isReadOnly && isMarkdown ? handleEdit : undefined}
+      showEditButton={!isEditing && isMarkdown}
       isReadOnly={isReadOnly}
       repository={repository}
     >
       {/* View mode */}
       {!isEditing && (
         <>
-          <MarkdownViewer content={currentArticle.content} repositoryId={repositoryId} />
+          {isMarkdown ? (
+            <MarkdownViewer content={currentArticle.content} repositoryId={repositoryId} />
+          ) : isImage ? (
+            <div className="flex justify-center p-4 bg-gray-50 rounded-lg border border-gray-200">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img 
+                src={`/api/repositories/${repositoryId}/${articlePath}`} 
+                alt={currentArticle.title}
+                className="max-w-full h-auto rounded shadow-sm" 
+              />
+            </div>
+          ) : (
+            <CodeViewer 
+              content={currentArticle.content} 
+              filename={articlePath.split('/').pop() || ''} 
+            />
+          )}
 
           <hr className="my-8 border-0 border-t border-gray-200" />
 
@@ -223,7 +259,7 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
       )}
 
       {/* Edit mode */}
-      {isEditing && !isReadOnly && (
+      {isEditing && !isReadOnly && isMarkdown && (
         <div className="fixed inset-0 bg-white z-40 flex flex-col">
           <MarkdownEditor
             value={editContent}
@@ -239,7 +275,7 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
       <ConfirmDialog
         open={showDeleteConfirm}
         onOpenChange={setShowDeleteConfirm}
-        title="Delete Article"
+        title="Delete File"
         description={`Are you sure you want to delete "${currentArticle?.title}"? This action cannot be undone.`}
         confirmText="Delete"
         cancelText="Cancel"
