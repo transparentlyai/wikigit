@@ -153,6 +153,9 @@ function SearchContent() {
                 </p>
               </div>
             )}
+            <p className="text-gray-500 text-sm mt-2">
+              Note: Search currently indexes only Markdown (.md) files.
+            </p>
           </div>
         </div>
 
