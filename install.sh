@@ -449,8 +449,29 @@ $USER_BIN:$PATH\"
     fi
 fi
 
-# 9. Systemd Service Setup
-echo -e "\n${BLUE}==> [9/9] Setting up Systemd Service...${NC}"
+# 9. Git Configuration
+echo -e "\n${BLUE}==> [9/9] Configuring Git...${NC}"
+
+if [ "$IS_SYSTEM_INSTALL" = true ]; then
+    echo "Configuring Git identity for $TARGET_USER..."
+    sudo -u "$TARGET_USER" git config --global user.name "WikiGit System"
+    sudo -u "$TARGET_USER" git config --global user.email "wikigit@localhost"
+    sudo -u "$TARGET_USER" git config --global init.defaultBranch main
+    # Mark the repo as safe to avoid "dubious ownership" errors if accessed differently
+    sudo -u "$TARGET_USER" git config --global --add safe.directory "$REPOS_DIR"
+    sudo -u "$TARGET_USER" git config --global --add safe.directory "$INSTALL_DIR/wiki-content"
+else
+    echo "Checking Git configuration..."
+    if ! git config user.name > /dev/null || ! git config user.email > /dev/null; then
+        echo -e "${YELLOW}Warning: Git user.name or user.email is not set.${NC}"
+        echo "WikiGit requires Git to be configured to commit changes."
+        echo "Please run: git config --global user.name 'Your Name' && git config --global user.email 'you@example.com'"
+    fi
+    git config --global init.defaultBranch main
+fi
+
+# 10. Systemd Service Setup
+echo -e "\n${BLUE}==> [10/10] Setting up Systemd Service...${NC}"
 
 # Determine paths for service
 NODE_PATH=$(dirname "$(which node)")
