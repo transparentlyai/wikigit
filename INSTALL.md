@@ -317,3 +317,13 @@ Ensure the user running `wikigit` has write permissions to:
 - The `wiki-content` directory (or your configured repo path)
 - The `data` directory
 - The logs directory (default `/tmp/wikigit`)
+
+### CORS Errors (Load Balancer)
+If you are running WikiGit behind a load balancer and see CORS errors in the browser console:
+1.  Verify that you provided the correct **Deployment Domain** during installation.
+2.  Check your `.env` file (e.g., `/opt/wikigit/.env` or inside your installation directory).
+3.  Ensure `CORS_ALLOWED_ORIGINS` is uncommented and set to your load balancer's domain:
+    ```bash
+    CORS_ALLOWED_ORIGINS=https://wiki.your-domain.com
+    ```
+4.  Restart the service: `sudo systemctl restart wikigit`
