@@ -247,6 +247,10 @@ echo "Starting pnpm install..."
 # --jobs=1 caused an error, removing it.
 pnpm --version
 pnpm install $PNPM_FLAGS --store-dir .pnpm-store --ignore-scripts --no-frozen-lockfile --registry=https://registry.npmjs.org
+
+echo "Building project..."
+export NEXT_PUBLIC_API_URL="http://localhost:8000"
+pnpm run build
 EOF
 
     sudo chmod +x "$INSTALL_DIR/install_frontend.sh"
