@@ -2,9 +2,21 @@
 
 This guide provides detailed instructions for installing WikiGit on Linux systems, with a focus on Debian/Ubuntu-based distributions.
 
+## Quick Install (Recommended)
+
+The easiest way to install WikiGit is using the automated installer script. This script handles dependencies, configuration, and systemd service setup.
+
+```bash
+./install.sh
+```
+
+Follow the interactive prompts to configure your installation.
+
+---
+
 ## System Requirements
 
-Before starting, ensure your system meets the following requirements:
+Before starting a manual installation, ensure your system meets the following requirements:
 
 - **Operating System**: Linux (Debian, Ubuntu, Fedora, CentOS, etc.)
 - **Memory**: 4GB RAM recommended (2GB minimum)
@@ -162,8 +174,8 @@ Starts both frontend and backend with hot-reloading enabled.
 ```bash
 wikigit dev
 ```
-- Frontend: http://localhost:3000
-- Backend: http://localhost:8000
+- Frontend: http://localhost:8008
+- Backend: http://localhost:9009
 
 ### Production Mode
 Builds the frontend and starts the application optimized for performance.
@@ -183,17 +195,23 @@ wikigit start --rebuild
 
 For production environments, it is recommended to run WikiGit as a systemd service. This ensures the application starts automatically on boot and can be managed with standard system tools.
 
-### 1. Create an Environment File (for Secrets)
+### 1. Create an Environment File (for Secrets and Config)
 
-To securely store your `GITHUB_TOKEN` and other sensitive variables, create a file that is readable only by the service user.
+To securely store your `GITHUB_TOKEN` and production configurations, create a file that is readable only by the service user.
 
 ```bash
 nano /home/ubuntu/wikigit/.env
 ```
 
-Add your token:
+Add your configuration:
 ```bash
+# Secrets
 GITHUB_TOKEN=ghp_your_secret_token_here
+
+# Production / Load Balancer Configuration (Optional)
+# API_ROOT_PATH=/api
+# CORS_ALLOWED_ORIGINS=https://wiki.your-domain.com
+# INTERNAL_API_URL=http://backend-service:9009
 ```
 
 Secure the file:
@@ -301,14 +319,14 @@ journalctl -u wikigit -f
 Ensure `uv` is installed and in your PATH. If you installed it via the script, it's usually in `~/.cargo/bin`.
 
 ### "EADDRINUSE" / Port Conflicts
-If ports 3000 or 8000 are taken, use different ports:
+If ports 8008 or 9009 are taken, use different ports:
 ```bash
-wikigit start --frontend-port 3005 --backend-port 8005
+wikigit start --frontend-port 8009 --backend-port 9010
 ```
 Or set environment variables in your shell config:
 ```bash
-export WIKIGIT_FRONTEND_PORT=3005
-export WIKIGIT_BACKEND_PORT=8005
+export WIKIGIT_FRONTEND_PORT=8009
+export WIKIGIT_BACKEND_PORT=9010
 ```
 
 ### Permission Errors
