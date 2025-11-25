@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { api } from '@/lib/api';
 import { Home } from 'lucide-react';
-import type { ConfigData, RepositoryStatus, Article } from '@/types/api';
+import type { ConfigData, RepositoryStatus, ArticleSummary } from '@/types/api';
 
 interface HomePageSelectorProps {
   config: ConfigData;
@@ -13,7 +13,7 @@ interface HomePageSelectorProps {
 
 export function HomePageSelector({ config, onSave }: HomePageSelectorProps) {
   const [repositories, setRepositories] = useState<RepositoryStatus[]>([]);
-  const [articles, setArticles] = useState<Article[]>([]);
+  const [articles, setArticles] = useState<ArticleSummary[]>([]);
   const [selectedRepo, setSelectedRepo] = useState(config.home_page_repository || '');
   const [selectedArticle, setSelectedArticle] = useState(config.home_page_article || '');
   const [isSaving, setIsSaving] = useState(false);
