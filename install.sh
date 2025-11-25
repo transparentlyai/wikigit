@@ -175,7 +175,7 @@ if [ "$IS_SYSTEM_INSTALL" = true ]; then
     
     # Frontend
     echo "Running pnpm install..."
-    sudo -u "$TARGET_USER" -H bash -c "cd $INSTALL_DIR && pnpm install"
+    sudo -u "$TARGET_USER" -H bash -c "cd $INSTALL_DIR && pnpm install --loglevel debug"
     
     # Backend
     echo "Running uv sync..."
