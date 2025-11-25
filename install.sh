@@ -199,13 +199,41 @@ if [ "$IS_SYSTEM_INSTALL" = true ]; then
     
     # Frontend
     echo "Running pnpm install..."
-    sudo -u "$TARGET_USER" -H bash -c "export CI=true; cd $INSTALL_DIR && echo 'Diagnostics:' && id && ls -ld . && rm -rf _tmp_* && pnpm config list && pnpm install $PNPM_FLAGS < /dev/null"
+    sudo -u "$TARGET_USER" -H bash -l -c "
+        export CI=true
+        export XDG_CACHE_HOME=$INSTALL_DIR/.cache
+        export XDG_DATA_HOME=$INSTALL_DIR/.local/share
+        export XDG_STATE_HOME=$INSTALL_DIR/.local/state
+        export NPM_CONFIG_CACHE=$INSTALL_DIR/.npm
+        
+        cd $INSTALL_DIR
+        
+        echo 'Diagnostics:'
+        id
+        ls -ld .
+        echo 'Checking network...'
+        curl -Is https://registry.npmjs.org | head -n 1 || echo 'Network check failed'
+        
+        echo 'Cleaning tmp...'
+        rm -rf _tmp_*
+        
+        echo 'Running pnpm install...'
+        pnpm install $PNPM_FLAGS --store-dir .pnpm-store < /dev/null
+    "
     
     # Backend
     echo "Running uv sync..."
     # Use explicit path to uv in .local/bin
     UV_BIN="$INSTALL_DIR/.local/bin/uv"
-    sudo -u "$TARGET_USER" -H bash -c "export CI=true; cd $INSTALL_DIR/apps/api && $UV_BIN python install 3.11 $UV_FLAGS && $UV_BIN sync $UV_FLAGS < /dev/null"
+    sudo -u "$TARGET_USER" -H bash -l -c "
+        export CI=true
+        export XDG_CACHE_HOME=$INSTALL_DIR/.cache
+        export XDG_DATA_HOME=$INSTALL_DIR/.local/share
+        
+        cd $INSTALL_DIR/apps/api
+        $UV_BIN python install 3.11 $UV_FLAGS
+        $UV_BIN sync $UV_FLAGS < /dev/null
+    "
 
 else
     # Local Install
