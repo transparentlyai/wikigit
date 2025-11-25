@@ -199,41 +199,78 @@ if [ "$IS_SYSTEM_INSTALL" = true ]; then
     
     # Frontend
     echo "Running pnpm install..."
-    sudo -u "$TARGET_USER" -H bash -l -c "
-        export CI=true
-        export XDG_CACHE_HOME=$INSTALL_DIR/.cache
-        export XDG_DATA_HOME=$INSTALL_DIR/.local/share
-        export XDG_STATE_HOME=$INSTALL_DIR/.local/state
-        export NPM_CONFIG_CACHE=$INSTALL_DIR/.npm
-        
-        cd $INSTALL_DIR
-        
-        echo 'Diagnostics:'
-        id
-        ls -ld .
-        echo 'Checking network...'
-        curl -Is https://registry.npmjs.org | head -n 1 || echo 'Network check failed'
-        
-        echo 'Cleaning tmp...'
-        rm -rf _tmp_*
-        
-        echo 'Running pnpm install...'
-        pnpm install $PNPM_FLAGS --store-dir .pnpm-store < /dev/null
-    "
-    
+
+    # Create a temporary install script for frontend
+    cat <<EOF > "$INSTALL_DIR/install_frontend.sh"
+#!/bin/bash
+set -e
+[ "$DEBUG_MODE" = "true" ] && set -x
+
+export CI=true
+export XDG_CACHE_HOME=$INSTALL_DIR/.cache
+export XDG_DATA_HOME=$INSTALL_DIR/.local/share
+export XDG_STATE_HOME=$INSTALL_DIR/.local/state
+export NPM_CONFIG_CACHE=$INSTALL_DIR/.npm
+export PATH=\$PATH:/usr/local/bin:/usr/bin:/bin
+
+cd $INSTALL_DIR
+
+echo "=== Frontend Install Diagnostics ==="
+id
+echo "PWD: \$(pwd)"
+ls -ld .
+echo "PATH: \$PATH"
+which pnpm || echo "pnpm not found in PATH"
+
+echo "Cleaning previous temporary files..."
+rm -rf _tmp_* .pnpm-store/v3/tmp
+
+echo "Starting pnpm install..."
+# We use --ignore-scripts to prevent hanging on postinstall hooks during system install
+pnpm install $PNPM_FLAGS --store-dir .pnpm-store --ignore-scripts
+EOF
+
+    chmod +x "$INSTALL_DIR/install_frontend.sh"
+    chown "$TARGET_USER:$TARGET_GROUP" "$INSTALL_DIR/install_frontend.sh"
+
+    # Execute the script as the target user
+    sudo -u "$TARGET_USER" -H "$INSTALL_DIR/install_frontend.sh" < /dev/null
+
     # Backend
     echo "Running uv sync..."
+    
     # Use explicit path to uv in .local/bin
     UV_BIN="$INSTALL_DIR/.local/bin/uv"
-    sudo -u "$TARGET_USER" -H bash -l -c "
-        export CI=true
-        export XDG_CACHE_HOME=$INSTALL_DIR/.cache
-        export XDG_DATA_HOME=$INSTALL_DIR/.local/share
-        
-        cd $INSTALL_DIR/apps/api
-        $UV_BIN python install 3.11 $UV_FLAGS
-        $UV_BIN sync $UV_FLAGS < /dev/null
-    "
+
+    # Create a temporary install script for backend
+    cat <<EOF > "$INSTALL_DIR/install_backend.sh"
+#!/bin/bash
+set -e
+[ "$DEBUG_MODE" = "true" ] && set -x
+
+export CI=true
+export XDG_CACHE_HOME=$INSTALL_DIR/.cache
+export XDG_DATA_HOME=$INSTALL_DIR/.local/share
+
+cd $INSTALL_DIR/apps/api
+
+echo "=== Backend Install Diagnostics ==="
+id
+echo "PWD: \$(pwd)"
+
+echo "Starting uv sync..."
+$UV_BIN python install 3.11 $UV_FLAGS
+$UV_BIN sync $UV_FLAGS
+EOF
+
+    chmod +x "$INSTALL_DIR/install_backend.sh"
+    chown "$TARGET_USER:$TARGET_GROUP" "$INSTALL_DIR/install_backend.sh"
+
+    # Execute the script as the target user
+    sudo -u "$TARGET_USER" -H "$INSTALL_DIR/install_backend.sh" < /dev/null
+
+    # Cleanup scripts
+    rm "$INSTALL_DIR/install_frontend.sh" "$INSTALL_DIR/install_backend.sh"
 
 else
     # Local Install
