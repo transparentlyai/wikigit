@@ -122,7 +122,7 @@ install_uv_for_user() {
     if ! sudo -u "$t_user" test -f "$t_home/.local/bin/uv"; then
         echo "Installing uv for user $t_user..."
         # Force install to .local/bin
-        sudo -u "$t_user" bash -c "curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR=$t_home/.local/bin sh"
+        sudo -u "$t_user" -H bash -c "curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR=$t_home/.local/bin sh"
     else
         echo "uv is already installed for $t_user."
     fi
@@ -175,13 +175,13 @@ if [ "$IS_SYSTEM_INSTALL" = true ]; then
     
     # Frontend
     echo "Running pnpm install..."
-    sudo -u "$TARGET_USER" bash -c "cd $INSTALL_DIR && pnpm install"
+    sudo -u "$TARGET_USER" -H bash -c "cd $INSTALL_DIR && pnpm install"
     
     # Backend
     echo "Running uv sync..."
     # Use explicit path to uv in .local/bin
     UV_BIN="$INSTALL_DIR/.local/bin/uv"
-    sudo -u "$TARGET_USER" bash -c "cd $INSTALL_DIR/apps/api && $UV_BIN python install 3.11 && $UV_BIN sync"
+    sudo -u "$TARGET_USER" -H bash -c "cd $INSTALL_DIR/apps/api && $UV_BIN python install 3.11 && $UV_BIN sync"
 
 else
     # Local Install
