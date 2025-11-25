@@ -201,7 +201,7 @@ if [ "$IS_SYSTEM_INSTALL" = true ]; then
     echo "Running pnpm install..."
 
     # Create a temporary install script for frontend
-    cat <<EOF > "$INSTALL_DIR/install_frontend.sh"
+    cat <<EOF | sudo tee "$INSTALL_DIR/install_frontend.sh" > /dev/null
 #!/bin/bash
 set -e
 [ "$DEBUG_MODE" = "true" ] && set -x
@@ -230,8 +230,8 @@ echo "Starting pnpm install..."
 pnpm install $PNPM_FLAGS --store-dir .pnpm-store --ignore-scripts
 EOF
 
-    chmod +x "$INSTALL_DIR/install_frontend.sh"
-    chown "$TARGET_USER:$TARGET_GROUP" "$INSTALL_DIR/install_frontend.sh"
+    sudo chmod +x "$INSTALL_DIR/install_frontend.sh"
+    sudo chown "$TARGET_USER:$TARGET_GROUP" "$INSTALL_DIR/install_frontend.sh"
 
     # Execute the script as the target user
     sudo -u "$TARGET_USER" -H "$INSTALL_DIR/install_frontend.sh" < /dev/null
@@ -243,7 +243,7 @@ EOF
     UV_BIN="$INSTALL_DIR/.local/bin/uv"
 
     # Create a temporary install script for backend
-    cat <<EOF > "$INSTALL_DIR/install_backend.sh"
+    cat <<EOF | sudo tee "$INSTALL_DIR/install_backend.sh" > /dev/null
 #!/bin/bash
 set -e
 [ "$DEBUG_MODE" = "true" ] && set -x
@@ -263,14 +263,14 @@ $UV_BIN python install 3.11 $UV_FLAGS
 $UV_BIN sync $UV_FLAGS
 EOF
 
-    chmod +x "$INSTALL_DIR/install_backend.sh"
-    chown "$TARGET_USER:$TARGET_GROUP" "$INSTALL_DIR/install_backend.sh"
+    sudo chmod +x "$INSTALL_DIR/install_backend.sh"
+    sudo chown "$TARGET_USER:$TARGET_GROUP" "$INSTALL_DIR/install_backend.sh"
 
     # Execute the script as the target user
     sudo -u "$TARGET_USER" -H "$INSTALL_DIR/install_backend.sh" < /dev/null
 
     # Cleanup scripts
-    rm "$INSTALL_DIR/install_frontend.sh" "$INSTALL_DIR/install_backend.sh"
+    sudo rm "$INSTALL_DIR/install_frontend.sh" "$INSTALL_DIR/install_backend.sh"
 
 else
     # Local Install
