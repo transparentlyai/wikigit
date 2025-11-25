@@ -26,11 +26,9 @@ wikigit stop
 
 ### `wikigit dev`
 
-Start WikiGit in development mode with hot reload enabled for both frontend and backend.
-
 **Options:**
-- `--frontend-port PORT` - Frontend port (default: 3000)
-- `--backend-port PORT` - Backend port (default: 8000)
+- `--frontend-port PORT` - Frontend port (default: 8008)
+- `--backend-port PORT` - Backend port (default: 9009)
 - `--logs PATH` - Log directory (default: /tmp/wikigit)
 
 **Environment Variables:**
@@ -45,7 +43,7 @@ You can set defaults using environment variables:
 wikigit dev
 
 # Start on custom ports
-wikigit dev --frontend-port 3000 --backend-port 8080
+wikigit dev --frontend-port 8008 --backend-port 9010
 
 # Start with custom logs directory
 wikigit dev --logs /var/log/wikigit
@@ -62,8 +60,8 @@ wikigit dev --logs /var/log/wikigit
 Start both backend and frontend services in production mode.
 
 **Options:**
-- `--frontend-port PORT` - Frontend port (default: 3000)
-- `--backend-port PORT` - Backend port (default: 8000)
+- `--frontend-port PORT` - Frontend port (default: 8008)
+- `--backend-port PORT` - Backend port (default: 9009)
 - `--logs PATH` - Log directory (default: /tmp/wikigit)
 - `--rebuild` - Rebuild frontend before starting
 
@@ -81,7 +79,7 @@ Priority: CLI options > Environment variables > Defaults
 wikigit start
 
 # Start on custom ports
-wikigit start --frontend-port 3000 --backend-port 8080
+wikigit start --frontend-port 8008 --backend-port 9010
 
 # Start with custom logs directory
 wikigit start --logs /var/log/wikigit
@@ -109,7 +107,7 @@ Restart WikiGit. Accepts the same options as `start`.
 wikigit restart
 
 # Restart on different ports
-wikigit restart --frontend-port 3000
+wikigit restart --frontend-port 8008
 
 # Restart and rebuild
 wikigit restart --rebuild
@@ -184,7 +182,7 @@ wikigit dev
 # Press Ctrl+C when done
 
 # Or run on custom ports
-wikigit dev --frontend-port 3000 --backend-port 8080
+wikigit dev --frontend-port 8008 --backend-port 9010
 ```
 
 ### Production Workflow
