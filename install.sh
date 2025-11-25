@@ -80,6 +80,47 @@ else
     echo -e "${YELLOW}Selected: Local Install ($TARGET_USER in $INSTALL_DIR)${NC}"
 fi
 
+# Check for existing installation
+if [ -d "$INSTALL_DIR" ] && { [ -f "$INSTALL_DIR/package.json" ] || [ -f "$INSTALL_DIR/wikigit" ]; }; then
+    echo -e "\n${BLUE}==> Existing Installation Detected${NC}"
+    echo "Path: $INSTALL_DIR"
+    echo "How would you like to proceed?"
+    echo "  1) Upgrade (Keep data & config, overwrite code)"
+    echo "  2) Clean Install (DELETE ALL data & config, start fresh)"
+    
+    read -r -p "Select option [1/2] (Default: 1): " INSTALL_ACTION
+    INSTALL_ACTION=${INSTALL_ACTION:-1}
+
+    if [[ "$INSTALL_ACTION" == "2" ]]; then
+        echo -e "\n${RED}WARNING: This will delete '$INSTALL_DIR'.${NC}"
+        echo -e "${RED}All data, configuration, and wiki content in that directory will be lost!${NC}"
+        read -r -p "Type 'delete' to confirm: " CONFIRM_DELETE
+        
+        if [[ "$CONFIRM_DELETE" == "delete" ]]; then
+            echo "Removing existing installation..."
+            if [ "$IS_SYSTEM_INSTALL" = true ]; then
+                sudo systemctl stop wikigit 2>/dev/null || true
+                sudo rm -rf "$INSTALL_DIR"
+            else
+                # Local install - careful cleanup
+                echo "Cleaning dependencies and build artifacts..."
+                # Use quoted paths to handle spaces, though unlikely in repo structure
+                rm -rf node_modules .venv apps/web/.next apps/web/node_modules apps/api/.venv
+                
+                echo -e "${RED}Do you also want to remove local configuration and data?${NC}"
+                read -r -p "Remove wiki-content/, data/, config.yaml, and .env? [y/N]: " RM_DATA
+                if [[ "$RM_DATA" =~ ^[Yy]$ ]]; then
+                   rm -rf wiki-content data config.yaml .env
+                   echo "Local configuration and data removed."
+                fi
+            fi
+            echo -e "${GREEN}Cleanup complete.${NC}"
+        else
+            echo "Clean install cancelled. Proceeding with upgrade..."
+        fi
+    fi
+fi
+
 # 1. System Dependencies
 echo -e "\n${BLUE}==> [1/8] Installing System Dependencies...${NC}"
 
