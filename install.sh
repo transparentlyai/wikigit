@@ -236,7 +236,8 @@ rm -rf _tmp_* .pnpm-store/v3/tmp
 
 echo "Starting pnpm install..."
 # We use --ignore-scripts to prevent hanging on postinstall hooks during system install
-pnpm install $PNPM_FLAGS --store-dir .pnpm-store --ignore-scripts
+# Using --jobs=1 to avoid resource exhaustion on smaller instances
+pnpm install $PNPM_FLAGS --store-dir .pnpm-store --ignore-scripts --no-frozen-lockfile --registry=https://registry.npmjs.org --jobs=1
 EOF
 
     sudo chmod +x "$INSTALL_DIR/install_frontend.sh"
