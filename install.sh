@@ -636,4 +636,4 @@ echo "   - Reserve a static IP address."
 echo "   - Create an HTTPS Load Balancer using this IP and your SSL certificate."
 echo "   (This step can be skipped if you already have an HTTPS Load Balancer configured for your domain.)"
 echo ""
-echo -e "${YELLOW}Ensure your .env file has CORS_ALLOWED_ORIGINS set to your load balancer domain!${NC}"
+
