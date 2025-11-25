@@ -182,7 +182,7 @@ class SearchService:
         repository_name: str,
     ) -> int:
         """
-        Index all markdown files in a single repository.
+        Index all files in a single repository.
 
         Args:
             writer: Whoosh index writer
@@ -195,17 +195,17 @@ class SearchService:
         """
         indexed_count = 0
 
-        # Find all markdown files
-        md_files = list(repo_path.rglob("*.md"))
+        # Find all files
+        all_files = [p for p in repo_path.rglob("*") if p.is_file()]
 
-        for md_file in md_files:
+        for file_path in all_files:
             # Skip hidden files and git directory
-            if any(part.startswith(".") for part in md_file.parts):
+            if any(part.startswith(".") for part in file_path.parts):
                 continue
 
             try:
                 # Get article path relative to repository root
-                article_path = str(md_file.relative_to(repo_path))
+                article_path = str(file_path.relative_to(repo_path))
 
                 # Use prefixed path for uniqueness in index, but store repo info separately
                 if repository_id:
@@ -213,17 +213,28 @@ class SearchService:
                 else:
                     indexed_path = article_path
 
-                # Parse article with frontmatter
-                metadata, content = self.frontmatter_service.parse_article(md_file)
+                if file_path.suffix == ".md":
+                    # Parse article with frontmatter
+                    metadata, content = self.frontmatter_service.parse_article(
+                        file_path
+                    )
 
-                # Extract required fields from metadata (with defaults)
-                title = metadata.get("title", md_file.stem)
-                author = self._normalize_author(metadata.get("author"))
-                created_at = self._parse_timestamp(metadata.get("created_at"))
-                updated_at = self._parse_timestamp(metadata.get("updated_at"))
-                updated_by = self._normalize_author(
-                    metadata.get("updated_by"), default=author
-                )
+                    # Extract required fields from metadata (with defaults)
+                    title = metadata.get("title", file_path.stem)
+                    author = self._normalize_author(metadata.get("author"))
+                    created_at = self._parse_timestamp(metadata.get("created_at"))
+                    updated_at = self._parse_timestamp(metadata.get("updated_at"))
+                    updated_by = self._normalize_author(
+                        metadata.get("updated_by"), default=author
+                    )
+                else:
+                    # Index non-markdown files by filename only
+                    title = file_path.name
+                    content = file_path.name  # Index filename as content for searching
+                    author = "system"
+                    created_at = datetime.now()
+                    updated_at = datetime.now()
+                    updated_by = "system"
 
                 writer.add_document(
                     path=indexed_path,
@@ -239,7 +250,7 @@ class SearchService:
                 indexed_count += 1
 
             except Exception as e:
-                logger.error(f"Failed to index {md_file}: {e}")
+                logger.error(f"Failed to index {file_path}: {e}")
                 continue
 
         return indexed_count

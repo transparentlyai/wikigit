@@ -262,7 +262,7 @@ def remove_directory_from_search_index(
     repository_id: str, directory_path: Path, repo_path: Path
 ) -> None:
     """
-    Remove all markdown articles in a directory from the search index.
+    Remove all files in a directory from the search index.
 
     Args:
         repository_id: Repository identifier
@@ -270,11 +270,11 @@ def remove_directory_from_search_index(
         repo_path: Repository root path
     """
     try:
-        # Find all markdown files in the directory
-        for md_file in directory_path.rglob("*.md"):
-            if md_file.is_file():
+        # Find all files in the directory
+        for file_path in directory_path.rglob("*"):
+            if file_path.is_file():
                 # Get relative path from repo root
-                rel_path = str(md_file.relative_to(repo_path))
+                rel_path = str(file_path.relative_to(repo_path))
                 remove_from_search_index(repository_id, rel_path)
     except Exception as e:
         logger.error(f"Failed to remove directory from search index: {e}")
@@ -284,7 +284,7 @@ def index_directory_articles(
     repository_id: str, directory_path: Path, repo_path: Path
 ) -> None:
     """
-    Index all markdown articles in a directory.
+    Index all files in a directory.
 
     Args:
         repository_id: Repository identifier
@@ -292,25 +292,41 @@ def index_directory_articles(
         repo_path: Repository root path
     """
     try:
-        # Find all markdown files in the directory
-        for md_file in directory_path.rglob("*.md"):
-            if md_file.is_file():
+        # Find all files in the directory
+        for file_path in directory_path.rglob("*"):
+            if file_path.is_file():
                 # Get relative path from repo root
-                rel_path = str(md_file.relative_to(repo_path))
+                rel_path = str(file_path.relative_to(repo_path))
 
-                # Parse the article
-                metadata, content = frontmatter_service.parse_article(md_file)
+                if file_path.suffix == ".md":
+                    # Parse the article
+                    metadata, content = frontmatter_service.parse_article(file_path)
+                    title = metadata.get("title", file_path.stem)
+                    author = normalize_author_field(metadata.get("author")) or ""
+                    created_at = metadata.get("created_at")
+                    updated_at = metadata.get("updated_at")
+                    updated_by = (
+                        normalize_author_field(metadata.get("updated_by")) or ""
+                    )
+                else:
+                    # Index non-markdown files by filename
+                    content = file_path.name
+                    title = file_path.name
+                    author = "system"
+                    created_at = datetime.now()
+                    updated_at = datetime.now()
+                    updated_by = "system"
 
                 # Index the article
                 update_search_index(
                     repository_id=repository_id,
                     path=rel_path,
-                    title=metadata.get("title", md_file.stem),
+                    title=title,
                     content=content,
-                    author=normalize_author_field(metadata.get("author")) or "",
-                    created_at=metadata.get("created_at"),
-                    updated_at=metadata.get("updated_at"),
-                    updated_by=normalize_author_field(metadata.get("updated_by")) or "",
+                    author=author,
+                    created_at=created_at,
+                    updated_at=updated_at,
+                    updated_by=updated_by,
                 )
     except Exception as e:
         logger.error(f"Failed to index directory articles: {e}")
@@ -1145,10 +1161,7 @@ async def delete_directory(
                 try:
                     rel_path = str(file_path.relative_to(repo_path))
                     git_files.append(rel_path)
-
-                    # Only markdown files are in the search index
-                    if file_path.suffix == ".md":
-                        search_files.append(rel_path)
+                    search_files.append(rel_path)
                 except ValueError:
                     continue
 
