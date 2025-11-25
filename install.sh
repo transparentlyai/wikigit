@@ -316,14 +316,14 @@ else
 
     # Install Python 3.11 via uv
     echo "Ensuring Python 3.11 is available via uv..."
-    uv python install 3.11 $UV_FLAGS
+    uv python install 3.11 "$UV_FLAGS"
 
     echo "Installing Frontend Dependencies (pnpm)..."
-    pnpm install $PNPM_FLAGS
+    pnpm install "$PNPM_FLAGS"
 
     echo "Installing Backend Dependencies (uv)..."
     cd apps/api
-    uv sync $UV_FLAGS
+    uv sync "$UV_FLAGS"
     cd ../..
 fi
 
@@ -370,6 +370,12 @@ INDEX_DIR=${INPUT_INDEX_DIR:-$DEFAULT_INDEX_DIR}
 read -r -p "GitHub Username: " INPUT_GITHUB_USER
 read -r -s -p "GitHub Personal Access Token (Paste it): " INPUT_GITHUB_TOKEN
 echo "" # newline after secret input
+
+# 5. Deployment Domain (CORS)
+echo -e "\nDeployment Domain Configuration"
+echo "Enter the domain where WikiGit will be accessed (e.g., https://wiki.example.com)."
+echo "This is required for CORS configuration if running behind a load balancer."
+read -r -p "Deployment Domain (leave empty if local/internal only): " INPUT_DOMAIN
 
 # Apply changes to config.yaml
 echo "Updating configuration..."
@@ -510,7 +516,19 @@ echo "Configuring secrets in .env..."
 # Prepare content
 ENV_CONTENT="# WikiGit Secrets
 GITHUB_TOKEN=${INPUT_GITHUB_TOKEN}
+
+# Production Configuration
+# API_ROOT_PATH=/api
+# INTERNAL_API_URL=http://backend-service:8000
 "
+
+if [ -n "$INPUT_DOMAIN" ]; then
+    ENV_CONTENT="${ENV_CONTENT}CORS_ALLOWED_ORIGINS=${INPUT_DOMAIN}
+"
+else
+    ENV_CONTENT="${ENV_CONTENT}# CORS_ALLOWED_ORIGINS=https://your-domain.com
+"
+fi
 
 if [ "$IS_SYSTEM_INSTALL" = true ]; then
     echo "$ENV_CONTENT" | sudo -u "$TARGET_USER" tee "$ENV_FILE" > /dev/null
@@ -583,3 +601,32 @@ echo "   sudo systemctl restart wikigit"
 
 
 echo -e "\nLogs are available at: $INSTALL_DIR/logs/"
+
+echo -e "\n${BLUE}==> GCP Load Balancer Setup Instructions${NC}"
+echo "To expose this application securely via a Google Cloud Load Balancer:"
+echo ""
+echo "1. Create an Instance Group:"
+echo "   - Add this VM to an unmanaged Instance Group."
+echo "   - Set the port mapping to the frontend port (default: 8008)."
+echo ""
+echo "2. Configure Health Check:"
+echo "   - Protocol: HTTP"
+echo "   - Port: 8008"
+echo "   - Request Path: / (returns 200 OK from frontend)"
+echo ""
+echo "3. Configure Backend Service:"
+echo "   - Create a Backend Service pointing to your Instance Group."
+echo "   - Enable Cloud CDN (recommended)."
+echo "   - Security: Enable IAP (Identity-Aware Proxy) to restrict access to your organization."
+echo ""
+echo "4. URL Map (Routing Rules):"
+echo "   - Path: /api/*  -> Route to Backend Service (FastAPI)"
+echo "     * IMPORTANT: Configure a URL Rewrite to strip the '/api' prefix."
+echo "     * Host and path rules > Path matcher > Path rules > /api/* > Route Action > URL rewrite > Path prefix rewrite: /"
+echo "   - Path: /*      -> Route to Backend Service (Next.js Frontend)"
+echo ""
+echo "5. Frontend Config:"
+echo "   - Reserve a static IP address."
+echo "   - Create an HTTPS Load Balancer using this IP and your SSL certificate."
+echo ""
+echo -e "${YELLOW}Ensure your .env file has CORS_ALLOWED_ORIGINS set to your load balancer domain!${NC}"

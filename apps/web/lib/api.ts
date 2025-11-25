@@ -33,7 +33,10 @@ import type {
 
 // Use relative URLs to leverage Next.js rewrites to proxy to the backend
 // The rewrites are configured in next.config.js based on BACKEND_PORT
-const API_BASE_URL = '';
+const isServer = typeof window === 'undefined';
+const API_BASE_URL = isServer
+  ? (process.env.INTERNAL_API_URL || 'http://localhost:8000')
+  : '';
 
 // ============================================================================
 // Error Handling

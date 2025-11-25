@@ -8,7 +8,7 @@ const nextConfig = {
 
   // Proxy API requests to FastAPI backend
   async rewrites() {
-    const backendPort = process.env.BACKEND_PORT || '8000'
+    const backendPort = process.env.BACKEND_PORT || '9009'
     return [
       {
         source: '/api/:path*',

@@ -10,35 +10,38 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 # Default ports (can be overridden by env vars)
-FRONTEND_PORT=${WIKIGIT_FRONTEND_PORT:-3000}
-BACKEND_PORT=${WIKIGIT_BACKEND_PORT:-8000}
+FRONTEND_PORT=${WIKIGIT_FRONTEND_PORT:-8008}
+BACKEND_PORT=${WIKIGIT_BACKEND_PORT:-9009}
 LOGS_DIR=${WIKIGIT_LOGS_DIR:-/tmp/wikigit}
 REBUILD=false
 
 # Helper functions
 kill_process_tree() {
     local pid=$1
-    if [ -z "$pid" ] || ! ps -p $pid > /dev/null 2>&1; then
+    if [ -z "$pid" ] || ! ps -p "$pid" > /dev/null 2>&1; then
         return
     fi
-    local children=$(pgrep -P $pid 2>/dev/null || true)
-    if [ ! -z "$children" ]; then
+    local children
+    children=$(pgrep -P "$pid" 2>/dev/null || true)
+    if [ -n "$children" ]; then
         for child in $children; do
-            kill_process_tree $child
+            kill_process_tree "$child"
         done
     fi
-    kill -9 $pid 2>/dev/null || true
+    kill -9 "$pid" 2>/dev/null || true
 }
 
 kill_by_port() {
     local port=$1
-    local raw_pids=$(ss -ltnp 2>/dev/null | grep ":${port}[[:space:]]" | grep -o 'pid=[0-9]\+' | sed 's/pid=//')
+    local raw_pids
+    raw_pids=$(ss -ltnp 2>/dev/null | grep ":${port}[[:space:]]" | grep -o 'pid=[0-9]\+' | sed 's/pid=//')
     if [ -z "$raw_pids" ]; then
         return
     fi
-    local pids=$(echo "$raw_pids" | sort -u | xargs)
-    if [ ! -z "$pids" ]; then
-        kill -9 $pids 2>/dev/null || true
+    local pids
+    pids=$(echo "$raw_pids" | sort -u | xargs)
+    if [ -n "$pids" ]; then
+        kill -9 "$pids" 2>/dev/null || true
     fi
 }
 
@@ -111,8 +114,8 @@ EOF
     fi
 
     # Kill any existing processes on target ports
-    kill_by_port $BACKEND_PORT
-    kill_by_port $FRONTEND_PORT
+    kill_by_port "$BACKEND_PORT"
+    kill_by_port "$FRONTEND_PORT"
 
     # Save configuration
     echo "$BACKEND_PORT" > .backend.port
@@ -121,9 +124,9 @@ EOF
 
     # Start backend
     cd apps/api
-    WIKIGIT_DEV_MODE=true FRONTEND_PORT=$FRONTEND_PORT uv run fastapi run app/main.py --port $BACKEND_PORT --host 0.0.0.0 > "$LOGS_DIR/api.log" 2>&1 &
+    API_ROOT_PATH="/api" WIKIGIT_DEV_MODE=true FRONTEND_PORT="$FRONTEND_PORT" uv run fastapi run app/main.py --port "$BACKEND_PORT" --host 0.0.0.0 --root-path /api > "$LOGS_DIR/api.log" 2>&1 &
     API_PID=$!
-    echo $API_PID > ../../.api.pid
+    echo "$API_PID" > ../../.api.pid
     cd ../..
     echo "Backend started (PID: $API_PID)"
 
@@ -134,13 +137,13 @@ EOF
     if [ ! -d "apps/web/.next" ] || [ "$REBUILD" = true ]; then
         echo "Building frontend..."
         cd apps/web
-        BACKEND_PORT=$BACKEND_PORT pnpm build > /dev/null 2>&1
+        INTERNAL_API_URL="http://localhost:$BACKEND_PORT" pnpm build > /dev/null 2>&1
         cd ../..
     fi
 
     # Start frontend
     cd apps/web
-    PORT=$FRONTEND_PORT BACKEND_PORT=$BACKEND_PORT NEXT_PUBLIC_API_URL="http://localhost:$BACKEND_PORT" pnpm start > "$LOGS_DIR/web.log" 2>&1 &
+    PORT=$FRONTEND_PORT INTERNAL_API_URL="http://localhost:$BACKEND_PORT" pnpm start > "$LOGS_DIR/web.log" 2>&1 &
     WEB_PID=$!
     echo $WEB_PID > ../../.web.pid
     cd ../..
@@ -176,7 +179,7 @@ cmd_stop() {
     # Stop backend
     if [ -f .api.pid ]; then
         API_PID=$(cat .api.pid)
-        kill_process_tree $API_PID
+        kill_process_tree "$API_PID"
         rm .api.pid
         echo "Stopped backend"
     fi
@@ -184,14 +187,14 @@ cmd_stop() {
     # Stop frontend
     if [ -f .web.pid ]; then
         WEB_PID=$(cat .web.pid)
-        kill_process_tree $WEB_PID
+        kill_process_tree "$WEB_PID"
         rm .web.pid
         echo "Stopped frontend"
     fi
 
     # Double-check: kill any remaining processes on configured ports
-    kill_by_port $backend_port
-    kill_by_port $frontend_port
+    kill_by_port "$backend_port"
+    kill_by_port "$frontend_port"
 
     # Clean up config files
     rm -f .backend.port .frontend.port .logs.path
@@ -216,35 +219,65 @@ cmd_status() {
     local backend_port=""
     local frontend_port=""
 
-    # Check backend
-    if [ -f .api.pid ]; then
-        API_PID=$(cat .api.pid)
-        if ps -p $API_PID > /dev/null 2>&1; then
-            backend_port=$(ss -ltnp 2>/dev/null | grep "pid=$API_PID" | grep -o ':\([0-9]\+\)[[:space:]]' | head -1 | tr -d ': ')
-            echo -e "${GREEN}Backend:  Running${NC} (PID: $API_PID, Port: $backend_port)"
-            backend_running=true
-        else
-            echo -e "${RED}Backend:  Stopped${NC} (stale PID file)"
-            rm .api.pid
-        fi
-    else
-        echo -e "${YELLOW}Backend:  Stopped${NC}"
-    fi
+        # Check backend
 
-    # Check frontend
-    if [ -f .web.pid ]; then
-        WEB_PID=$(cat .web.pid)
-        if ps -p $WEB_PID > /dev/null 2>&1; then
-            frontend_port=$(ss -ltnp 2>/dev/null | grep "pid=$WEB_PID" | grep -o ':\([0-9]\+\)[[:space:]]' | head -1 | tr -d ': ')
-            echo -e "${GREEN}Frontend: Running${NC} (PID: $WEB_PID, Port: $frontend_port)"
-            frontend_running=true
+        if [ -f .api.pid ]; then
+
+            API_PID=$(cat .api.pid)
+
+            if ps -p "$API_PID" > /dev/null 2>&1; then
+
+                backend_port=$(ss -ltnp 2>/dev/null | grep "pid=$API_PID" | grep -o ':\([0-9]\+\)[[:space:]]' | head -1 | tr -d ': ')
+
+                echo -e "${GREEN}Backend:  Running${NC} (PID: $API_PID, Port: $backend_port)"
+
+                backend_running=true
+
+            else
+
+                echo -e "${RED}Backend:  Stopped${NC} (stale PID file)"
+
+                rm .api.pid
+
+            fi
+
         else
-            echo -e "${RED}Frontend: Stopped${NC} (stale PID file)"
-            rm .web.pid
+
+            echo -e "${YELLOW}Backend:  Stopped${NC}"
+
         fi
-    else
-        echo -e "${YELLOW}Frontend: Stopped${NC}"
-    fi
+
+    
+
+        # Check frontend
+
+        if [ -f .web.pid ]; then
+
+            WEB_PID=$(cat .web.pid)
+
+            if ps -p "$WEB_PID" > /dev/null 2>&1; then
+
+                frontend_port=$(ss -ltnp 2>/dev/null | grep "pid=$WEB_PID" | grep -o ':\([0-9]\+\)[[:space:]]' | head -1 | tr -d ': ')
+
+                echo -e "${GREEN}Frontend: Running${NC} (PID: $WEB_PID, Port: $frontend_port)"
+
+                frontend_running=true
+
+            else
+
+                echo -e "${RED}Frontend: Stopped${NC} (stale PID file)"
+
+                rm .web.pid
+
+            fi
+
+        else
+
+            echo -e "${YELLOW}Frontend:  Stopped${NC}"
+
+        fi
+
+    
 
     # Show URLs if running
     echo ""
@@ -329,7 +362,7 @@ EOF
     cleanup() {
         echo ""
         echo -e "${YELLOW}Stopping development servers...${NC}"
-        kill $BACKEND_PID $FRONTEND_PID 2>/dev/null
+        kill "$BACKEND_PID" "$FRONTEND_PID" 2>/dev/null
         exit 0
     }
     trap cleanup SIGINT SIGTERM
@@ -337,7 +370,7 @@ EOF
     # Start backend in background
     echo "Starting backend..."
     cd apps/api
-    WIKIGIT_DEV_MODE=true FRONTEND_PORT=$FRONTEND_PORT uv run fastapi dev app/main.py --port $BACKEND_PORT --host 0.0.0.0 &
+    API_ROOT_PATH="/api" WIKIGIT_DEV_MODE=true FRONTEND_PORT="$FRONTEND_PORT" uv run fastapi dev app/main.py --port "$BACKEND_PORT" --host 0.0.0.0 --root-path /api &
     BACKEND_PID=$!
     cd ../..
 
@@ -347,7 +380,7 @@ EOF
     # Start frontend
     echo "Starting frontend..."
     cd apps/web
-    PORT=$FRONTEND_PORT BACKEND_PORT=$BACKEND_PORT NEXT_PUBLIC_API_URL="http://localhost:$BACKEND_PORT" pnpm dev &
+    PORT=$FRONTEND_PORT INTERNAL_API_URL="http://localhost:$BACKEND_PORT" pnpm dev &
     FRONTEND_PID=$!
     cd ../..
 
@@ -416,14 +449,14 @@ Usage:
 
 Commands:
   start              Start WikiGit in production mode
-    --frontend-port  Frontend port (default: 3000)
-    --backend-port   Backend port (default: 8000)
+    --frontend-port  Frontend port (default: 8008)
+    --backend-port   Backend port (default: 9009)
     --logs           Log directory (default: /tmp/wikigit)
     --rebuild        Rebuild frontend before starting
 
   dev                Start WikiGit in development mode (hot reload)
-    --frontend-port  Frontend port (default: 3000)
-    --backend-port   Backend port (default: 8000)
+    --frontend-port  Frontend port (default: 8008)
+    --backend-port   Backend port (default: 9009)
     --logs           Log directory (default: /tmp/wikigit)
 
   stop               Stop WikiGit
@@ -440,8 +473,8 @@ Commands:
   help               Show this help message
 
 Environment Variables:
-  WIKIGIT_FRONTEND_PORT  Override default frontend port (default: 3000)
-  WIKIGIT_BACKEND_PORT   Override default backend port (default: 8000)
+  WIKIGIT_FRONTEND_PORT  Override default frontend port (default: 8008)
+  WIKIGIT_BACKEND_PORT   Override default backend port (default: 9009)
   WIKIGIT_LOGS_DIR       Override default logs directory (default: /tmp/wikigit)
 
 Examples:

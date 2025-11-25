@@ -70,19 +70,27 @@ async def lifespan(app: FastAPI):
 
 
 # Create FastAPI application
+root_path = os.getenv("API_ROOT_PATH", "")
 app = FastAPI(
     title="WikiGit API",
     description="Git-based wiki application backend - Multi-repository mode",
     version="0.2.0",
     lifespan=lifespan,
+    root_path=root_path,
 )
 
-# Add CORS middleware for local development
-frontend_port = os.getenv("FRONTEND_PORT", "3003")
-allowed_origins = [
-    f"http://localhost:{frontend_port}",
-    "http://localhost:3003",  # Default frontend port
-]
+# Add CORS middleware for local development and production
+frontend_port = os.getenv("FRONTEND_PORT", "8008")
+cors_origins_str = os.getenv("CORS_ALLOWED_ORIGINS", "")
+
+if cors_origins_str:
+    allowed_origins = [origin.strip() for origin in cors_origins_str.split(",")]
+else:
+    allowed_origins = [
+        f"http://localhost:{frontend_port}",
+        "http://localhost:3003",  # Default frontend port
+    ]
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
