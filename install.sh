@@ -127,10 +127,11 @@ fi
 
 # 4. PNPM Setup
 echo -e "\n${BLUE}==> [4/8] Installing pnpm...${NC}"
-if ! command -v pnpm &> /dev/null; then
-    sudo npm install -g pnpm
+if ! command -v pnpm &> /dev/null || [[ $(pnpm --version) != 9.* ]]; then
+    echo "Installing pnpm 9.0.0..."
+    sudo npm install -g pnpm@9.0.0
 else
-    echo "pnpm is already installed."
+    echo "pnpm $(pnpm --version) is already installed."
 fi
 
 # 5. UV Setup
