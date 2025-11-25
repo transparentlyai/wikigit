@@ -214,6 +214,11 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
           await api.deleteDirectory(node.path);
         }
         toast.success(`Folder "${node.name}" deleted`);
+
+        // If currently viewing a file in this directory, redirect to home
+        if (pathname === articleUrl || pathname.startsWith(`${articleUrl}/`)) {
+          router.push('/');
+        }
       } else {
         if (repositoryId) {
           await api.deleteArticle(repositoryId, node.path);
@@ -341,8 +346,8 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
 
   const paddingLeft = `${level * 12 + 12}px`;
 
-  // Display name without .md extension for files
-  const displayName = isDirectory ? node.name : node.name.replace(/\.md$/, '');
+  // Display name, including extension for files
+  const displayName = node.name;
 
   const renderContent = () => {
     const chevron = isDirectory && hasChildren && (
@@ -825,14 +830,14 @@ export function Sidebar({ directories, onRefresh }: SidebarProps) {
                   key={repo.id}
                   repository={repo}
                   onRefresh={onRefresh}
-                  renderTreeNodes={(nodes, repositoryId, isReadOnly) => (
+                  renderTreeNodes={(nodes, repositoryId, isReadOnly, refreshRepo) => (
                     <>
                       {nodes.map((node, index) => (
                         <TreeNode
                           key={`${node.type}:${node.path}:${index}`}
                           node={node}
                           level={1}
-                          onRefresh={onRefresh}
+                          onRefresh={refreshRepo}
                           repositoryId={repositoryId}
                           isReadOnly={isReadOnly}
                         />
