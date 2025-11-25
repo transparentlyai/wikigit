@@ -240,13 +240,16 @@ cp package.json package.json.bak
 sed '/"packageManager":/d' package.json.bak > package.json
 
 # Ensure we restore package.json even if install fails
-trap "mv package.json.bak package.json" EXIT
+trap "mv package.json.bak package.json 2>/dev/null || true" EXIT
 
 echo "Starting pnpm install..."
 # We use --ignore-scripts to prevent hanging on postinstall hooks during system install
 # --jobs=1 caused an error, removing it.
 pnpm --version
 pnpm install $PNPM_FLAGS --store-dir .pnpm-store --ignore-scripts --no-frozen-lockfile --registry=https://registry.npmjs.org
+
+echo "Restoring package.json..."
+mv package.json.bak package.json
 
 echo "Building project..."
 export NEXT_PUBLIC_API_URL="http://localhost:8000"
