@@ -12,6 +12,30 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
+# Check for debug flag
+DEBUG_MODE=false
+for arg in "$@"; do
+    if [ "$arg" == "--debug" ]; then
+        DEBUG_MODE=true
+        echo -e "${YELLOW}Debug mode enabled.${NC}"
+        set -x
+        break
+    fi
+done
+
+# Set command flags based on debug mode
+if [ "$DEBUG_MODE" = true ]; then
+    PNPM_FLAGS="--loglevel debug --reporter=ndjson"
+    UV_FLAGS="-v"
+    CURL_FLAGS="-fL" # Removed -s (silent)
+    RSYNC_FLAGS="-avv"
+else
+    PNPM_FLAGS=""
+    UV_FLAGS=""
+    CURL_FLAGS="-fsSL"
+    RSYNC_FLAGS="-av"
+fi
+
 echo -e "${BLUE}=========================================${NC}"
 echo -e "${BLUE}       WikiGit Installer Setup           ${NC}"
 echo -e "${BLUE}=========================================${NC}"
@@ -80,7 +104,7 @@ sudo apt install -y git build-essential curl
 echo -e "\n${BLUE}==> [2/8] Setting up Node.js 20...${NC}"
 if ! command -v node &> /dev/null || [[ $(node -v) != v20* ]]; then
     echo "Installing Node.js 20..."
-    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+    curl $CURL_FLAGS https://deb.nodesource.com/setup_20.x | sudo -E bash -
     sudo apt install -y nodejs
 else
     echo "Node.js $(node -v) is already installed."
@@ -122,7 +146,7 @@ install_uv_for_user() {
     if ! sudo -u "$t_user" test -f "$t_home/.local/bin/uv"; then
         echo "Installing uv for user $t_user..."
         # Force install to .local/bin
-        sudo -u "$t_user" -H bash -c "curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR=$t_home/.local/bin sh"
+        sudo -u "$t_user" -H bash -c "curl $CURL_FLAGS https://astral.sh/uv/install.sh | UV_INSTALL_DIR=$t_home/.local/bin sh"
     else
         echo "uv is already installed for $t_user."
     fi
@@ -143,12 +167,12 @@ if [ "$IS_SYSTEM_INSTALL" = true ]; then
 
     echo "Copying files to $INSTALL_DIR..."
     # Sync files, excluding node_modules/venv/tmp to start clean or preserve bandwidth
-    sudo rsync -av --exclude 'node_modules' --exclude '.venv' --exclude '.git' --exclude 'tmp' . "$INSTALL_DIR/"
+    sudo rsync $RSYNC_FLAGS --exclude 'node_modules' --exclude '.venv' --exclude '.git' --exclude 'tmp' . "$INSTALL_DIR/"
     
     # Also sync .git if it exists so it's a repo
     if [ -d ".git" ]; then
         echo "Copying .git directory..."
-        sudo rsync -av .git "$INSTALL_DIR/"
+        sudo rsync $RSYNC_FLAGS .git "$INSTALL_DIR/"
     fi
 
     echo "Setting permissions..."
@@ -160,7 +184,7 @@ if [ "$IS_SYSTEM_INSTALL" = true ]; then
 else
     # Local install - just ensure current user has uv
     if ! command -v uv &> /dev/null; then
-        curl -LsSf https://astral.sh/uv/install.sh | sh
+        curl $CURL_FLAGS https://astral.sh/uv/install.sh | sh
         export PATH="$HOME/.cargo/bin:$HOME/.local/bin:$PATH"
     else
         echo "uv is already installed."
@@ -175,13 +199,13 @@ if [ "$IS_SYSTEM_INSTALL" = true ]; then
     
     # Frontend
     echo "Running pnpm install..."
-    sudo -u "$TARGET_USER" -H bash -c "cd $INSTALL_DIR && pnpm install --loglevel debug"
+    sudo -u "$TARGET_USER" -H bash -c "cd $INSTALL_DIR && pnpm install $PNPM_FLAGS"
     
     # Backend
     echo "Running uv sync..."
     # Use explicit path to uv in .local/bin
     UV_BIN="$INSTALL_DIR/.local/bin/uv"
-    sudo -u "$TARGET_USER" -H bash -c "cd $INSTALL_DIR/apps/api && $UV_BIN python install 3.11 && $UV_BIN sync"
+    sudo -u "$TARGET_USER" -H bash -c "cd $INSTALL_DIR/apps/api && $UV_BIN python install 3.11 $UV_FLAGS && $UV_BIN sync $UV_FLAGS"
 
 else
     # Local Install
@@ -201,14 +225,14 @@ else
 
     # Install Python 3.11 via uv
     echo "Ensuring Python 3.11 is available via uv..."
-    uv python install 3.11
+    uv python install 3.11 $UV_FLAGS
 
     echo "Installing Frontend Dependencies (pnpm)..."
-    pnpm install
+    pnpm install $PNPM_FLAGS
 
     echo "Installing Backend Dependencies (uv)..."
     cd apps/api
-    uv sync
+    uv sync $UV_FLAGS
     cd ../..
 fi
 
