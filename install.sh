@@ -25,7 +25,7 @@ done
 
 # Set command flags based on debug mode
 if [ "$DEBUG_MODE" = true ]; then
-    PNPM_FLAGS="--loglevel debug --reporter=ndjson"
+    PNPM_FLAGS="--loglevel debug --reporter=append-only"
     UV_FLAGS="-v"
     CURL_FLAGS="-fL" # Removed -s (silent)
     RSYNC_FLAGS="-avv"
@@ -199,13 +199,13 @@ if [ "$IS_SYSTEM_INSTALL" = true ]; then
     
     # Frontend
     echo "Running pnpm install..."
-    sudo -u "$TARGET_USER" -H bash -c "cd $INSTALL_DIR && pnpm install $PNPM_FLAGS"
+    sudo -u "$TARGET_USER" -H bash -c "export CI=true; cd $INSTALL_DIR && echo 'Diagnostics:' && id && ls -ld . && rm -rf _tmp_* && pnpm config list && pnpm install $PNPM_FLAGS < /dev/null"
     
     # Backend
     echo "Running uv sync..."
     # Use explicit path to uv in .local/bin
     UV_BIN="$INSTALL_DIR/.local/bin/uv"
-    sudo -u "$TARGET_USER" -H bash -c "cd $INSTALL_DIR/apps/api && $UV_BIN python install 3.11 $UV_FLAGS && $UV_BIN sync $UV_FLAGS"
+    sudo -u "$TARGET_USER" -H bash -c "export CI=true; cd $INSTALL_DIR/apps/api && $UV_BIN python install 3.11 $UV_FLAGS && $UV_BIN sync $UV_FLAGS < /dev/null"
 
 else
     # Local Install
