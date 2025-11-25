@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import List
 from urllib.parse import unquote
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from fastapi.responses import FileResponse
 
 from app.config.settings import settings
@@ -41,6 +41,34 @@ from app.services.search_service import SearchService
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/repositories/{repository_id}", tags=["articles"])
+
+BINARY_EXTENSIONS = {
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".ico",
+    ".pdf",
+    ".zip",
+    ".tar",
+    ".gz",
+    ".mp4",
+    ".mp3",
+    ".wav",
+    ".mov",
+    ".avi",
+    ".webm",
+    ".woff",
+    ".woff2",
+    ".ttf",
+    ".eot",
+    ".exe",
+    ".dll",
+    ".so",
+    ".dylib",
+    ".class",
+    ".pyc",
+}
 
 
 def get_repository_path(repository_id: str) -> Path:
@@ -288,6 +316,43 @@ def index_directory_articles(
         logger.error(f"Failed to index directory articles: {e}")
 
 
+def handle_background_deletion(
+    repository_id: str,
+    git_files: List[str],
+    search_files: List[str],
+    commit_message: str,
+) -> None:
+    """
+    Handle Git operations and search index removal in the background.
+    """
+    # 1. Git operations
+    try:
+        if git_files:
+            git_service = get_git_service(repository_id)
+            if git_service.repo:
+                # Remove files from git index
+                git_service.repo.index.remove(git_files)
+                git_service.repo.index.commit(commit_message)
+                logger.info(f"Background: Committed deletion of {len(git_files)} files")
+
+                # Push to remote
+                git_service.push_to_remote()
+                logger.info("Background: Pushed deletion to remote")
+    except Exception as e:
+        logger.error(f"Background git deletion failed: {e}")
+
+    # 2. Search index operations
+    try:
+        for path in search_files:
+            remove_from_search_index(repository_id, path)
+        if search_files:
+            logger.info(
+                f"Background: Removed {len(search_files)} items from search index"
+            )
+    except Exception as e:
+        logger.error(f"Background search deletion failed: {e}")
+
+
 # ============================================================================
 # Article Endpoints
 # ============================================================================
@@ -371,9 +436,12 @@ async def get_article(
     repo_path = get_repository_path(repository_id)
     path = validate_path(path)
 
-    # Ensure path ends with .md
-    if not path.endswith(".md"):
-        path = f"{path}.md"
+    # Auto-append .md only if no extension is present, for backward compatibility
+    # But if it has an extension, respect it.
+    if not Path(path).suffix and not (repo_path / path).exists():
+        test_path = f"{path}.md"
+        if (repo_path / test_path).exists():
+            path = test_path
 
     article_path = repo_path / path
 
@@ -383,20 +451,50 @@ async def get_article(
             detail=f"Article '{path}' not found",
         )
 
-    try:
-        # Parse article
-        metadata, content = frontmatter_service.parse_article(article_path)
-
+    # Check if binary
+    if article_path.suffix.lower() in BINARY_EXTENSIONS:
         return Article(
             path=path,
-            title=metadata.get("title", article_path.stem),
-            content=content,
-            author=normalize_author_field(metadata.get("author")),
-            created_at=metadata.get("created_at"),
-            updated_at=metadata.get("updated_at"),
-            updated_by=normalize_author_field(metadata.get("updated_by")),
+            title=article_path.name,
+            content="This file is binary and cannot be displayed.",
+            author=None,
+            created_at=None,
+            updated_at=None,
+            updated_by=None,
         )
 
+    try:
+        # If markdown, parse frontmatter
+        if article_path.suffix == ".md":
+            metadata, content = frontmatter_service.parse_article(article_path)
+            return Article(
+                path=path,
+                title=metadata.get("title", article_path.stem),
+                content=content,
+                author=normalize_author_field(metadata.get("author")),
+                created_at=metadata.get("created_at"),
+                updated_at=metadata.get("updated_at"),
+                updated_by=normalize_author_field(metadata.get("updated_by")),
+            )
+        else:
+            # For other text files, just read content
+            content = article_path.read_text(encoding="utf-8")
+            return Article(
+                path=path,
+                title=article_path.name,
+                content=content,
+                # No metadata for plain text files
+                author=None,
+                created_at=None,
+                updated_at=None,
+                updated_by=None,
+            )
+
+    except UnicodeDecodeError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"File is not a valid text file: {path}",
+        )
     except Exception as e:
         logger.error(f"Failed to read article {path}: {e}")
         raise HTTPException(
@@ -635,6 +733,7 @@ async def update_article(
 async def delete_article(
     repository_id: str,
     path: str,
+    background_tasks: BackgroundTasks,
     user_email: str = Depends(get_current_user),
 ) -> None:
     """
@@ -643,6 +742,7 @@ async def delete_article(
     Args:
         repository_id: Repository identifier
         path: Article path relative to repository root
+        background_tasks: FastAPI background tasks
         user_email: Authenticated user email
 
     Raises:
@@ -676,28 +776,18 @@ async def delete_article(
         )
 
     try:
+        # Delete from filesystem immediately
         article_path.unlink()
         logger.info(f"Article {path} deleted successfully")
 
-        # Commit and push deletion to git
-        try:
-            git_service = get_git_service(repository_id)
-            # For deletions, we need to use git's remove functionality
-            if git_service.repo:
-                git_service.repo.index.remove([path])
-                commit_message = f"Delete: {path}\n\nAuthor: {user_email}\nDate: {datetime.now(timezone.utc).isoformat()}"
-                git_service.repo.index.commit(commit_message)
-                logger.info(f"Committed deletion of {path}")
-
-                # Push to remote
-                git_service.push_to_remote()
-                logger.info(f"Pushed deletion of {path} to remote")
-        except Exception as git_error:
-            logger.warning(f"Failed to commit/push article deletion: {git_error}")
-            # Continue even if git commit/push fails
-
-        # Remove from search index
-        remove_from_search_index(repository_id, path)
+        # Offload Git and Search operations to background
+        background_tasks.add_task(
+            handle_background_deletion,
+            repository_id=repository_id,
+            git_files=[path],
+            search_files=[path],
+            commit_message=f"Delete: {path}\n\nAuthor: {user_email}\nDate: {datetime.now(timezone.utc).isoformat()}",
+        )
 
     except Exception as e:
         logger.error(f"Failed to delete article {path}: {e}")
@@ -862,10 +952,7 @@ def build_directory_tree(repo_path: Path, current_path: Path) -> List[DirectoryN
             if item.name.startswith("."):
                 continue
 
-            # Only include markdown files
-            if item.suffix != ".md":
-                continue
-
+            # Only include markdown files or other text files (binary files included but handled in viewer)
             relative_path = item.relative_to(repo_path)
             node = DirectoryNode(
                 type="file",
@@ -885,10 +972,8 @@ def build_directory_tree(repo_path: Path, current_path: Path) -> List[DirectoryN
 
             # Recursively build children
             children = build_directory_tree(repo_path, item)
-            # Only include directory if it contains markdown files
-            if not children:
-                continue
 
+            # Include directory even if it's empty (so users can see and add files to it)
             node = DirectoryNode(
                 type="directory",
                 name=item.name,
@@ -1009,6 +1094,7 @@ async def create_directory(
 async def delete_directory(
     repository_id: str,
     path: str,
+    background_tasks: BackgroundTasks,
     user_email: str = Depends(get_current_user),
 ) -> None:
     """
@@ -1017,6 +1103,7 @@ async def delete_directory(
     Args:
         repository_id: Repository identifier
         path: Directory path relative to repository root
+        background_tasks: FastAPI background tasks
         user_email: Authenticated user email
 
     Raises:
@@ -1048,35 +1135,36 @@ async def delete_directory(
     try:
         import shutil
 
-        # Remove all articles in the directory from search index (before deleting)
-        remove_directory_from_search_index(repository_id, dir_path, repo_path)
+        # Collect all files in the directory for git removal and search index cleanup
+        # We must do this BEFORE deleting the files from the filesystem
+        git_files = []
+        search_files = []
 
-        # Collect all files in the directory for git removal
-        files_to_remove = []
         for file_path in dir_path.rglob("*"):
             if file_path.is_file():
-                rel_path = file_path.relative_to(repo_path)
-                files_to_remove.append(str(rel_path))
+                try:
+                    rel_path = str(file_path.relative_to(repo_path))
+                    git_files.append(rel_path)
 
+                    # Only markdown files are in the search index
+                    if file_path.suffix == ".md":
+                        search_files.append(rel_path)
+                except ValueError:
+                    continue
+
+        # Delete from filesystem immediately
         shutil.rmtree(dir_path)
         logger.info(f"Directory {path} deleted successfully")
 
-        # Commit and push directory deletion to git
-        if files_to_remove:
-            try:
-                git_service = get_git_service(repository_id)
-                if git_service.repo:
-                    git_service.repo.index.remove(files_to_remove)
-                    commit_message = f"Delete: {path}/ ({len(files_to_remove)} files)\n\nAuthor: {user_email}\nDate: {datetime.now(timezone.utc).isoformat()}"
-                    git_service.repo.index.commit(commit_message)
-                    logger.info(f"Committed deletion of directory {path}")
-
-                    # Push to remote
-                    git_service.push_to_remote()
-                    logger.info(f"Pushed deletion of directory {path} to remote")
-            except Exception as git_error:
-                logger.warning(f"Failed to commit/push directory deletion: {git_error}")
-                # Continue even if git commit/push fails
+        # Offload Git and Search operations to background
+        if git_files:
+            background_tasks.add_task(
+                handle_background_deletion,
+                repository_id=repository_id,
+                git_files=git_files,
+                search_files=search_files,
+                commit_message=f"Delete: {path}/ ({len(git_files)} files)\n\nAuthor: {user_email}\nDate: {datetime.now(timezone.utc).isoformat()}",
+            )
 
     except Exception as e:
         logger.error(f"Failed to delete directory {path}: {e}")
@@ -1282,8 +1370,13 @@ async def serve_file(
     # Otherwise, serve as static file
     mime_type, _ = mimetypes.guess_type(str(file_path))
 
+    # Explicitly set Content-Disposition to inline to ensure browser displays file
+    headers = {
+        "Content-Disposition": f'inline; filename="{file_path.name}"'.replace('"', "'")
+    }
+
     return FileResponse(
         path=str(file_path),
         media_type=mime_type,
-        filename=file_path.name,
+        headers=headers,
     )
