@@ -204,7 +204,7 @@ if [ "$IS_SYSTEM_INSTALL" = true ]; then
     # Create a temporary install script for frontend
     cat <<EOF | sudo tee "$INSTALL_DIR/install_frontend.sh" > /dev/null
 #!/bin/bash
-set -e
+set -euxo pipefail
 [ "$DEBUG_MODE" = "true" ] && set -x
 
 export CI=true
@@ -221,7 +221,15 @@ id
 echo "PWD: \$(pwd)"
 ls -ld .
 echo "PATH: \$PATH"
-which pnpm || echo "pnpm not found in PATH"
+
+echo "Current environment (before pnpm):"
+env
+
+echo "Verifying pnpm executable:"
+which pnpm
+
+echo "Checking network connectivity to npm registry:"
+curl $CURL_FLAGS https://registry.npmjs.org || echo 'Network check failed'
 
 echo "Cleaning previous temporary files..."
 rm -rf _tmp_* .pnpm-store/v3/tmp
