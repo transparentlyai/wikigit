@@ -234,10 +234,19 @@ curl $CURL_FLAGS https://registry.npmjs.org || echo 'Network check failed'
 echo "Cleaning previous temporary files..."
 rm -rf _tmp_* .pnpm-store/v3/tmp
 
+echo "Preparing package.json (removing packageManager field to prevent self-update loops)..."
+cp package.json package.json.bak
+# Use a temp file for sed to avoid race/permissions issues (though we are owner)
+sed '/"packageManager":/d' package.json.bak > package.json
+
+# Ensure we restore package.json even if install fails
+trap "mv package.json.bak package.json" EXIT
+
 echo "Starting pnpm install..."
 # We use --ignore-scripts to prevent hanging on postinstall hooks during system install
-# Using --jobs=1 to avoid resource exhaustion on smaller instances
-pnpm install $PNPM_FLAGS --store-dir .pnpm-store --ignore-scripts --no-frozen-lockfile --registry=https://registry.npmjs.org --jobs=1
+# --jobs=1 caused an error, removing it.
+pnpm --version
+pnpm install $PNPM_FLAGS --store-dir .pnpm-store --ignore-scripts --no-frozen-lockfile --registry=https://registry.npmjs.org
 EOF
 
     sudo chmod +x "$INSTALL_DIR/install_frontend.sh"
