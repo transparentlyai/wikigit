@@ -498,36 +498,54 @@ else
 fi
 
 # Interactive Setup
-echo -e "\n${BLUE}==> Interactive Configuration${NC}"
-echo "We will now configure the application settings."
+echo -e "\n${BLUE}=========================================${NC}"
+echo -e "${BLUE}       Interactive Configuration         ${NC}"
+echo -e "${BLUE}=========================================${NC}"
+echo ""
+echo "Please answer the following questions to configure WikiGit."
+echo "Press Enter to accept the default value shown in [brackets]."
+echo ""
 
 # 1. App Name
-read -r -p "Application Name [WikiGit]: " INPUT_APP_NAME
+echo -e "${YELLOW}1. Application Name${NC}"
+echo "   The name displayed in the UI header."
+read -r -p "   > Application Name [WikiGit]: " INPUT_APP_NAME
 APP_NAME=${INPUT_APP_NAME:-WikiGit}
+echo ""
 
 # 2. Admins
-read -r -p "Admin Email Addresses (comma separated): " INPUT_ADMINS
+echo -e "${YELLOW}2. Administrator Emails${NC}"
+echo "   Users with these emails can access the admin panel."
+read -r -p "   > Admin Emails (comma separated): " INPUT_ADMINS
+echo ""
 
 # 3. Directories
 DEFAULT_REPOS_DIR="$INSTALL_DIR/wiki-repositories"
 DEFAULT_INDEX_DIR="$INSTALL_DIR/data/whoosh_index"
 
-read -r -p "Repositories Root Directory [$DEFAULT_REPOS_DIR]: " INPUT_REPOS_DIR
+echo -e "${YELLOW}3. Data Directories${NC}"
+echo "   Where wiki repositories and search index will be stored."
+read -r -p "   > Repositories Directory [$DEFAULT_REPOS_DIR]: " INPUT_REPOS_DIR
 REPOS_DIR=${INPUT_REPOS_DIR:-$DEFAULT_REPOS_DIR}
-
-read -r -p "Search Index Directory [$DEFAULT_INDEX_DIR]: " INPUT_INDEX_DIR
+read -r -p "   > Search Index Directory [$DEFAULT_INDEX_DIR]: " INPUT_INDEX_DIR
 INDEX_DIR=${INPUT_INDEX_DIR:-$DEFAULT_INDEX_DIR}
+echo ""
 
 # 4. GitHub
-read -r -p "GitHub Username: " INPUT_GITHUB_USER
-read -r -s -p "GitHub Personal Access Token (Paste it): " INPUT_GITHUB_TOKEN
+echo -e "${YELLOW}4. GitHub Integration${NC}"
+echo "   Required for syncing with GitHub repositories."
+read -r -p "   > GitHub Username: " INPUT_GITHUB_USER
+read -r -s -p "   > GitHub Personal Access Token: " INPUT_GITHUB_TOKEN
 echo "" # newline after secret input
+echo ""
 
 # 5. Deployment Domain (CORS)
-echo -e "\nDeployment Domain Configuration"
-echo "Enter the domain where WikiGit will be accessed (e.g., https://wiki.example.com)."
-echo "This is required for CORS configuration if running behind a load balancer."
-read -r -p "Deployment Domain (leave empty if local/internal only): " INPUT_DOMAIN
+echo -e "${YELLOW}5. Deployment Domain (Optional)${NC}"
+echo "   The public URL where WikiGit will be accessed."
+echo "   Required for CORS if running behind a load balancer."
+echo "   Example: https://wiki.example.com"
+read -r -p "   > Domain (leave empty for local/internal): " INPUT_DOMAIN
+echo ""
 
 # Apply changes to config.yaml
 echo "Updating configuration..."
