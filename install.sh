@@ -294,7 +294,7 @@ mv package.json.bak package.json
 
 echo "Building project..."
 export NEXT_PUBLIC_API_URL="http://localhost:8000"
-pnpm run build
+pnpm run build -- --concurrency=1
 EOF
 
     sudo chmod +x "$INSTALL_DIR/install_frontend.sh"
@@ -357,14 +357,14 @@ else
 
     # Install Python 3.11 via uv
     echo "Ensuring Python 3.11 is available via uv..."
-    uv python install 3.11 "$UV_FLAGS"
+    uv python install 3.11 $UV_FLAGS
 
     echo "Installing Frontend Dependencies (pnpm)..."
-    pnpm install "$PNPM_FLAGS"
+    pnpm install $PNPM_FLAGS --network-concurrency 1
 
     echo "Installing Backend Dependencies (uv)..."
     cd apps/api
-    uv sync "$UV_FLAGS"
+    uv sync $UV_FLAGS
     cd ../..
 fi
 
