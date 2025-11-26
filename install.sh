@@ -287,7 +287,7 @@ echo "Starting pnpm install..."
 # We use --ignore-scripts to prevent hanging on postinstall hooks during system install
 # --jobs=1 caused an error, removing it.
 pnpm --version
-pnpm install $PNPM_FLAGS --store-dir .pnpm-store --ignore-scripts --no-frozen-lockfile --registry=https://registry.npmjs.org
+pnpm install $PNPM_FLAGS --store-dir .pnpm-store --ignore-scripts --no-frozen-lockfile --registry=https://registry.npmjs.org --network-concurrency 1
 
 echo "Restoring package.json..."
 mv package.json.bak package.json
