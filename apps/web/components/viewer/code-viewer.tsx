@@ -20,15 +20,23 @@ export function CodeViewer({ content, language, filename }: CodeViewerProps) {
             lang = ext || 'text';
         }
 
-        const html = await codeToHtml(content, {
+        const result = await codeToHtml(content, {
           lang,
-          theme: 'github-light',
+          theme: 'github-dark-dimmed',
         });
-        setHighlightedCode(html);
+
+        // Extract content between <pre> tags and strip all pre attributes
+        // This allows us to control the container styling (background, padding, etc.) manually
+        const match = result.match(/<pre[^>]*>([\s\S]*)<\/pre>/);
+        if (match) {
+          setHighlightedCode(match[1]);
+        } else {
+          setHighlightedCode(result);
+        }
       } catch (error) {
         console.error('Failed to highlight code:', error);
-        // Fallback to simple pre/code
-        setHighlightedCode(`<pre><code>${content}</code></pre>`);
+        // Fallback to simple code block if highlighting fails
+        setHighlightedCode(`<code>${content}</code>`);
       }
     };
 
@@ -36,15 +44,17 @@ export function CodeViewer({ content, language, filename }: CodeViewerProps) {
   }, [content, language, filename]);
 
   return (
-    <div className="w-full overflow-hidden rounded-md border border-gray-200 bg-gray-50">
+    <div className="w-full overflow-hidden rounded-md border border-gray-200">
         <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 bg-white">
              <span className="text-sm font-medium text-gray-700">{filename}</span>
              <span className="text-xs text-gray-500 uppercase">{language || filename.split('.').pop()}</span>
         </div>
-      <div 
-        className="p-4 overflow-x-auto text-sm"
-        dangerouslySetInnerHTML={{ __html: highlightedCode }} 
-      />
+      <div className="overflow-x-auto bg-[#0d1117] p-4 text-sm">
+        <pre
+          className="[&_code]:!bg-transparent [&_code]:!p-0 text-[#c9d1d9] m-0"
+          dangerouslySetInnerHTML={{ __html: highlightedCode }}
+        />
+      </div>
     </div>
   );
 }
