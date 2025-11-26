@@ -163,13 +163,18 @@ fi
 while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
 
 # 0. Installation Mode
-echo -e "\n${BLUE}==> [0/9] Installation Mode...${NC}"
-echo "How would you like to install WikiGit?"
-echo "  1) Current User ($USER) in current directory ($(pwd))"
-echo "     > Best for development or single-user setups."
-echo "  2) Dedicated System User ('wikigit') in /opt/wikigit"
-echo "     > Best for production servers."
-read -r -p "Select option [1/2] (Default: 1): " INSTALL_MODE
+echo ""
+echo -e "${YELLOW}Installation Mode${NC}"
+echo ""
+echo "  [1] Local Install (Development)"
+echo "      User: $USER"
+echo "      Path: $(pwd)"
+echo ""
+echo "  [2] System Install (Production)"
+echo "      User: wikigit"
+echo "      Path: /opt/wikigit"
+echo ""
+read -r -p "Select [1/2] (default: 1): " INSTALL_MODE
 INSTALL_MODE=${INSTALL_MODE:-1}
 
 if [[ "$INSTALL_MODE" == "2" ]]; then
@@ -177,13 +182,13 @@ if [[ "$INSTALL_MODE" == "2" ]]; then
     TARGET_GROUP="wikigit"
     INSTALL_DIR="/opt/wikigit"
     IS_SYSTEM_INSTALL=true
-    echo -e "${YELLOW}Selected: System Install ($TARGET_USER in $INSTALL_DIR)${NC}"
+    echo -e "\n${GREEN}► System Install selected${NC}"
 else
     TARGET_USER=$(whoami)
     TARGET_GROUP=$(id -gn)
     INSTALL_DIR=$(pwd)
     IS_SYSTEM_INSTALL=false
-    echo -e "${YELLOW}Selected: Local Install ($TARGET_USER in $INSTALL_DIR)${NC}"
+    echo -e "\n${GREEN}► Local Install selected${NC}"
 fi
 
 # Check for existing installation
