@@ -168,6 +168,12 @@ fi
 
 # 4. PNPM Setup
 echo -e "\n${BLUE}==> [4/8] Installing pnpm...${NC}"
+
+# Disable corepack to prevent it from intercepting pnpm commands
+# Corepack causes hangs when it tries to auto-download pnpm versions
+echo "Disabling corepack..."
+sudo corepack disable 2>/dev/null || true
+
 if ! command -v pnpm &> /dev/null || [[ $(pnpm --version) != 9.* ]]; then
     echo "Installing pnpm 9.0.0..."
     sudo npm install -g pnpm@9.0.0
@@ -197,7 +203,7 @@ install_uv_for_user() {
 if [ "$IS_SYSTEM_INSTALL" = true ]; then
     # Create system user if needed
     if ! id "$TARGET_USER" &>/dev/null; then
-        echo "Creating system user '$TARGET_USER' நான"
+        echo "Creating system user '$TARGET_USER'..."
         sudo useradd -r -m -d "$INSTALL_DIR" -s /bin/bash "$TARGET_USER"
     fi
 
@@ -245,7 +251,7 @@ if [ "$IS_SYSTEM_INSTALL" = true ]; then
     # Create a temporary install script for frontend
     cat <<EOF | sudo tee "$INSTALL_DIR/install_frontend.sh" > /dev/null
 #!/bin/bash
-set -euxo pipefail
+set -euo pipefail
 [ "$DEBUG_MODE" = "true" ] && set -x
 
 export CI=true
@@ -285,16 +291,15 @@ trap "mv package.json.bak package.json 2>/dev/null || true" EXIT
 
 echo "Starting pnpm install..."
 # We use --ignore-scripts to prevent hanging on postinstall hooks during system install
-# --jobs=1 caused an error, removing it.
 pnpm --version
-pnpm install $PNPM_FLAGS --store-dir .pnpm-store --ignore-scripts --no-frozen-lockfile --registry=https://registry.npmjs.org --network-concurrency 1
+pnpm install $PNPM_FLAGS --store-dir .pnpm-store --ignore-scripts --no-frozen-lockfile --registry=https://registry.npmjs.org
 
 echo "Restoring package.json..."
 mv package.json.bak package.json
 
 echo "Building project..."
 export NEXT_PUBLIC_API_URL="http://localhost:8000"
-pnpm run build -- --concurrency=1
+pnpm run build
 EOF
 
     sudo chmod +x "$INSTALL_DIR/install_frontend.sh"
@@ -357,14 +362,14 @@ else
 
     # Install Python 3.11 via uv
     echo "Ensuring Python 3.11 is available via uv..."
-    uv python install 3.11 $UV_FLAGS
+    uv python install 3.11 "$UV_FLAGS"
 
     echo "Installing Frontend Dependencies (pnpm)..."
-    pnpm install $PNPM_FLAGS --network-concurrency 1
+    pnpm install "$PNPM_FLAGS"
 
     echo "Installing Backend Dependencies (uv)..."
     cd apps/api
-    uv sync $UV_FLAGS
+    uv sync "$UV_FLAGS"
     cd ../..
 fi
 
@@ -497,9 +502,7 @@ else
     # Check PATH
     if [[ ":$PATH:" != *":$USER_BIN:"* ]]; then
         echo -e "${YELLOW}Warning: $USER_BIN is not in your PATH.${NC}"
-        ADD_PATH_CMD="export PATH=\"
-$USER_BIN:$PATH\"
-"
+        ADD_PATH_CMD="export PATH=\"$USER_BIN:\$PATH\""
     fi
 fi
 
