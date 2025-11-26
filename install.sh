@@ -12,16 +12,122 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-# Check for debug flag
+# Parse command line flags
 DEBUG_MODE=false
+REMOVE_MODE=false
 for arg in "$@"; do
-    if [ "$arg" == "--debug" ]; then
-        DEBUG_MODE=true
-        echo -e "${YELLOW}Debug mode enabled.${NC}"
-        set -x
-        break
-    fi
+    case "$arg" in
+        --debug)
+            DEBUG_MODE=true
+            echo -e "${YELLOW}Debug mode enabled.${NC}"
+            set -x
+            ;;
+        --remove)
+            REMOVE_MODE=true
+            ;;
+    esac
 done
+
+# =============================================================================
+# REMOVE MODE
+# =============================================================================
+if [ "$REMOVE_MODE" = true ]; then
+    echo -e "${RED}=========================================${NC}"
+    echo -e "${RED}       WikiGit Complete Removal          ${NC}"
+    echo -e "${RED}=========================================${NC}"
+
+    echo -e "\n${YELLOW}This will remove:${NC}"
+    echo "  - WikiGit systemd service"
+    echo "  - /opt/wikigit directory (if system install)"
+    echo "  - wikigit system user"
+    echo "  - Global CLI symlink (/usr/local/bin/wikigit)"
+    echo "  - Globally installed pnpm"
+    echo ""
+    echo -e "${YELLOW}This will NOT remove:${NC}"
+    echo "  - Node.js, Python, or other system packages"
+    echo "  - Local installs (in current directory)"
+    echo ""
+
+    read -r -p "Are you sure you want to completely remove WikiGit? [y/N]: " CONFIRM_REMOVE
+    if [[ ! "$CONFIRM_REMOVE" =~ ^[Yy]$ ]]; then
+        echo "Removal cancelled."
+        exit 0
+    fi
+
+    # Check for sudo
+    if [ "$EUID" -ne 0 ]; then
+        echo -e "${YELLOW}This operation requires sudo privileges.${NC}"
+        sudo -v
+    fi
+
+    echo -e "\n${BLUE}==> Stopping and removing systemd service...${NC}"
+    if systemctl is-active --quiet wikigit 2>/dev/null; then
+        sudo systemctl stop wikigit
+    fi
+    if systemctl is-enabled --quiet wikigit 2>/dev/null; then
+        sudo systemctl disable wikigit
+    fi
+    if [ -f "/etc/systemd/system/wikigit.service" ]; then
+        sudo rm -f /etc/systemd/system/wikigit.service
+        sudo systemctl daemon-reload
+        echo "Removed systemd service."
+    else
+        echo "No systemd service found."
+    fi
+
+    echo -e "\n${BLUE}==> Removing global CLI symlink...${NC}"
+    if [ -L "/usr/local/bin/wikigit" ]; then
+        sudo rm -f /usr/local/bin/wikigit
+        echo "Removed /usr/local/bin/wikigit"
+    else
+        echo "No global symlink found."
+    fi
+
+    echo -e "\n${BLUE}==> Removing /opt/wikigit directory...${NC}"
+    if [ -d "/opt/wikigit" ]; then
+        echo -e "${RED}WARNING: This will delete all data in /opt/wikigit!${NC}"
+        read -r -p "Type 'delete' to confirm: " CONFIRM_DELETE
+        if [ "$CONFIRM_DELETE" = "delete" ]; then
+            sudo rm -rf /opt/wikigit
+            echo "Removed /opt/wikigit"
+        else
+            echo "Skipped /opt/wikigit removal."
+        fi
+    else
+        echo "No /opt/wikigit directory found."
+    fi
+
+    echo -e "\n${BLUE}==> Removing wikigit system user...${NC}"
+    if id "wikigit" &>/dev/null; then
+        sudo userdel -r wikigit 2>/dev/null || sudo userdel wikigit
+        echo "Removed wikigit user."
+    else
+        echo "No wikigit user found."
+    fi
+
+    echo -e "\n${BLUE}==> Removing globally installed pnpm...${NC}"
+    PNPM_PATH=$(which pnpm 2>/dev/null || true)
+    if [ "$PNPM_PATH" = "/usr/bin/pnpm" ] || [ "$PNPM_PATH" = "/usr/local/bin/pnpm" ]; then
+        sudo npm uninstall -g pnpm
+        echo "Removed pnpm."
+    else
+        echo "No globally installed pnpm found (or not installed via npm)."
+    fi
+
+    echo -e "\n${GREEN}=========================================${NC}"
+    echo -e "${GREEN}       Removal Complete                  ${NC}"
+    echo -e "${GREEN}=========================================${NC}"
+    echo ""
+    echo "Note: Node.js, Python, and other system packages were not removed."
+    echo "To remove them manually:"
+    echo "  sudo apt remove nodejs python3-full"
+    echo ""
+    exit 0
+fi
+
+# =============================================================================
+# INSTALL MODE
+# =============================================================================
 
 # Set command flags based on debug mode
 if [ "$DEBUG_MODE" = true ]; then
