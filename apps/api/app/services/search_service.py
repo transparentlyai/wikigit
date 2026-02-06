@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from whoosh import index
+from whoosh.analysis import SimpleAnalyzer
 from whoosh.fields import ID, TEXT, DATETIME, Schema
 from whoosh.qparser import MultifieldParser
 from whoosh.query import Query, Term
@@ -43,7 +44,7 @@ class SearchService:
             path=ID(stored=True, unique=True),
             title=TEXT(stored=True),
             content=TEXT(stored=True),
-            searchable_path=TEXT(stored=False),
+            searchable_path=TEXT(stored=False, analyzer=SimpleAnalyzer()),
             author=TEXT(stored=True),
             created_at=DATETIME(stored=True),
             updated_at=DATETIME(stored=True),
@@ -55,9 +56,13 @@ class SearchService:
         # Create index directory if it doesn't exist
         self.index_dir.mkdir(parents=True, exist_ok=True)
 
-        # Always recreate index with current schema (index is rebuilt on startup via sync)
-        logger.info(f"Creating search index at {self.index_dir}")
-        self.ix = index.create_in(str(self.index_dir), self.schema)
+        # Open existing index or create a new one
+        if index.exists_in(str(self.index_dir)):
+            logger.info(f"Opening existing search index at {self.index_dir}")
+            self.ix = index.open_dir(str(self.index_dir))
+        else:
+            logger.info(f"Creating new search index at {self.index_dir}")
+            self.ix = index.create_in(str(self.index_dir), self.schema)
 
     @staticmethod
     def _parse_timestamp(timestamp_value) -> Optional[datetime]:
@@ -133,7 +138,8 @@ class SearchService:
         try:
             logger.info("Starting full index rebuild")
 
-            # Clear existing index
+            # Recreate index with current schema to pick up any schema changes
+            self.ix = index.create_in(str(self.index_dir), self.schema)
             writer = self.ix.writer()
             indexed_count = 0
 
