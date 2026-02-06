@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { FolderGit, ChevronRight, ChevronDown, Lock, FilePlus, FolderPlus } from 'lucide-react';
 import { RepositoryStatus, DirectoryNode } from '@/types/api';
 import { api } from '@/lib/api';
@@ -40,6 +40,7 @@ function saveRepoExpandedState(repoId: string, expanded: boolean) {
 
 export function RepositoryNode({ repository, onRefresh, renderTreeNodes }: RepositoryNodeProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [isExpanded, setIsExpanded] = useState(false);
   const [directories, setDirectories] = useState<DirectoryNode[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -62,15 +63,19 @@ export function RepositoryNode({ repository, onRefresh, renderTreeNodes }: Repos
     }
   };
 
-  // Load expanded state from localStorage
+  // Load expanded state from localStorage, auto-expand if URL is within this repo
   useEffect(() => {
-    const expanded = getRepoExpandedState(repository.id);
+    const urlMatchesRepo = pathname.startsWith(`/${repository.id}/`) || pathname === `/${repository.id}`;
+    const expanded = getRepoExpandedState(repository.id) || urlMatchesRepo;
     setIsExpanded(expanded);
     if (expanded) {
+      if (urlMatchesRepo) {
+        saveRepoExpandedState(repository.id, true);
+      }
       fetchDirectories();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [repository.id]);
+  }, [repository.id, pathname]);
 
   const handleToggle = async (e: React.MouseEvent) => {
     e.preventDefault();

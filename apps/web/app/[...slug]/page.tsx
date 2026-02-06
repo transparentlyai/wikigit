@@ -7,13 +7,37 @@ import { MainLayout } from '@/components/layout/main-layout'
 import { MarkdownViewer } from '@/components/viewer/markdown-viewer'
 import { CodeViewer } from '@/components/viewer/code-viewer'
 import { ArticleMetadata } from '@/components/viewer/article-metadata'
+import { DirectoryListing } from '@/components/viewer/directory-listing'
 import { MarkdownEditor } from '@/components/editor/markdown-editor'
 import { useStore } from '@/lib/store'
 import { api } from '@/lib/api'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import type { RepositoryStatus } from '@/types/api'
+import type { DirectoryNode, RepositoryStatus } from '@/types/api'
 
 const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico', '.bmp']
+
+/**
+ * Returns true if the path refers to a directory (no file extension in last segment)
+ */
+function isDirectoryPath(path: string): boolean {
+  if (!path) return true; // empty path = repo root
+  const lastSegment = path.split('/').pop() || ''
+  return !lastSegment.includes('.')
+}
+
+/**
+ * Traverse directory tree to find a node matching the given path
+ */
+function findNodeByPath(nodes: DirectoryNode[], path: string): DirectoryNode | null {
+  for (const node of nodes) {
+    if (node.path === path) return node
+    if (node.children) {
+      const found = findNodeByPath(node.children, path)
+      if (found) return found
+    }
+  }
+  return null
+}
 
 /**
  * Parse article path from slug segments
@@ -35,9 +59,9 @@ function parseArticlePath(slug: string[]): [string | undefined, string] {
     return [repositoryId, articlePath]
   }
 
-  // Fallback for malformed URLs
-  const articlePath = slug.join('/')
-  return [undefined, articlePath]
+  // Single segment: treat as repository root (e.g., /transparentlyadmin-wiki-pages)
+  // In multi-repo mode this is the repo ID with empty path
+  return [slug[0], '']
 }
 
 export default function ArticlePage({ params }: { params: Promise<{ slug: string[] }> }) {
@@ -61,6 +85,8 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [repository, setRepository] = useState<RepositoryStatus | null>(null)
   const [isReadOnly, setIsReadOnly] = useState(false)
+  const [isDirectory, setIsDirectory] = useState(false)
+  const [directoryContents, setDirectoryContents] = useState<DirectoryNode[]>([])
 
   // Determine file type
   const isMarkdown = articlePath.toLowerCase().endsWith('.md')
@@ -85,7 +111,30 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
           }
         }
 
-        if (isImage) {
+        if (isDirectoryPath(articlePath)) {
+          // Directory view: fetch directory tree and find matching node
+          setIsDirectory(true)
+          setCurrentArticle(null)
+          if (repositoryId) {
+            const response = await api.getDirectories(repositoryId)
+            if (!articlePath) {
+              // Repo root — show top-level contents
+              setDirectoryContents(response.tree)
+            } else {
+              const node = findNodeByPath(response.tree, articlePath)
+              setDirectoryContents(node?.children || [])
+            }
+          } else {
+            const response = await api.getDirectories()
+            if (!articlePath) {
+              setDirectoryContents(response.tree)
+            } else {
+              const node = findNodeByPath(response.tree, articlePath)
+              setDirectoryContents(node?.children || [])
+            }
+          }
+        } else if (isImage) {
+          setIsDirectory(false)
           // For images, we don't need to fetch content, just set dummy article data
           setCurrentArticle({
             path: articlePath,
@@ -97,6 +146,7 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
             updated_by: null,
           })
         } else {
+          setIsDirectory(false)
           const article = repositoryId
             ? await api.getArticle(repositoryId, articlePath)
             : await api.getArticle(articlePath)
@@ -186,7 +236,7 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
   }
 
   // Generate breadcrumbs from article path
-  const breadcrumbs = currentArticle
+  const breadcrumbs = (currentArticle || isDirectory) && articlePath
     ? articlePath.split('/').map((segment, index, array) => {
         const label = segment.replace(/-/g, ' ').replace(/\.md$/, '');
         const pathSegments = array.slice(0, index + 1).join('/');
@@ -203,6 +253,22 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
     return (
       <MainLayout>
         <p className="text-gray-600">Loading...</p>
+      </MainLayout>
+    )
+  }
+
+  if (isDirectory) {
+    const dirName = articlePath
+      ? articlePath.split('/').pop() || articlePath
+      : repository?.name || 'Root';
+    return (
+      <MainLayout breadcrumbs={breadcrumbs} repository={repository}>
+        <DirectoryListing
+          directoryName={dirName}
+          contents={directoryContents}
+          repositoryId={repositoryId}
+          currentPath={articlePath}
+        />
       </MainLayout>
     )
   }

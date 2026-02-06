@@ -65,6 +65,8 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
 
   // Auto-expand timer
   const expandTimerRef = useRef<NodeJS.Timeout | null>(null);
+  // Ref for auto-scrolling active node into view
+  const nodeRef = useRef<HTMLDivElement>(null);
 
   const isDirectory = node.type === 'directory';
   const hasChildren = isDirectory && node.children && node.children.length > 0;
@@ -73,10 +75,34 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
   const articleUrl = repositoryId ? `/${repositoryId}/${node.path}` : `/${node.path}`;
   const isActive = pathname === articleUrl;
 
+  // Auto-expand if the current pathname is within this node's subtree
   useEffect(() => {
     const expandedNodes = getExpandedNodes();
-    setIsExpanded(expandedNodes.has(node.path));
-  }, [node.path]);
+    const alreadyExpanded = expandedNodes.has(node.path);
+
+    if (isDirectory) {
+      const shouldAutoExpand = pathname === articleUrl || pathname.startsWith(articleUrl + '/');
+      if (shouldAutoExpand && !alreadyExpanded) {
+        setIsExpanded(true);
+        expandedNodes.add(node.path);
+        saveExpandedNodes(expandedNodes);
+        return;
+      }
+    }
+
+    setIsExpanded(alreadyExpanded);
+  }, [node.path, pathname, articleUrl, isDirectory]);
+
+  // Scroll active node into view
+  useEffect(() => {
+    if (isActive && nodeRef.current) {
+      // Small delay to let parent expansions render first
+      const timer = setTimeout(() => {
+        nodeRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isActive]);
 
   // Cleanup expand timer on unmount
   useEffect(() => {
@@ -389,9 +415,22 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
 
     if (isDirectory) {
       return (
-        <div
+        <Link
+          href={articleUrl}
           className={className}
-          onClick={handleToggle}
+          onClick={(e) => {
+            if (isActive) {
+              // Already on this directory page — just toggle expansion
+              e.preventDefault();
+              handleToggle(e);
+            } else {
+              // Navigate to directory page and expand
+              const expandedNodes = getExpandedNodes();
+              expandedNodes.add(node.path);
+              saveExpandedNodes(expandedNodes);
+              setIsExpanded(true);
+            }
+          }}
           style={{ paddingLeft }}
           draggable
           onDragStart={handleDragStart}
@@ -400,7 +439,7 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
           onDrop={handleDrop}
         >
           {content}
-        </div>
+        </Link>
       );
     }
 
@@ -421,7 +460,7 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
     <>
       <ContextMenu onOpenChange={setIsContextMenuOpen}>
         <ContextMenuTrigger asChild>
-          <div>{renderContent()}</div>
+          <div ref={nodeRef}>{renderContent()}</div>
         </ContextMenuTrigger>
         <ContextMenuContent className="w-56">
           {isDirectory ? (
