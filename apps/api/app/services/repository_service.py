@@ -21,6 +21,8 @@ from typing import Dict, List, Optional
 from git import Repo
 from git.exc import GitCommandError
 
+from app.config.settings import settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -215,6 +217,39 @@ class RepositoryService:
         self._save_repositories()
         logger.info(f"Repository {repo_id} removed from configuration")
 
+    def _get_authenticated_url(self, remote_url: str) -> str:
+        """
+        Inject GitHub token into remote URL for authentication.
+
+        Reads the token from the environment variable configured in settings.
+
+        Args:
+            remote_url: Original remote URL
+
+        Returns:
+            URL with token injected, or original URL if no token available
+        """
+        github_settings = settings.multi_repository.github
+        if not github_settings or not github_settings.token:
+            return remote_url
+
+        token = github_settings.token
+        if remote_url.startswith("https://github.com"):
+            return remote_url.replace(
+                "https://github.com", f"https://{token}@github.com"
+            )
+        elif remote_url.startswith("https://"):
+            return remote_url.replace("https://", f"https://{token}@")
+
+        return remote_url
+
+    def _sanitize_error(self, error_msg: str) -> str:
+        """Remove GitHub token from error messages."""
+        github_settings = settings.multi_repository.github
+        if github_settings and github_settings.token:
+            error_msg = error_msg.replace(github_settings.token, "***TOKEN***")
+        return error_msg
+
     def sync_repository(
         self,
         repo_id: str,
@@ -224,7 +259,8 @@ class RepositoryService:
         """
         Sync a repository with its remote.
 
-        Performs git pull and push operations.
+        Performs git fetch + fast-forward merge and push operations.
+        Injects GitHub token for authentication with private repositories.
 
         Args:
             repo_id: Repository identifier
@@ -240,6 +276,7 @@ class RepositoryService:
 
         repo_meta = self.repositories[repo_id]
         local_path = Path(repo_meta["local_path"])
+        default_branch = repo_meta.get("default_branch", "main")
 
         logger.info(f"Starting sync for repository {repo_id}")
 
@@ -252,56 +289,61 @@ class RepositoryService:
                 config.set_value("user", "name", author_name)
                 config.set_value("user", "email", author_email)
 
+            # Configure remote with authenticated URL
+            auth_url = self._get_authenticated_url(repo_meta["remote_url"])
+            origin = repo.remote("origin")
+            origin.set_url(auth_url)
+
+            # Fetch from remote
+            fetch_info = origin.fetch(default_branch)
+            logger.debug(f"Fetched from remote for {repo_id}")
+
             files_changed = 0
-
-            # Perform pull (fetch + merge)
             commits_pulled = 0
-            try:
-                origin = repo.remote("origin")
-                fetch_info = origin.fetch(repo_meta["default_branch"])
-                logger.debug(f"Fetched from remote: {fetch_info}")
 
-                # Get commits to merge
-                merge_base = repo.merge_base(
-                    "HEAD", f"origin/{repo_meta['default_branch']}"
+            # Count commits to merge
+            merge_base = repo.merge_base(
+                "HEAD", f"origin/{default_branch}"
+            )
+            if merge_base:
+                commits_to_merge = list(
+                    repo.iter_commits(
+                        f"{merge_base[0]}..origin/{default_branch}"
+                    )
                 )
-                if merge_base:
-                    commits_to_merge = list(
-                        repo.iter_commits(
-                            f"{merge_base[0]}..origin/{repo_meta['default_branch']}"
-                        )
-                    )
-                    commits_pulled = len(commits_to_merge)
+                commits_pulled = len(commits_to_merge)
 
-                # Merge if there are changes
-                if commits_pulled > 0:
-                    repo.heads[repo_meta["default_branch"]].commit = repo.commit(
-                        f"origin/{repo_meta['default_branch']}"
-                    )
-                    logger.info(f"Merged {commits_pulled} commits from remote")
+            # Fast-forward merge if there are changes
+            if commits_pulled > 0:
+                remote_commit = repo.commit(f"origin/{default_branch}")
+                # Count files changed between current HEAD and remote
+                diff = repo.head.commit.diff(remote_commit)
+                files_changed = len(diff)
 
-            except GitCommandError as e:
-                logger.warning(f"Pull operation failed for {repo_id}: {e}")
+                # Move branch ref AND update working tree
+                repo.head.reset(remote_commit, working_tree=True)
+                logger.info(
+                    f"Fast-forwarded {repo_id}: {commits_pulled} commits, "
+                    f"{files_changed} files changed"
+                )
 
             # Perform push (if not read-only)
             commits_pushed = 0
             if not repo_meta.get("read_only", False):
-                try:
-                    origin = repo.remote("origin")
-                    push_info = origin.push(repo_meta["default_branch"])
-                    logger.debug(f"Pushed to remote: {push_info}")
+                # Re-check commits ahead after pull
+                tracking_ref = f"origin/{default_branch}"
+                ahead_commits = list(
+                    repo.iter_commits(f"{tracking_ref}..HEAD")
+                )
+                if ahead_commits:
+                    push_info = origin.push(default_branch)
+                    commits_pushed = len(ahead_commits)
+                    logger.info(f"Pushed {commits_pushed} commits for {repo_id}")
 
-                    # Count pushed commits
-                    commits_pushed = sum(
-                        1
-                        for p in push_info
-                        if hasattr(p, "summary") and "commit" in p.summary
-                    )
-                except GitCommandError as e:
-                    logger.warning(f"Push operation failed for {repo_id}: {e}")
+            # Restore original (non-authenticated) URL on the remote
+            origin.set_url(repo_meta["remote_url"])
 
             # Update repository sync status
-            # Reload to ensure we don't overwrite other concurrent changes
             self._load_repositories()
             if repo_id in self.repositories:
                 repo_meta = self.repositories[repo_id]
@@ -323,22 +365,30 @@ class RepositoryService:
             return result
 
         except Exception as e:
-            logger.error(f"Sync failed for repository {repo_id}: {e}")
+            error_msg = self._sanitize_error(str(e))
+            logger.error(f"Sync failed for repository {repo_id}: {error_msg}")
+
+            # Restore original URL if possible
+            try:
+                repo = Repo(str(local_path))
+                if "origin" in repo.remotes:
+                    repo.remote("origin").set_url(repo_meta["remote_url"])
+            except Exception:
+                pass
 
             # Update error status
-            # Reload to ensure we don't overwrite other concurrent changes
             self._load_repositories()
             if repo_id in self.repositories:
                 repo_meta = self.repositories[repo_id]
                 repo_meta["sync_status"] = "error"
-                repo_meta["error_message"] = str(e)
+                repo_meta["error_message"] = error_msg
                 repo_meta["last_synced"] = datetime.now(timezone.utc).isoformat()
                 self._save_repositories()
 
             return {
                 "repository_id": repo_id,
                 "status": "error",
-                "message": f"Sync failed: {str(e)}",
+                "message": f"Sync failed: {error_msg}",
                 "commits_pulled": 0,
                 "commits_pushed": 0,
                 "files_changed": 0,
