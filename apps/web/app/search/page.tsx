@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useCallback, useEffect, useState } from 'react'
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { MainLayout } from '@/components/layout/main-layout'
@@ -21,6 +21,7 @@ function SearchContent() {
   const [inputValue, setInputValue] = useState(query)
   const [repositories, setRepositories] = useState<RepositoryStatus[]>([])
   const [selectedRepoId, setSelectedRepoId] = useState(searchParams.get('repo') || '')
+  const isTypingRef = useRef(false)
 
   // Fetch enabled repositories on mount
   useEffect(() => {
@@ -50,7 +51,12 @@ function SearchContent() {
     }
   }, [])
 
+  // Sync inputValue from URL, but not when we just pushed a URL change from typing
   useEffect(() => {
+    if (isTypingRef.current) {
+      isTypingRef.current = false
+      return
+    }
     setInputValue(query)
   }, [query])
 
@@ -87,6 +93,7 @@ function SearchContent() {
         } else {
           params.delete('q')
         }
+        isTypingRef.current = true
         router.push(`/search?${params.toString()}`)
       }
     }, 300)
