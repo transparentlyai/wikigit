@@ -1,13 +1,8 @@
-'use client';
+"use client";
 
-/**
- * Directory listing component for displaying directory contents
- * Shows folders first, then files, each as navigable links
- */
-
-import Link from 'next/link';
-import { Folder, FileText } from 'lucide-react';
-import type { DirectoryNode } from '@/types/api';
+import Link from "next/link";
+import { Folder, FileText } from "lucide-react";
+import type { DirectoryNode } from "@/types/api";
 
 interface DirectoryListingProps {
   directoryName: string;
@@ -16,11 +11,16 @@ interface DirectoryListingProps {
   currentPath: string;
 }
 
-export function DirectoryListing({ directoryName, contents, repositoryId, currentPath }: DirectoryListingProps) {
+export function DirectoryListing({
+  directoryName,
+  contents,
+  repositoryId,
+  currentPath,
+}: DirectoryListingProps) {
   // Sort: directories first, then files, alphabetically within each group
   const sorted = [...contents].sort((a, b) => {
     if (a.type !== b.type) {
-      return a.type === 'directory' ? -1 : 1;
+      return a.type === "directory" ? -1 : 1;
     }
     return a.name.localeCompare(b.name);
   });
@@ -45,7 +45,7 @@ export function DirectoryListing({ directoryName, contents, repositoryId, curren
                 href={buildHref(node)}
                 className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 rounded-md transition-colors text-gray-700 hover:text-gray-900"
               >
-                {node.type === 'directory' ? (
+                {node.type === "directory" ? (
                   <Folder size={18} className="text-gray-400 shrink-0" />
                 ) : (
                   <FileText size={18} className="text-gray-400 shrink-0" />

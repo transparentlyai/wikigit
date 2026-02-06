@@ -20,12 +20,17 @@ export function ArticleMetadata({
   const updatedDate = updatedAt ? formatDate(updatedAt) : null;
 
   return (
-    <div className="text-gray-600 text-sm" style={{ marginBottom: '1rem' }}>
+    <div className="text-gray-600 text-sm" style={{ marginBottom: "1rem" }}>
       {author && createdDate && (
-        <>Created by {author} on {createdDate}.</>
+        <>
+          Created by {author} on {createdDate}.
+        </>
       )}
       {updatedBy && updatedDate && (
-        <> Last updated by {updatedBy} on {updatedDate}.</>
+        <>
+          {" "}
+          Last updated by {updatedBy} on {updatedDate}.
+        </>
       )}
     </div>
   );
@@ -40,10 +45,10 @@ function formatDate(dateString: string): string {
       return dateString;
     }
 
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
     });
   } catch {
     return dateString;

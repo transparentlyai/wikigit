@@ -25,7 +25,7 @@ import type {
   RepositoryStatus,
   RepositoryListResponse,
   RepositorySyncResponse,
-} from '@/types/api';
+} from "@/types/api";
 
 // ============================================================================
 // Configuration
@@ -33,10 +33,10 @@ import type {
 
 // Use relative URLs to leverage Next.js rewrites to proxy to the backend
 // The rewrites are configured in next.config.js based on BACKEND_PORT
-const isServer = typeof window === 'undefined';
+const isServer = typeof window === "undefined";
 const API_BASE_URL = isServer
-  ? (process.env.INTERNAL_API_URL || 'http://localhost:8000')
-  : '';
+  ? process.env.INTERNAL_API_URL || "http://localhost:8000"
+  : "";
 
 // ============================================================================
 // Error Handling
@@ -48,7 +48,7 @@ export class ApiError extends Error {
 
   constructor(message: string, status: number, errors?: ErrorResponse) {
     super(message);
-    this.name = 'ApiError';
+    this.name = "ApiError";
     this.status = status;
     this.errors = errors;
   }
@@ -62,14 +62,14 @@ async function handleResponse<T>(response: Response): Promise<T> {
     } catch {
       // If JSON parsing fails, use status text
       errorData = {
-        detail: response.statusText || 'An error occurred',
+        detail: response.statusText || "An error occurred",
       };
     }
 
     throw new ApiError(
       errorData?.detail || `HTTP ${response.status}: ${response.statusText}`,
       response.status,
-      errorData
+      errorData,
     );
   }
 
@@ -81,7 +81,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
   try {
     return await response.json();
   } catch (error) {
-    throw new ApiError('Failed to parse response JSON', response.status);
+    throw new ApiError("Failed to parse response JSON", response.status);
   }
 }
 
@@ -91,12 +91,12 @@ async function handleResponse<T>(response: Response): Promise<T> {
 
 async function get<T>(endpoint: string): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    method: 'GET',
+    method: "GET",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
-    credentials: 'include',
-    cache: 'no-store', // Disable caching to always get fresh data
+    credentials: "include",
+    cache: "no-store", // Disable caching to always get fresh data
   });
 
   return handleResponse<T>(response);
@@ -104,11 +104,11 @@ async function get<T>(endpoint: string): Promise<T> {
 
 async function post<T>(endpoint: string, data?: unknown): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    method: 'POST',
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
-    credentials: 'include',
+    credentials: "include",
     body: data ? JSON.stringify(data) : undefined,
   });
 
@@ -117,11 +117,11 @@ async function post<T>(endpoint: string, data?: unknown): Promise<T> {
 
 async function put<T>(endpoint: string, data?: unknown): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    method: 'PUT',
+    method: "PUT",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
-    credentials: 'include',
+    credentials: "include",
     body: data ? JSON.stringify(data) : undefined,
   });
 
@@ -130,11 +130,11 @@ async function put<T>(endpoint: string, data?: unknown): Promise<T> {
 
 async function del<T>(endpoint: string): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    method: 'DELETE',
+    method: "DELETE",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
-    credentials: 'include',
+    credentials: "include",
   });
 
   return handleResponse<T>(response);
@@ -150,11 +150,15 @@ async function del<T>(endpoint: string): Promise<T> {
  *
  * @param repositoryId - Optional repository ID to get articles for a specific repository
  */
-export async function getArticles(repositoryId?: string): Promise<ArticleListResponse> {
+export async function getArticles(
+  repositoryId?: string,
+): Promise<ArticleListResponse> {
   if (repositoryId) {
-    return get<ArticleListResponse>(`/api/repositories/${encodeURIComponent(repositoryId)}/articles`);
+    return get<ArticleListResponse>(
+      `/api/repositories/${encodeURIComponent(repositoryId)}/articles`,
+    );
   }
-  return get<ArticleListResponse>('/api/articles');
+  return get<ArticleListResponse>("/api/articles");
 }
 
 /**
@@ -164,11 +168,16 @@ export async function getArticles(repositoryId?: string): Promise<ArticleListRes
  * @param pathOrRepoId - Article path or repository ID (when using multi-repo)
  * @param path - Article path (when repository ID is provided)
  */
-export async function getArticle(pathOrRepoId: string, path?: string): Promise<Article> {
+export async function getArticle(
+  pathOrRepoId: string,
+  path?: string,
+): Promise<Article> {
   if (path) {
     // Multi-repo mode: repositoryId and path provided
     const encodedPath = encodeURIComponent(path);
-    return get<Article>(`/api/repositories/${encodeURIComponent(pathOrRepoId)}/articles/${encodedPath}`);
+    return get<Article>(
+      `/api/repositories/${encodeURIComponent(pathOrRepoId)}/articles/${encodedPath}`,
+    );
   }
   // Single-repo mode: just path provided
   const encodedPath = encodeURIComponent(pathOrRepoId);
@@ -182,13 +191,19 @@ export async function getArticle(pathOrRepoId: string, path?: string): Promise<A
  * @param dataOrRepoId - Article creation data or repository ID (when using multi-repo)
  * @param data - Article creation data (when repository ID is provided)
  */
-export async function createArticle(dataOrRepoId: ArticleCreate | string, data?: ArticleCreate): Promise<Article> {
-  if (typeof dataOrRepoId === 'string' && data) {
+export async function createArticle(
+  dataOrRepoId: ArticleCreate | string,
+  data?: ArticleCreate,
+): Promise<Article> {
+  if (typeof dataOrRepoId === "string" && data) {
     // Multi-repo mode: repositoryId and data provided
-    return post<Article>(`/api/repositories/${encodeURIComponent(dataOrRepoId)}/articles`, data);
+    return post<Article>(
+      `/api/repositories/${encodeURIComponent(dataOrRepoId)}/articles`,
+      data,
+    );
   }
   // Single-repo mode: just data provided
-  return post<Article>('/api/articles', dataOrRepoId as ArticleCreate);
+  return post<Article>("/api/articles", dataOrRepoId as ArticleCreate);
 }
 
 /**
@@ -202,16 +217,22 @@ export async function createArticle(dataOrRepoId: ArticleCreate | string, data?:
 export async function updateArticle(
   pathOrRepoId: string,
   dataOrPath: ArticleUpdate | string,
-  data?: ArticleUpdate
+  data?: ArticleUpdate,
 ): Promise<Article> {
-  if (typeof dataOrPath === 'string' && data) {
+  if (typeof dataOrPath === "string" && data) {
     // Multi-repo mode: repositoryId, path, and data provided
     const encodedPath = encodeURIComponent(dataOrPath);
-    return put<Article>(`/api/repositories/${encodeURIComponent(pathOrRepoId)}/articles/${encodedPath}`, data);
+    return put<Article>(
+      `/api/repositories/${encodeURIComponent(pathOrRepoId)}/articles/${encodedPath}`,
+      data,
+    );
   }
   // Single-repo mode: path and data provided
   const encodedPath = encodeURIComponent(pathOrRepoId);
-  return put<Article>(`/api/articles/${encodedPath}`, dataOrPath as ArticleUpdate);
+  return put<Article>(
+    `/api/articles/${encodedPath}`,
+    dataOrPath as ArticleUpdate,
+  );
 }
 
 /**
@@ -221,11 +242,16 @@ export async function updateArticle(
  * @param pathOrRepoId - Article path or repository ID (when using multi-repo)
  * @param path - Article path (when repository ID is provided)
  */
-export async function deleteArticle(pathOrRepoId: string, path?: string): Promise<void> {
+export async function deleteArticle(
+  pathOrRepoId: string,
+  path?: string,
+): Promise<void> {
   if (path) {
     // Multi-repo mode: repositoryId and path provided
     const encodedPath = encodeURIComponent(path);
-    return del<void>(`/api/repositories/${encodeURIComponent(pathOrRepoId)}/articles/${encodedPath}`);
+    return del<void>(
+      `/api/repositories/${encodeURIComponent(pathOrRepoId)}/articles/${encodedPath}`,
+    );
   }
   // Single-repo mode: just path provided
   const encodedPath = encodeURIComponent(pathOrRepoId);
@@ -240,15 +266,24 @@ export async function deleteArticle(pathOrRepoId: string, path?: string): Promis
  * @param newPathOrPath - New article path or current path (when repository ID is provided)
  * @param newPath - New article path (when repository ID is provided)
  */
-export async function moveArticle(pathOrRepoId: string, newPathOrPath: string, newPath?: string): Promise<Article> {
+export async function moveArticle(
+  pathOrRepoId: string,
+  newPathOrPath: string,
+  newPath?: string,
+): Promise<Article> {
   if (newPath) {
     // Multi-repo mode: repositoryId, path, and newPath provided
     const encodedPath = encodeURIComponent(newPathOrPath);
-    return post<Article>(`/api/repositories/${encodeURIComponent(pathOrRepoId)}/articles/${encodedPath}/move`, { new_path: newPath });
+    return post<Article>(
+      `/api/repositories/${encodeURIComponent(pathOrRepoId)}/articles/${encodedPath}/move`,
+      { new_path: newPath },
+    );
   }
   // Single-repo mode: path and newPath provided
   const encodedPath = encodeURIComponent(pathOrRepoId);
-  return post<Article>(`/api/articles/${encodedPath}/move`, { new_path: newPathOrPath });
+  return post<Article>(`/api/articles/${encodedPath}/move`, {
+    new_path: newPathOrPath,
+  });
 }
 
 // ============================================================================
@@ -261,11 +296,15 @@ export async function moveArticle(pathOrRepoId: string, newPathOrPath: string, n
  *
  * @param repositoryId - Optional repository ID to get directories for a specific repository
  */
-export async function getDirectories(repositoryId?: string): Promise<DirectoryTreeResponse> {
+export async function getDirectories(
+  repositoryId?: string,
+): Promise<DirectoryTreeResponse> {
   if (repositoryId) {
-    return get<DirectoryTreeResponse>(`/api/repositories/${encodeURIComponent(repositoryId)}/directories`);
+    return get<DirectoryTreeResponse>(
+      `/api/repositories/${encodeURIComponent(repositoryId)}/directories`,
+    );
   }
-  return get<DirectoryTreeResponse>('/api/directories');
+  return get<DirectoryTreeResponse>("/api/directories");
 }
 
 /**
@@ -275,15 +314,21 @@ export async function getDirectories(repositoryId?: string): Promise<DirectoryTr
  * @param pathOrRepoId - Directory path or repository ID (when using multi-repo)
  * @param path - Directory path (when repository ID is provided)
  */
-export async function createDirectory(pathOrRepoId: string, path?: string): Promise<void> {
+export async function createDirectory(
+  pathOrRepoId: string,
+  path?: string,
+): Promise<void> {
   if (path) {
     // Multi-repo mode: repositoryId and path provided
     const data: DirectoryCreate = { path };
-    return post<void>(`/api/repositories/${encodeURIComponent(pathOrRepoId)}/directories`, data);
+    return post<void>(
+      `/api/repositories/${encodeURIComponent(pathOrRepoId)}/directories`,
+      data,
+    );
   }
   // Single-repo mode: just path provided
   const data: DirectoryCreate = { path: pathOrRepoId };
-  return post<void>('/api/directories', data);
+  return post<void>("/api/directories", data);
 }
 
 /**
@@ -293,11 +338,16 @@ export async function createDirectory(pathOrRepoId: string, path?: string): Prom
  * @param pathOrRepoId - Directory path or repository ID (when using multi-repo)
  * @param path - Directory path (when repository ID is provided)
  */
-export async function deleteDirectory(pathOrRepoId: string, path?: string): Promise<void> {
+export async function deleteDirectory(
+  pathOrRepoId: string,
+  path?: string,
+): Promise<void> {
   if (path) {
     // Multi-repo mode: repositoryId and path provided
     const encodedPath = encodeURIComponent(path);
-    return del<void>(`/api/repositories/${encodeURIComponent(pathOrRepoId)}/directories/${encodedPath}`);
+    return del<void>(
+      `/api/repositories/${encodeURIComponent(pathOrRepoId)}/directories/${encodedPath}`,
+    );
   }
   // Single-repo mode: just path provided
   const encodedPath = encodeURIComponent(pathOrRepoId);
@@ -312,15 +362,24 @@ export async function deleteDirectory(pathOrRepoId: string, path?: string): Prom
  * @param newPathOrPath - New directory path or current path (when repository ID is provided)
  * @param newPath - New directory path (when repository ID is provided)
  */
-export async function moveDirectory(pathOrRepoId: string, newPathOrPath: string, newPath?: string): Promise<void> {
+export async function moveDirectory(
+  pathOrRepoId: string,
+  newPathOrPath: string,
+  newPath?: string,
+): Promise<void> {
   if (newPath) {
     // Multi-repo mode: repositoryId, path, and newPath provided
     const encodedPath = encodeURIComponent(newPathOrPath);
-    return post<void>(`/api/repositories/${encodeURIComponent(pathOrRepoId)}/directories/${encodedPath}/move`, { new_path: newPath });
+    return post<void>(
+      `/api/repositories/${encodeURIComponent(pathOrRepoId)}/directories/${encodedPath}/move`,
+      { new_path: newPath },
+    );
   }
   // Single-repo mode: path and newPath provided
   const encodedPath = encodeURIComponent(pathOrRepoId);
-  return post<void>(`/api/directories/${encodedPath}/move`, { new_path: newPathOrPath });
+  return post<void>(`/api/directories/${encodedPath}/move`, {
+    new_path: newPathOrPath,
+  });
 }
 
 // ============================================================================
@@ -334,10 +393,13 @@ export async function moveDirectory(pathOrRepoId: string, newPathOrPath: string,
  * @param query - Search query string
  * @param repositoryId - Optional repository ID to filter results
  */
-export async function search(query: string, repositoryId?: string): Promise<SearchResult[]> {
+export async function search(
+  query: string,
+  repositoryId?: string,
+): Promise<SearchResult[]> {
   const params = new URLSearchParams({ q: query });
   if (repositoryId) {
-    params.set('repository_id', repositoryId);
+    params.set("repository_id", repositoryId);
   }
   return get<SearchResult[]>(`/api/search?${params.toString()}`);
 }
@@ -349,7 +411,7 @@ export async function search(query: string, repositoryId?: string): Promise<Sear
  * Requires admin privileges.
  */
 export async function reindexSearch(): Promise<IndexStats> {
-  return post<IndexStats>('/api/search/reindex');
+  return post<IndexStats>("/api/search/reindex");
 }
 
 // ============================================================================
@@ -361,7 +423,7 @@ export async function reindexSearch(): Promise<IndexStats> {
  * GET /api/config
  */
 export async function getConfig(): Promise<ConfigData> {
-  return get<ConfigData>('/api/config');
+  return get<ConfigData>("/api/config");
 }
 
 /**
@@ -371,7 +433,7 @@ export async function getConfig(): Promise<ConfigData> {
  * @param data - Configuration updates (partial updates supported)
  */
 export async function updateConfig(data: ConfigUpdate): Promise<ConfigData> {
-  return put<ConfigData>('/api/config', data);
+  return put<ConfigData>("/api/config", data);
 }
 
 // ============================================================================
@@ -386,7 +448,7 @@ export async function updateConfig(data: ConfigUpdate): Promise<ConfigData> {
  * Returns list of accessible GitHub repositories.
  */
 export async function scanGitHubRepositories(): Promise<GitHubRepository[]> {
-  return get<GitHubRepository[]>('/api/repositories/scan');
+  return get<GitHubRepository[]>("/api/repositories/scan");
 }
 
 /**
@@ -396,7 +458,7 @@ export async function scanGitHubRepositories(): Promise<GitHubRepository[]> {
  * Returns all repositories configured in the system with their sync status.
  */
 export async function listRepositories(): Promise<RepositoryListResponse> {
-  return get<RepositoryListResponse>('/api/repositories');
+  return get<RepositoryListResponse>("/api/repositories");
 }
 
 /**
@@ -405,8 +467,12 @@ export async function listRepositories(): Promise<RepositoryListResponse> {
  *
  * @param repositoryId - Repository identifier
  */
-export async function getRepository(repositoryId: string): Promise<RepositoryStatus> {
-  return get<RepositoryStatus>(`/api/repositories/${encodeURIComponent(repositoryId)}`);
+export async function getRepository(
+  repositoryId: string,
+): Promise<RepositoryStatus> {
+  return get<RepositoryStatus>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}`,
+  );
 }
 
 /**
@@ -416,7 +482,7 @@ export async function getRepository(repositoryId: string): Promise<RepositorySta
  * @param repoIds - Array of repository IDs to add
  */
 export async function addRepositories(repoIds: string[]): Promise<void> {
-  return post<void>('/api/repositories', { repository_ids: repoIds });
+  return post<void>("/api/repositories", { repository_ids: repoIds });
 }
 
 /**
@@ -431,11 +497,11 @@ export async function updateRepository(
   update: {
     enabled?: boolean;
     read_only?: boolean;
-  }
+  },
 ): Promise<RepositoryStatus> {
   return put<RepositoryStatus>(
     `/api/repositories/${encodeURIComponent(repositoryId)}`,
-    update
+    update,
   );
 }
 
@@ -447,9 +513,11 @@ export async function updateRepository(
  *
  * @param repositoryId - Repository identifier
  */
-export async function syncRepository(repositoryId: string): Promise<RepositorySyncResponse> {
+export async function syncRepository(
+  repositoryId: string,
+): Promise<RepositorySyncResponse> {
   return post<RepositorySyncResponse>(
-    `/api/repositories/${encodeURIComponent(repositoryId)}/sync`
+    `/api/repositories/${encodeURIComponent(repositoryId)}/sync`,
   );
 }
 
@@ -473,8 +541,13 @@ export async function removeRepository(repositoryId: string): Promise<void> {
  * Get current GitHub settings
  * GET /api/repositories/github/settings
  */
-export async function getGitHubSettings(): Promise<{ user_id: string; token_env_var: string }> {
-  return get<{ user_id: string; token_env_var: string }>('/api/repositories/github/settings');
+export async function getGitHubSettings(): Promise<{
+  user_id: string;
+  token_env_var: string;
+}> {
+  return get<{ user_id: string; token_env_var: string }>(
+    "/api/repositories/github/settings",
+  );
 }
 
 /**
@@ -483,8 +556,14 @@ export async function getGitHubSettings(): Promise<{ user_id: string; token_env_
  *
  * @param settings - GitHub user ID and token variable name
  */
-export async function testGitHubConnection(settings: { user_id: string; token_var: string }): Promise<{ status: string; message: string }> {
-  return post<{ status: string; message: string }>('/api/repositories/github/test', settings);
+export async function testGitHubConnection(settings: {
+  user_id: string;
+  token_var: string;
+}): Promise<{ status: string; message: string }> {
+  return post<{ status: string; message: string }>(
+    "/api/repositories/github/test",
+    settings,
+  );
 }
 
 /**
@@ -493,8 +572,11 @@ export async function testGitHubConnection(settings: { user_id: string; token_va
  *
  * @param settings - GitHub user ID and token variable name
  */
-export async function saveGitHubSettings(settings: { user_id: string; token_var: string }): Promise<void> {
-  return post<void>('/api/repositories/github/settings', settings);
+export async function saveGitHubSettings(settings: {
+  user_id: string;
+  token_var: string;
+}): Promise<void> {
+  return post<void>("/api/repositories/github/settings", settings);
 }
 
 // ============================================================================
@@ -509,11 +591,11 @@ export async function saveGitHubSettings(settings: { user_id: string; token_var:
  */
 export async function uploadMedia(file: File): Promise<MediaFile> {
   const formData = new FormData();
-  formData.append('file', file);
+  formData.append("file", file);
 
   const response = await fetch(`${API_BASE_URL}/api/media`, {
-    method: 'POST',
-    credentials: 'include',
+    method: "POST",
+    credentials: "include",
     body: formData,
   });
 
@@ -525,7 +607,7 @@ export async function uploadMedia(file: File): Promise<MediaFile> {
  * GET /api/media
  */
 export async function getMediaFiles(): Promise<MediaListResponse> {
-  return get<MediaListResponse>('/api/media');
+  return get<MediaListResponse>("/api/media");
 }
 
 /**

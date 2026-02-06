@@ -1,26 +1,26 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 interface InputDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  title: string
-  description?: string
-  label: string
-  placeholder?: string
-  defaultValue?: string
-  confirmText?: string
-  cancelText?: string
-  onConfirm: (value: string) => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  description?: string;
+  label: string;
+  placeholder?: string;
+  defaultValue?: string;
+  confirmText?: string;
+  cancelText?: string;
+  onConfirm: (value: string) => void;
 }
 
 export function InputDialog({
@@ -30,24 +30,24 @@ export function InputDialog({
   description,
   label,
   placeholder,
-  defaultValue = '',
-  confirmText = 'Confirm',
-  cancelText = 'Cancel',
+  defaultValue = "",
+  confirmText = "Confirm",
+  cancelText = "Cancel",
   onConfirm,
 }: InputDialogProps) {
-  const [value, setValue] = useState(defaultValue)
+  const [value, setValue] = useState(defaultValue);
 
   const handleConfirm = () => {
     if (value.trim()) {
-      onConfirm(value.trim())
-      setValue('')
+      onConfirm(value.trim());
+      setValue("");
     }
-  }
+  };
 
   const handleCancel = () => {
-    setValue(defaultValue)
-    onOpenChange(false)
-  }
+    setValue(defaultValue);
+    onOpenChange(false);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -69,8 +69,8 @@ export function InputDialog({
               value={value}
               onChange={(e) => setValue(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  handleConfirm()
+                if (e.key === "Enter") {
+                  handleConfirm();
                 }
               }}
               placeholder={placeholder}
@@ -89,5 +89,5 @@ export function InputDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

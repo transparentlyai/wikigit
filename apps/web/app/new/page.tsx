@@ -1,37 +1,38 @@
-'use client';
+"use client";
 
 /**
  * New Article page
  * Allows users to create a new wiki article
  */
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import toast from 'react-hot-toast';
-import { MainLayout } from '@/components/layout/main-layout';
-import { MarkdownEditor } from '@/components/editor/markdown-editor';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
+import { MainLayout } from "@/components/layout/main-layout";
+import { MarkdownEditor } from "@/components/editor/markdown-editor";
 
 export default function NewArticlePage() {
   const router = useRouter();
-  const [path, setPath] = useState('');
-  const initialContent = '---\ntitle: New Article\nauthor: user@example.com\n---\n\n# New Article\n\nStart writing your article here...\n';
+  const [path, setPath] = useState("");
+  const initialContent =
+    "---\ntitle: New Article\nauthor: user@example.com\n---\n\n# New Article\n\nStart writing your article here...\n";
   const [content, setContent] = useState(initialContent);
 
   const handleCancel = () => {
-    router.push('/');
+    router.push("/");
   };
 
   const handleSave = async () => {
     if (!path.trim()) {
-      toast.error('Please enter a path for the article');
+      toast.error("Please enter a path for the article");
       return;
     }
 
     try {
-      const response = await fetch('/api/articles', {
-        method: 'POST',
+      const response = await fetch("/api/articles", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           path: path,
@@ -41,21 +42,23 @@ export default function NewArticlePage() {
       });
 
       if (response.ok) {
-        toast.success('Article created successfully');
+        toast.success("Article created successfully");
         // Navigate to the newly created article
         router.push(`/article/${encodeURIComponent(path)}`);
       } else {
         const error = await response.json();
-        toast.error(`Error creating article: ${error.detail || 'Unknown error'}`);
+        toast.error(
+          `Error creating article: ${error.detail || "Unknown error"}`,
+        );
       }
     } catch (error) {
-      console.error('Error creating article:', error);
-      toast.error('Failed to create article');
+      console.error("Error creating article:", error);
+      toast.error("Failed to create article");
     }
   };
 
   return (
-    <MainLayout breadcrumbs={[{ label: 'New Article' }]}>
+    <MainLayout breadcrumbs={[{ label: "New Article" }]}>
       <div className="mb-6">
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Article Path

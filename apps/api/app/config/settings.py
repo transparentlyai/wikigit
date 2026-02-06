@@ -1,12 +1,4 @@
-"""
-Configuration management for WikiGit using pydantic-settings-yaml.
-
-This module provides:
-- Pydantic models for all configuration sections
-- YAML config file loading with validation
-- Environment variable substitution (${VAR} syntax)
-- Singleton settings instance for application-wide access
-"""
+"""WikiGit configuration management using pydantic-settings-yaml."""
 
 import os
 import re
@@ -19,31 +11,12 @@ from pydantic_settings_yaml import YamlBaseSettings
 
 
 def expand_env_vars(value: str) -> str:
-    """
-    Expand environment variables in strings using ${VAR} syntax.
-
-    Args:
-        value: String potentially containing ${VAR} patterns
-
-    Returns:
-        String with environment variables expanded
-
-    Examples:
-        >>> os.environ['GITHUB_TOKEN'] = 'ghp_123'
-        >>> expand_env_vars('${GITHUB_TOKEN}')
-        'ghp_123'
-        >>> expand_env_vars('https://${USER}@github.com')
-        'https://john@github.com'
-    """
-    if not isinstance(value, str):
-        return value
-
-    # Find all ${VAR} patterns
+    """Expand ${VAR} patterns in a string using environment variables."""
     pattern = re.compile(r"\$\{([^}]+)\}")
 
-    def replace_var(match):
+    def replace_var(match: re.Match[str]) -> str:
         var_name = match.group(1)
-        return os.environ.get(var_name, match.group(0))
+        return os.environ.get(var_name) or match.group(0)
 
     return pattern.sub(replace_var, value)
 
@@ -226,27 +199,12 @@ class Settings(YamlBaseSettings):
     )
 
     class Config:
-        """Pydantic configuration."""
-
-        # Path to config.yaml (five levels up from this file to project root)
         yaml_file = Path(__file__).parent.parent.parent.parent.parent / "config.yaml"
-
-        # Allow extra fields to be ignored
         extra = "ignore"
-
-        # Validate on assignment
         validate_assignment = True
 
     def is_admin(self, email: str) -> bool:
-        """
-        Check if a user email is an admin.
-
-        Args:
-            email: User email address
-
-        Returns:
-            True if user is an admin, False otherwise
-        """
+        """Check if email is in admin list."""
         return email in self.app.admins
 
     @property
@@ -261,19 +219,7 @@ class Settings(YamlBaseSettings):
 
 
 def get_settings() -> Settings:
-    """
-    Get or create the singleton settings instance.
-
-    This function ensures only one Settings instance is created and reused
-    throughout the application lifecycle.
-
-    Returns:
-        Settings instance loaded from config.yaml
-
-    Raises:
-        FileNotFoundError: If config.yaml doesn't exist
-        ValueError: If config.yaml has validation errors
-    """
+    """Get or create singleton settings instance."""
     import logging
 
     logger = logging.getLogger(__name__)
@@ -336,7 +282,6 @@ def get_settings() -> Settings:
 
 
 # Singleton settings instance
-# Import this in your application code: from app.config.settings import settings
 settings = get_settings()
 
 

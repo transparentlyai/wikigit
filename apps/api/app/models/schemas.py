@@ -1,11 +1,6 @@
-"""
-Pydantic models/schemas for WikiGit API.
+"""Pydantic models for WikiGit API."""
 
-Based on SRS v1.1 requirements for Git-based wiki application.
-All models use Pydantic v2 syntax.
-"""
-
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -17,14 +12,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class Article(BaseModel):
-    """
-    Article response model.
-
-    Represents a complete article with metadata extracted from frontmatter
-    and content without frontmatter.
-
-    Ref: SRS Section 6.3.2 - Article Model
-    """
+    """Complete article with metadata and content."""
 
     path: str = Field(
         ...,
@@ -64,14 +52,7 @@ class Article(BaseModel):
 
 
 class ArticleCreate(BaseModel):
-    """
-    Article creation request model.
-
-    Used when creating a new article. The title is optional and will be
-    derived from the filename if not provided.
-
-    Ref: SRS Section 6.5.3 - Create Article
-    """
+    """Article creation request."""
 
     path: str = Field(
         ...,
@@ -114,14 +95,7 @@ class ArticleCreate(BaseModel):
 
 
 class ArticleUpdate(BaseModel):
-    """
-    Article update request model.
-
-    Used when updating an existing article's content.
-    The system automatically updates frontmatter metadata.
-
-    Ref: SRS Section 6.5.4 - Update Article
-    """
+    """Article update request."""
 
     content: str = Field(..., description="Updated markdown content", min_length=1)
 
@@ -135,11 +109,7 @@ class ArticleUpdate(BaseModel):
 
 
 class ArticleMove(BaseModel):
-    """
-    Article move/rename request model.
-
-    Used when moving or renaming an article.
-    """
+    """Article move/rename request."""
 
     new_path: str = Field(
         ...,
@@ -157,11 +127,7 @@ class ArticleMove(BaseModel):
 
 
 class ArticleSummary(BaseModel):
-    """
-    Brief article information for list views.
-
-    Used in article listing endpoints to avoid loading full content.
-    """
+    """Article summary for list views."""
 
     path: str = Field(..., description="Relative path from repository root")
     title: str = Field(..., description="Article title")
@@ -201,13 +167,7 @@ class ArticleListResponse(BaseModel):
 
 
 class DirectoryNode(BaseModel):
-    """
-    Recursive directory tree node.
-
-    Represents either a file or directory in the wiki structure.
-
-    Ref: SRS Section 6.3.3 - Directory Model
-    """
+    """Recursive directory tree node."""
 
     type: Literal["directory", "file"] = Field(
         ..., description="Node type: 'directory' or 'file'"
@@ -253,11 +213,7 @@ DirectoryNode.model_rebuild()
 
 
 class Directory(BaseModel):
-    """
-    Directory information with children.
-
-    Ref: SRS Section 6.3.3 - Directory Model
-    """
+    """Directory with children nodes."""
 
     path: str = Field(..., description="Relative path from repository root")
     name: str = Field(..., description="Directory name")
@@ -285,11 +241,7 @@ class Directory(BaseModel):
 
 
 class DirectoryCreate(BaseModel):
-    """
-    Directory creation request model.
-
-    Ref: SRS Section 4.4.2 - API Endpoints (Directories)
-    """
+    """Directory creation request."""
 
     path: str = Field(
         ..., description="Relative directory path to create", min_length=1
@@ -307,11 +259,7 @@ class DirectoryCreate(BaseModel):
 
 
 class DirectoryMove(BaseModel):
-    """
-    Directory move/rename request model.
-
-    Used when moving or renaming a directory.
-    """
+    """Directory move/rename request."""
 
     new_path: str = Field(
         ...,
@@ -342,11 +290,7 @@ class DirectoryTreeResponse(BaseModel):
 
 
 class SearchResult(BaseModel):
-    """
-    Individual search result.
-
-    Ref: SRS Section 6.3.4 - Search Result Model
-    """
+    """Individual search result."""
 
     path: str = Field(..., description="Path to the article")
     title: str = Field(..., description="Article title")
@@ -377,11 +321,7 @@ class SearchResult(BaseModel):
 
 
 class SearchResponse(BaseModel):
-    """
-    Search results response.
-
-    Ref: SRS Section 6.5.6 - Search
-    """
+    """Search results response."""
 
     query: str = Field(..., description="The search query that was executed")
     results: List[SearchResult] = Field(
@@ -409,11 +349,7 @@ class SearchResponse(BaseModel):
 
 
 class IndexStats(BaseModel):
-    """
-    Search index statistics response.
-
-    Returned after reindexing operations to show statistics.
-    """
+    """Search index statistics."""
 
     status: str = Field(..., description="Status of the indexing operation")
     document_count: int = Field(..., ge=0, description="Number of documents indexed")
@@ -480,15 +416,7 @@ class MultiRepositoryConfig(BaseModel):
 
 
 class ConfigUpdate(BaseModel):
-    """
-    Configuration update request model.
-
-    Allows admins to update application settings.
-    All fields are optional to support partial updates.
-    Repository settings are managed through /repositories endpoints.
-
-    Ref: SRS Section 3.6 - Admin Configuration
-    """
+    """Configuration update request. All fields optional for partial updates."""
 
     app: Optional[AppConfig] = Field(None, description="Application settings")
     search: Optional[SearchConfig] = Field(None, description="Search settings")
@@ -557,7 +485,8 @@ class HealthCheck(BaseModel):
     )
     version: str = Field(..., description="API version")
     timestamp: datetime = Field(
-        default_factory=datetime.utcnow, description="Current server timestamp"
+        default_factory=lambda: datetime.now(UTC),
+        description="Current server timestamp",
     )
 
     model_config = {
@@ -577,11 +506,7 @@ class HealthCheck(BaseModel):
 
 
 class MediaFile(BaseModel):
-    """
-    Media file information model.
-
-    Represents metadata about a media file (image, video, audio, document).
-    """
+    """Media file metadata."""
 
     filename: str = Field(..., description="Original filename")
     path: str = Field(..., description="Relative path from repository root")
@@ -675,11 +600,7 @@ class ErrorResponse(BaseModel):
 
 
 class User(BaseModel):
-    """
-    User information extracted from GCP IAP headers.
-
-    Ref: SRS Section 3.1 - Authentication and Authorization
-    """
+    """User from GCP IAP headers."""
 
     email: str = Field(..., description="User email from IAP header")
     is_admin: bool = Field(

@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useMemo } from 'react';
+import { useMemo } from "react";
 
 interface TableOfContentsProps {
   content: string;
@@ -24,10 +24,7 @@ export function TableOfContents({ content }: TableOfContentsProps) {
       <div className="toc-title">Contents</div>
       <ul className="toc-list">
         {headings.map((heading, index) => (
-          <li
-            key={index}
-            className={`toc-level-${heading.level}`}
-          >
+          <li key={index} className={`toc-level-${heading.level}`}>
             <a href={`#${heading.id}`}>{heading.text}</a>
           </li>
         ))}
@@ -38,7 +35,7 @@ export function TableOfContents({ content }: TableOfContentsProps) {
 
 function extractHeadings(markdown: string): Heading[] {
   const headings: Heading[] = [];
-  const lines = markdown.split('\n');
+  const lines = markdown.split("\n");
 
   for (const line of lines) {
     // Match h2 (##) and h3 (###) headings
@@ -69,7 +66,7 @@ function slugify(text: string): string {
   return text
     .toLowerCase()
     .trim()
-    .replace(/[^\w\s-]/g, '')
-    .replace(/[\s_-]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+    .replace(/[^\w\s-]/g, "")
+    .replace(/[\s_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }

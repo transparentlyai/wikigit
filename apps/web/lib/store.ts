@@ -5,7 +5,7 @@
  * Manages articles, directories, search results, user, and UI state.
  */
 
-import { create } from 'zustand';
+import { create } from "zustand";
 import type {
   Article,
   ArticleSummary,
@@ -13,7 +13,7 @@ import type {
   SearchResult,
   User,
   ConfigData,
-} from '@/types/api';
+} from "@/types/api";
 
 // ============================================================================
 // Store State Interface
@@ -76,13 +76,13 @@ const initialState = {
 
   // Search State
   searchResults: [],
-  searchQuery: '',
+  searchQuery: "",
 
   // User State
   user: null,
 
   // Config State
-  appName: 'Wikigit',
+  appName: "Wikigit",
 
   // UI State
   isLoading: false,
@@ -110,7 +110,7 @@ export const useWikiStore = create<WikiGitStore>((set) => ({
   // Search Actions
   setSearchResults: (results) => set({ searchResults: results }),
   setSearchQuery: (query) => set({ searchQuery: query }),
-  clearSearch: () => set({ searchResults: [], searchQuery: '' }),
+  clearSearch: () => set({ searchResults: [], searchQuery: "" }),
 
   // User Actions
   setUser: (user) => set({ user }),
@@ -122,11 +122,14 @@ export const useWikiStore = create<WikiGitStore>((set) => ({
   setLoading: (isLoading) => set({ isLoading }),
   setError: (error) => set({ error }),
   clearError: () => set({ error: null }),
-  toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
+  toggleSidebar: () =>
+    set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
 
   // Repository Actions
   triggerRepositoryRefresh: () =>
-    set((state) => ({ repositoryRefreshTrigger: state.repositoryRefreshTrigger + 1 })),
+    set((state) => ({
+      repositoryRefreshTrigger: state.repositoryRefreshTrigger + 1,
+    })),
 
   // Reset Actions
   reset: () => set(initialState),
@@ -144,7 +147,8 @@ export const useArticles = () => useWikiStore((state) => state.articles);
 /**
  * Get current article from store
  */
-export const useCurrentArticle = () => useWikiStore((state) => state.currentArticle);
+export const useCurrentArticle = () =>
+  useWikiStore((state) => state.currentArticle);
 
 /**
  * Get directories from store

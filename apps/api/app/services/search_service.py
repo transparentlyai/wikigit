@@ -389,7 +389,9 @@ class SearchService:
             query: Query = parser.parse(query_string)
 
             # Build optional filter for repository
-            filter_query = Term("repository_id", repository_id) if repository_id else None
+            filter_query = (
+                Term("repository_id", repository_id) if repository_id else None
+            )
 
             # Execute search
             with self.ix.searcher() as searcher:

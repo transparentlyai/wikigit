@@ -1,11 +1,13 @@
 "use client";
 
-/**
- * Header component for WikiGit
- * Matches design spec exactly from WikiUIDesing.js
- */
-
-import { Menu, X, ChevronRight, Edit2, MoreHorizontal, Lock } from "lucide-react";
+import {
+  Menu,
+  X,
+  ChevronRight,
+  Edit2,
+  MoreHorizontal,
+  Lock,
+} from "lucide-react";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import type { RepositoryStatus } from "@/types/api";
 
@@ -26,7 +28,7 @@ export function Header({
   onEdit,
   showEditButton = false,
   isReadOnly = false,
-  repository = null
+  repository = null,
 }: HeaderProps) {
   return (
     <header className="h-14 border-b border-gray-100 flex items-center justify-between px-4 md:px-8 shrink-0 bg-white">

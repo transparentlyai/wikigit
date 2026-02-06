@@ -295,21 +295,17 @@ class RepositoryService:
             origin.set_url(auth_url)
 
             # Fetch from remote
-            fetch_info = origin.fetch(default_branch)
+            origin.fetch(default_branch)
             logger.debug(f"Fetched from remote for {repo_id}")
 
             files_changed = 0
             commits_pulled = 0
 
             # Count commits to merge
-            merge_base = repo.merge_base(
-                "HEAD", f"origin/{default_branch}"
-            )
+            merge_base = repo.merge_base("HEAD", f"origin/{default_branch}")
             if merge_base:
                 commits_to_merge = list(
-                    repo.iter_commits(
-                        f"{merge_base[0]}..origin/{default_branch}"
-                    )
+                    repo.iter_commits(f"{merge_base[0]}..origin/{default_branch}")
                 )
                 commits_pulled = len(commits_to_merge)
 
@@ -332,11 +328,9 @@ class RepositoryService:
             if not repo_meta.get("read_only", False):
                 # Re-check commits ahead after pull
                 tracking_ref = f"origin/{default_branch}"
-                ahead_commits = list(
-                    repo.iter_commits(f"{tracking_ref}..HEAD")
-                )
+                ahead_commits = list(repo.iter_commits(f"{tracking_ref}..HEAD"))
                 if ahead_commits:
-                    push_info = origin.push(default_branch)
+                    origin.push(default_branch)
                     commits_pushed = len(ahead_commits)
                     logger.info(f"Pushed {commits_pushed} commits for {repo_id}")
 

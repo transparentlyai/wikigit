@@ -1,50 +1,64 @@
-'use client';
+"use client";
 
-/**
- * RepositoryNode component for multi-repository support
- * Displays a repository with expand/collapse and fetches its directory tree
- */
-
-import { useState, useEffect } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
-import { FolderGit, ChevronRight, ChevronDown, Lock, FilePlus, FolderPlus } from 'lucide-react';
-import { RepositoryStatus, DirectoryNode } from '@/types/api';
-import { api } from '@/lib/api';
-import toast from 'react-hot-toast';
+import { useState, useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import {
+  FolderGit,
+  ChevronRight,
+  ChevronDown,
+  Lock,
+  FilePlus,
+  FolderPlus,
+} from "lucide-react";
+import { RepositoryStatus, DirectoryNode } from "@/types/api";
+import { api } from "@/lib/api";
+import toast from "react-hot-toast";
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuTrigger,
-} from '@/components/ui/context-menu';
-import { InputDialog } from '@/components/ui/input-dialog';
+} from "@/components/ui/context-menu";
+import { InputDialog } from "@/components/ui/input-dialog";
 
 interface RepositoryNodeProps {
   repository: RepositoryStatus;
   onRefresh?: () => void;
-  renderTreeNodes: (nodes: DirectoryNode[], repositoryId: string, isReadOnly: boolean, onRefresh: () => void) => React.ReactNode;
+  renderTreeNodes: (
+    nodes: DirectoryNode[],
+    repositoryId: string,
+    isReadOnly: boolean,
+    onRefresh: () => void,
+  ) => React.ReactNode;
 }
 
-const REPO_EXPANDED_KEY_PREFIX = 'wikigit-repo-expanded-';
+const REPO_EXPANDED_KEY_PREFIX = "wikigit-repo-expanded-";
 
 function getRepoExpandedState(repoId: string): boolean {
-  if (typeof window === 'undefined') return false;
+  if (typeof window === "undefined") return false;
   const stored = localStorage.getItem(`${REPO_EXPANDED_KEY_PREFIX}${repoId}`);
-  return stored === 'true';
+  return stored === "true";
 }
 
 function saveRepoExpandedState(repoId: string, expanded: boolean) {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(`${REPO_EXPANDED_KEY_PREFIX}${repoId}`, String(expanded));
+  if (typeof window === "undefined") return;
+  localStorage.setItem(
+    `${REPO_EXPANDED_KEY_PREFIX}${repoId}`,
+    String(expanded),
+  );
 }
 
-export function RepositoryNode({ repository, onRefresh, renderTreeNodes }: RepositoryNodeProps) {
+export function RepositoryNode({
+  repository,
+  onRefresh,
+  renderTreeNodes,
+}: RepositoryNodeProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [isExpanded, setIsExpanded] = useState(false);
   const [directories, setDirectories] = useState<DirectoryNode[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  
+
   // Dialog states
   const [showNewArticleDialog, setShowNewArticleDialog] = useState(false);
   const [showNewFolderDialog, setShowNewFolderDialog] = useState(false);
@@ -65,7 +79,9 @@ export function RepositoryNode({ repository, onRefresh, renderTreeNodes }: Repos
 
   // Load expanded state from localStorage, auto-expand if URL is within this repo
   useEffect(() => {
-    const urlMatchesRepo = pathname.startsWith(`/${repository.id}/`) || pathname === `/${repository.id}`;
+    const urlMatchesRepo =
+      pathname.startsWith(`/${repository.id}/`) ||
+      pathname === `/${repository.id}`;
     const expanded = getRepoExpandedState(repository.id) || urlMatchesRepo;
     setIsExpanded(expanded);
     if (expanded) {
@@ -92,26 +108,26 @@ export function RepositoryNode({ repository, onRefresh, renderTreeNodes }: Repos
   const handleNewArticle = async (name: string) => {
     try {
       // Automatically add .md extension if not present
-      const articleName = name.endsWith('.md') ? name : `${name}.md`;
+      const articleName = name.endsWith(".md") ? name : `${name}.md`;
 
       await api.createArticle(repository.id, {
         path: articleName,
-        content: `# ${articleName.replace('.md', '')}\n\nStart writing your article here...`,
+        content: `# ${articleName.replace(".md", "")}\n\nStart writing your article here...`,
       });
 
       toast.success(`Article "${articleName}" created`);
       setShowNewArticleDialog(false);
       await fetchDirectories();
-      
+
       // Ensure the tree is expanded
       if (!isExpanded) {
         setIsExpanded(true);
         saveRepoExpandedState(repository.id, true);
       }
-      
+
       router.push(`/${repository.id}/${articleName}?edit=true`);
     } catch (error: any) {
-      toast.error(error.message || 'Failed to create article');
+      toast.error(error.message || "Failed to create article");
     }
   };
 
@@ -121,14 +137,14 @@ export function RepositoryNode({ repository, onRefresh, renderTreeNodes }: Repos
       toast.success(`Folder "${name}" created`);
       setShowNewFolderDialog(false);
       await fetchDirectories();
-      
+
       // Ensure the tree is expanded
       if (!isExpanded) {
         setIsExpanded(true);
         saveRepoExpandedState(repository.id, true);
       }
     } catch (error: any) {
-      toast.error(error.message || 'Failed to create folder');
+      toast.error(error.message || "Failed to create folder");
     }
   };
 
@@ -138,10 +154,12 @@ export function RepositoryNode({ repository, onRefresh, renderTreeNodes }: Repos
         <ContextMenuTrigger asChild>
           <div
             className={`group flex items-center gap-2 px-3 py-1.5 mx-2 rounded-md cursor-pointer text-sm transition-colors select-none ${
-              isContextMenuOpen ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+              isContextMenuOpen
+                ? "bg-gray-100 text-gray-900"
+                : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
             }`}
             onClick={handleToggle}
-            style={{ paddingLeft: '12px' }}
+            style={{ paddingLeft: "12px" }}
           >
             <span className="opacity-50">
               {isExpanded ? (
@@ -182,15 +200,26 @@ export function RepositoryNode({ repository, onRefresh, renderTreeNodes }: Repos
       {isExpanded && (
         <div>
           {isLoading ? (
-            <div className="text-gray-400 text-sm px-4 py-1" style={{ paddingLeft: '36px' }}>
+            <div
+              className="text-gray-400 text-sm px-4 py-1"
+              style={{ paddingLeft: "36px" }}
+            >
               Loading...
             </div>
           ) : directories.length === 0 ? (
-            <div className="text-gray-400 text-sm px-4 py-1" style={{ paddingLeft: '36px' }}>
+            <div
+              className="text-gray-400 text-sm px-4 py-1"
+              style={{ paddingLeft: "36px" }}
+            >
               No files
             </div>
           ) : (
-            renderTreeNodes(directories, repository.id, repository.read_only, fetchDirectories)
+            renderTreeNodes(
+              directories,
+              repository.id,
+              repository.read_only,
+              fetchDirectories,
+            )
           )}
         </div>
       )}

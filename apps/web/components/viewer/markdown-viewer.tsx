@@ -1,41 +1,49 @@
-'use client';
+"use client";
 
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import { remarkAlert } from 'remark-github-blockquote-alert';
-import { ComponentPropsWithoutRef, useEffect, useState } from 'react';
-import { bundledLanguages, codeToHtml } from 'shiki';
-import { Hash, Copy } from 'lucide-react';
-import { Callout } from '@/components/ui/callout';
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { remarkAlert } from "remark-github-blockquote-alert";
+import { ComponentPropsWithoutRef, useEffect, useState } from "react";
+import { bundledLanguages, codeToHtml } from "shiki";
+import { Hash, Copy } from "lucide-react";
+import { Callout } from "@/components/ui/callout";
 
 interface MarkdownViewerProps {
   content: string;
   repositoryId?: string;
 }
 
-interface CodeBlockProps extends ComponentPropsWithoutRef<'code'> {
+interface CodeBlockProps extends ComponentPropsWithoutRef<"code"> {
   inline?: boolean;
 }
 
-interface CustomImageProps extends ComponentPropsWithoutRef<'img'> {
+interface CustomImageProps extends ComponentPropsWithoutRef<"img"> {
   repositoryId?: string;
 }
 
-function CustomImage({ src, alt, title, width, height, repositoryId, ...props }: CustomImageProps) {
+function CustomImage({
+  src,
+  alt,
+  title,
+  width,
+  height,
+  repositoryId,
+  ...props
+}: CustomImageProps) {
   if (!src) return null;
 
-  const srcString = typeof src === 'string' ? src : '';
+  const srcString = typeof src === "string" ? src : "";
 
   // Parse query parameters from src for sizing (e.g., image.jpg?width=300)
-  const url = new URL(srcString, 'http://dummy.com');
-  const queryWidth = url.searchParams.get('width');
-  const queryHeight = url.searchParams.get('height');
+  const url = new URL(srcString, "http://dummy.com");
+  const queryWidth = url.searchParams.get("width");
+  const queryHeight = url.searchParams.get("height");
 
   // Clean src by removing query parameters
-  let cleanSrc = srcString.split('?')[0];
+  let cleanSrc = srcString.split("?")[0];
 
   // Rewrite repository-relative absolute paths (starting with /) to point to the API
-  if (cleanSrc.startsWith('/') && repositoryId) {
+  if (cleanSrc.startsWith("/") && repositoryId) {
     cleanSrc = `/api/repositories/${repositoryId}${cleanSrc}`;
   }
 
@@ -46,13 +54,13 @@ function CustomImage({ src, alt, title, width, height, repositoryId, ...props }:
     return (
       <img
         src={cleanSrc}
-        alt={alt || ''}
+        alt={alt || ""}
         title={title}
         width={finalWidth || undefined}
         height={finalHeight || undefined}
         style={{
-          maxWidth: '100%',
-          height: finalHeight ? undefined : 'auto',
+          maxWidth: "100%",
+          height: finalHeight ? undefined : "auto",
         }}
         {...props}
       />
@@ -62,18 +70,18 @@ function CustomImage({ src, alt, title, width, height, repositoryId, ...props }:
   return (
     <img
       src={cleanSrc}
-      alt={alt || ''}
+      alt={alt || ""}
       title={title}
       style={{
-        maxWidth: '100%',
-        height: 'auto',
+        maxWidth: "100%",
+        height: "auto",
       }}
       {...props}
     />
   );
 }
 
-interface CustomLinkProps extends ComponentPropsWithoutRef<'a'> {
+interface CustomLinkProps extends ComponentPropsWithoutRef<"a"> {
   repositoryId?: string;
 }
 
@@ -83,47 +91,54 @@ function CustomLink({ href, repositoryId, ...props }: CustomLinkProps) {
   let finalHref = href;
 
   // Rewrite repository-relative absolute paths (starting with /)
-  if (href.startsWith('/') && repositoryId) {
+  if (href.startsWith("/") && repositoryId) {
     finalHref = `/${repositoryId}${href}`;
   }
 
   return <a href={finalHref} {...props} />;
 }
 
-function CustomDiv({ children, className, ...props }: ComponentPropsWithoutRef<'div'>) {
-  if (className?.includes('markdown-alert')) {
+function CustomDiv({
+  children,
+  className,
+  ...props
+}: ComponentPropsWithoutRef<"div">) {
+  if (className?.includes("markdown-alert")) {
     const alertType = className.match(/markdown-alert-(\w+)/)?.[1];
 
-    const typeMap: Record<string, 'info' | 'warning' | 'success' | 'important' | 'caution'> = {
-      'note': 'info',
-      'tip': 'success',
-      'important': 'important',
-      'warning': 'warning',
-      'caution': 'caution',
+    const typeMap: Record<
+      string,
+      "info" | "warning" | "success" | "important" | "caution"
+    > = {
+      note: "info",
+      tip: "success",
+      important: "important",
+      warning: "warning",
+      caution: "caution",
     };
 
-    const calloutType = alertType ? typeMap[alertType] || 'info' : 'info';
+    const calloutType = alertType ? typeMap[alertType] || "info" : "info";
 
     let content = children;
 
     if (Array.isArray(children)) {
       content = children.filter((child) => {
-        if (typeof child === 'object' && child && 'props' in child) {
+        if (typeof child === "object" && child && "props" in child) {
           const childClassName = child.props?.className;
-          return !childClassName?.includes('markdown-alert-title');
+          return !childClassName?.includes("markdown-alert-title");
         }
         return true;
       });
     }
 
-    return (
-      <Callout type={calloutType}>
-        {content}
-      </Callout>
-    );
+    return <Callout type={calloutType}>{content}</Callout>;
   }
 
-  return <div {...props} className={className}>{children}</div>;
+  return (
+    <div {...props} className={className}>
+      {children}
+    </div>
+  );
 }
 
 export function MarkdownViewer({ content, repositoryId }: MarkdownViewerProps) {
@@ -134,16 +149,23 @@ export function MarkdownViewer({ content, repositoryId }: MarkdownViewerProps) {
         components={{
           code: CodeBlock,
           pre: ({ children }) => <>{children}</>,
-          img: (props) => <CustomImage {...props} repositoryId={repositoryId} />,
+          img: (props) => (
+            <CustomImage {...props} repositoryId={repositoryId} />
+          ),
           a: (props) => <CustomLink {...props} repositoryId={repositoryId} />,
           div: CustomDiv,
           p: ({ children }) => {
             // Check if children contains a fenced code block
-            const childrenArray = Array.isArray(children) ? children : [children];
+            const childrenArray = Array.isArray(children)
+              ? children
+              : [children];
 
             // Fenced code blocks have className with "language-*"
             const hasFencedCodeBlock = childrenArray.some((child: any) => {
-              if (child?.type?.name === 'CodeBlock' || typeof child?.type === 'function') {
+              if (
+                child?.type?.name === "CodeBlock" ||
+                typeof child?.type === "function"
+              ) {
                 const className = child?.props?.className;
                 return className && /language-/.test(className);
               }
@@ -158,7 +180,7 @@ export function MarkdownViewer({ content, repositoryId }: MarkdownViewerProps) {
             return <p>{children}</p>;
           },
           input: (props) => {
-            if (props.type === 'checkbox') {
+            if (props.type === "checkbox") {
               return (
                 <input
                   type="checkbox"
@@ -172,12 +194,20 @@ export function MarkdownViewer({ content, repositoryId }: MarkdownViewerProps) {
           },
           h1: ({ children, ...props }) => {
             const id = slugify(String(children));
-            return <h1 id={id} {...props}>{children}</h1>;
+            return (
+              <h1 id={id} {...props}>
+                {children}
+              </h1>
+            );
           },
           h2: ({ children, ...props }) => {
             const id = slugify(String(children));
             return (
-              <h2 id={id} {...props} className="group cursor-pointer flex items-center gap-2">
+              <h2
+                id={id}
+                {...props}
+                className="group cursor-pointer flex items-center gap-2"
+              >
                 {children}
                 <a href={`#${id}`} className="hash-anchor">
                   <Hash size={18} />
@@ -187,19 +217,35 @@ export function MarkdownViewer({ content, repositoryId }: MarkdownViewerProps) {
           },
           h3: ({ children, ...props }) => {
             const id = slugify(String(children));
-            return <h3 id={id} {...props}>{children}</h3>;
+            return (
+              <h3 id={id} {...props}>
+                {children}
+              </h3>
+            );
           },
           h4: ({ children, ...props }) => {
             const id = slugify(String(children));
-            return <h4 id={id} {...props}>{children}</h4>;
+            return (
+              <h4 id={id} {...props}>
+                {children}
+              </h4>
+            );
           },
           h5: ({ children, ...props }) => {
             const id = slugify(String(children));
-            return <h5 id={id} {...props}>{children}</h5>;
+            return (
+              <h5 id={id} {...props}>
+                {children}
+              </h5>
+            );
           },
           h6: ({ children, ...props }) => {
             const id = slugify(String(children));
-            return <h6 id={id} {...props}>{children}</h6>;
+            return (
+              <h6 id={id} {...props}>
+                {children}
+              </h6>
+            );
           },
         }}
       >
@@ -210,9 +256,9 @@ export function MarkdownViewer({ content, repositoryId }: MarkdownViewerProps) {
 }
 
 function CodeBlock({ inline, className, children, ...props }: CodeBlockProps) {
-  const [html, setHtml] = useState<string>('');
+  const [html, setHtml] = useState<string>("");
   const [copied, setCopied] = useState(false);
-  const match = /language-(\w+)/.exec(className || '');
+  const match = /language-(\w+)/.exec(className || "");
   const language = match?.[1];
 
   // Determine if this is inline or block code
@@ -222,12 +268,12 @@ function CodeBlock({ inline, className, children, ...props }: CodeBlockProps) {
 
   useEffect(() => {
     if (!isInline && language) {
-      const code = String(children).replace(/\n$/, '');
+      const code = String(children).replace(/\n$/, "");
 
       if (language in bundledLanguages) {
         codeToHtml(code, {
           lang: language,
-          theme: 'github-dark-dimmed',
+          theme: "github-dark-dimmed",
         })
           .then((result) => {
             // Extract content between <pre> tags and strip all pre attributes
@@ -248,7 +294,7 @@ function CodeBlock({ inline, className, children, ...props }: CodeBlockProps) {
   }, [children, language, isInline]);
 
   const handleCopy = async () => {
-    const code = String(children).replace(/\n$/, '');
+    const code = String(children).replace(/\n$/, "");
     await navigator.clipboard.writeText(code);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -259,9 +305,9 @@ function CodeBlock({ inline, className, children, ...props }: CodeBlockProps) {
       <code
         className="px-1.5 py-0.5 rounded font-mono text-sm border"
         style={{
-          backgroundColor: '#fff3e0',
-          color: '#e65100',
-          borderColor: '#ffcc80'
+          backgroundColor: "#fff3e0",
+          color: "#e65100",
+          borderColor: "#ffcc80",
         }}
         {...props}
       >
@@ -315,18 +361,18 @@ function slugify(text: string): string {
   return text
     .toLowerCase()
     .trim()
-    .replace(/[^\w\s-]/g, '')
-    .replace(/[\s_-]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+    .replace(/[^\w\s-]/g, "")
+    .replace(/[\s_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
 function escapeHtml(text: string): string {
   const map: Record<string, string> = {
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#039;',
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;",
   };
   return text.replace(/[&<>"']/g, (m) => map[m]);
 }

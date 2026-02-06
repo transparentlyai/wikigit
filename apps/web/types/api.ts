@@ -1,9 +1,3 @@
-/**
- * TypeScript interfaces matching WikiGit backend API schemas.
- *
- * Based on Pydantic models from backend/app/models/schemas.py
- */
-
 // ============================================================================
 // Article Types
 // ============================================================================

@@ -1,266 +1,280 @@
-'use client'
+"use client";
 
-import { use, useEffect, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
-import toast from 'react-hot-toast'
-import { MainLayout } from '@/components/layout/main-layout'
-import { MarkdownViewer } from '@/components/viewer/markdown-viewer'
-import { CodeViewer } from '@/components/viewer/code-viewer'
-import { ArticleMetadata } from '@/components/viewer/article-metadata'
-import { DirectoryListing } from '@/components/viewer/directory-listing'
-import { MarkdownEditor } from '@/components/editor/markdown-editor'
-import { useStore } from '@/lib/store'
-import { api } from '@/lib/api'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import type { DirectoryNode, RepositoryStatus } from '@/types/api'
+import { use, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import toast from "react-hot-toast";
+import { MainLayout } from "@/components/layout/main-layout";
+import { MarkdownViewer } from "@/components/viewer/markdown-viewer";
+import { CodeViewer } from "@/components/viewer/code-viewer";
+import { ArticleMetadata } from "@/components/viewer/article-metadata";
+import { DirectoryListing } from "@/components/viewer/directory-listing";
+import { MarkdownEditor } from "@/components/editor/markdown-editor";
+import { useStore } from "@/lib/store";
+import { api } from "@/lib/api";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import type { DirectoryNode, RepositoryStatus } from "@/types/api";
 
-const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico', '.bmp']
+const IMAGE_EXTENSIONS = [
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".gif",
+  ".webp",
+  ".svg",
+  ".ico",
+  ".bmp",
+];
 
-/**
- * Returns true if the path refers to a directory (no file extension in last segment)
- */
 function isDirectoryPath(path: string): boolean {
   if (!path) return true; // empty path = repo root
-  const lastSegment = path.split('/').pop() || ''
-  return !lastSegment.includes('.')
+  const lastSegment = path.split("/").pop() || "";
+  return !lastSegment.includes(".");
 }
 
-/**
- * Traverse directory tree to find a node matching the given path
- */
-function findNodeByPath(nodes: DirectoryNode[], path: string): DirectoryNode | null {
+function findNodeByPath(
+  nodes: DirectoryNode[],
+  path: string,
+): DirectoryNode | null {
   for (const node of nodes) {
-    if (node.path === path) return node
+    if (node.path === path) return node;
     if (node.children) {
-      const found = findNodeByPath(node.children, path)
-      if (found) return found
+      const found = findNodeByPath(node.children, path);
+      if (found) return found;
     }
   }
-  return null
+  return null;
 }
 
-/**
- * Parse article path from slug segments
- * Multi-repo mode: /{repo_id}/path/to/file.md
- *
- * Returns [repositoryId, articlePath]
- */
 function parseArticlePath(slug: string[]): [string | undefined, string] {
   if (slug.length === 0) {
-    return [undefined, '']
+    return [undefined, ""];
   }
 
   // Multi-repo mode: first segment is always the repository ID
   // Example: /transparentlyadmin-wiki-pages/Home.md
   // slug = ['transparentlyadmin-wiki-pages', 'Home.md']
   if (slug.length >= 2) {
-    const repositoryId = slug[0]
-    const articlePath = slug.slice(1).join('/')
-    return [repositoryId, articlePath]
+    const repositoryId = slug[0];
+    const articlePath = slug.slice(1).join("/");
+    return [repositoryId, articlePath];
   }
 
   // Single segment: treat as repository root (e.g., /transparentlyadmin-wiki-pages)
   // In multi-repo mode this is the repo ID with empty path
-  return [slug[0], '']
+  return [slug[0], ""];
 }
 
-export default function ArticlePage({ params }: { params: Promise<{ slug: string[] }> }) {
-  const { slug } = use(params)
-  const router = useRouter()
-  const searchParams = useSearchParams()
+export default function ArticlePage({
+  params,
+}: {
+  params: Promise<{ slug: string[] }>;
+}) {
+  const { slug } = use(params);
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
   // Parse repository ID from slug if present (multi-repo mode)
   // URL structure: /{repo_id}/path/to/file.md or /path/to/file.md
-  const [repositoryId, articlePath] = parseArticlePath(slug)
+  const [repositoryId, articlePath] = parseArticlePath(slug);
 
-  const currentArticle = useStore((state) => state.currentArticle)
-  const setCurrentArticle = useStore((state) => state.setCurrentArticle)
+  const currentArticle = useStore((state) => state.currentArticle);
+  const setCurrentArticle = useStore((state) => state.setCurrentArticle);
 
-  const [isEditing, setIsEditing] = useState(false)
-  const [editContent, setEditContent] = useState('')
-  const [initialEditContent, setInitialEditContent] = useState('')
-  const [isLoading, setIsLoading] = useState(true)
-  const [isSaving, setIsSaving] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [repository, setRepository] = useState<RepositoryStatus | null>(null)
-  const [isReadOnly, setIsReadOnly] = useState(false)
-  const [isDirectory, setIsDirectory] = useState(false)
-  const [directoryContents, setDirectoryContents] = useState<DirectoryNode[]>([])
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState("");
+  const [initialEditContent, setInitialEditContent] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [repository, setRepository] = useState<RepositoryStatus | null>(null);
+  const [isReadOnly, setIsReadOnly] = useState(false);
+  const [isDirectory, setIsDirectory] = useState(false);
+  const [directoryContents, setDirectoryContents] = useState<DirectoryNode[]>(
+    [],
+  );
 
   // Determine file type
-  const isMarkdown = articlePath.toLowerCase().endsWith('.md')
-  const isImage = IMAGE_EXTENSIONS.some(ext => articlePath.toLowerCase().endsWith(ext))
+  const isMarkdown = articlePath.toLowerCase().endsWith(".md");
+  const isImage = IMAGE_EXTENSIONS.some((ext) =>
+    articlePath.toLowerCase().endsWith(ext),
+  );
 
   // Fetch repository details and article on mount
   useEffect(() => {
     const fetchData = async () => {
       try {
-        setIsLoading(true)
+        setIsLoading(true);
 
         // Fetch repository details if repository ID is present
         if (repositoryId) {
           try {
-            const repo = await api.getRepository(repositoryId)
-            setRepository(repo)
-            setIsReadOnly(repo.read_only)
+            const repo = await api.getRepository(repositoryId);
+            setRepository(repo);
+            setIsReadOnly(repo.read_only);
           } catch (error: any) {
-            console.error('Failed to fetch repository:', error)
-            toast.error('Repository not found')
+            console.error("Failed to fetch repository:", error);
+            toast.error("Repository not found");
             // Continue to try loading article even if repo fetch fails
           }
         }
 
         if (isDirectoryPath(articlePath)) {
           // Directory view: fetch directory tree and find matching node
-          setIsDirectory(true)
-          setCurrentArticle(null)
+          setIsDirectory(true);
+          setCurrentArticle(null);
           if (repositoryId) {
-            const response = await api.getDirectories(repositoryId)
+            const response = await api.getDirectories(repositoryId);
             if (!articlePath) {
               // Repo root — show top-level contents
-              setDirectoryContents(response.tree)
+              setDirectoryContents(response.tree);
             } else {
-              const node = findNodeByPath(response.tree, articlePath)
-              setDirectoryContents(node?.children || [])
+              const node = findNodeByPath(response.tree, articlePath);
+              setDirectoryContents(node?.children || []);
             }
           } else {
-            const response = await api.getDirectories()
+            const response = await api.getDirectories();
             if (!articlePath) {
-              setDirectoryContents(response.tree)
+              setDirectoryContents(response.tree);
             } else {
-              const node = findNodeByPath(response.tree, articlePath)
-              setDirectoryContents(node?.children || [])
+              const node = findNodeByPath(response.tree, articlePath);
+              setDirectoryContents(node?.children || []);
             }
           }
         } else if (isImage) {
-          setIsDirectory(false)
+          setIsDirectory(false);
           // For images, we don't need to fetch content, just set dummy article data
           setCurrentArticle({
             path: articlePath,
-            title: articlePath.split('/').pop() || articlePath,
-            content: '', // Content not used for images
+            title: articlePath.split("/").pop() || articlePath,
+            content: "", // Content not used for images
             author: null,
             created_at: null,
             updated_at: null,
             updated_by: null,
-          })
+          });
         } else {
-          setIsDirectory(false)
+          setIsDirectory(false);
           const article = repositoryId
             ? await api.getArticle(repositoryId, articlePath)
-            : await api.getArticle(articlePath)
-          setCurrentArticle(article)
-          setEditContent(article.content)
-          setInitialEditContent(article.content)
+            : await api.getArticle(articlePath);
+          setCurrentArticle(article);
+          setEditContent(article.content);
+          setInitialEditContent(article.content);
         }
 
         // Check if we should auto-enter edit mode (only if not read-only and is markdown)
-        const shouldEdit = searchParams?.get('edit') === 'true'
+        const shouldEdit = searchParams?.get("edit") === "true";
         if (shouldEdit && !isReadOnly && isMarkdown) {
-          setIsEditing(true)
+          setIsEditing(true);
           // Remove the query parameter from URL
-          const fullPath = repositoryId ? `${repositoryId}/${articlePath}` : articlePath
-          router.replace(`/${fullPath}`)
+          const fullPath = repositoryId
+            ? `${repositoryId}/${articlePath}`
+            : articlePath;
+          router.replace(`/${fullPath}`);
         }
       } catch (error: any) {
-        toast.error(error.message || 'Failed to load file')
-        console.error('Failed to fetch file:', error)
+        toast.error(error.message || "Failed to load file");
+        console.error("Failed to fetch file:", error);
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
-    }
+    };
 
-    fetchData()
+    fetchData();
     // searchParams and router are stable references and don't need to be in dependencies
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [articlePath, repositoryId, setCurrentArticle, isMarkdown, isImage])
+  }, [articlePath, repositoryId, setCurrentArticle, isMarkdown, isImage]);
 
   const handleEdit = () => {
     if (currentArticle && !isReadOnly && isMarkdown) {
-      setEditContent(currentArticle.content)
-      setInitialEditContent(currentArticle.content)
-      setIsEditing(true)
+      setEditContent(currentArticle.content);
+      setInitialEditContent(currentArticle.content);
+      setIsEditing(true);
     }
-  }
+  };
 
   const handleSave = async () => {
-    if (!currentArticle) return
+    if (!currentArticle) return;
 
     try {
-      setIsSaving(true)
+      setIsSaving(true);
       const updated = repositoryId
-        ? await api.updateArticle(repositoryId, articlePath, { content: editContent })
-        : await api.updateArticle(articlePath, { content: editContent })
-      setCurrentArticle(updated)
-      setIsEditing(false)
-      toast.success('Article saved successfully')
+        ? await api.updateArticle(repositoryId, articlePath, {
+            content: editContent,
+          })
+        : await api.updateArticle(articlePath, { content: editContent });
+      setCurrentArticle(updated);
+      setIsEditing(false);
+      toast.success("Article saved successfully");
     } catch (error: any) {
-      toast.error(error.message || 'Failed to save article')
-      console.error('Failed to save article:', error)
+      toast.error(error.message || "Failed to save article");
+      console.error("Failed to save article:", error);
     } finally {
-      setIsSaving(false)
+      setIsSaving(false);
     }
-  }
+  };
 
   const handleCancel = () => {
     if (currentArticle) {
-      setEditContent(currentArticle.content)
+      setEditContent(currentArticle.content);
     }
-    setIsEditing(false)
-  }
+    setIsEditing(false);
+  };
 
   const handleDelete = () => {
-    if (!currentArticle) return
-    setShowDeleteConfirm(true)
-  }
+    if (!currentArticle) return;
+    setShowDeleteConfirm(true);
+  };
 
   const confirmDelete = async () => {
-    if (!currentArticle) return
+    if (!currentArticle) return;
 
     try {
-      setIsDeleting(true)
+      setIsDeleting(true);
       if (repositoryId) {
-        await api.deleteArticle(repositoryId, articlePath)
+        await api.deleteArticle(repositoryId, articlePath);
       } else {
-        await api.deleteArticle(articlePath)
+        await api.deleteArticle(articlePath);
       }
-      toast.success('File deleted successfully')
-      router.push('/')
+      toast.success("File deleted successfully");
+      router.push("/");
     } catch (error: any) {
-      toast.error(error.message || 'Failed to delete file')
-      console.error('Failed to delete file:', error)
-      setIsDeleting(false)
-      setShowDeleteConfirm(false)
+      toast.error(error.message || "Failed to delete file");
+      console.error("Failed to delete file:", error);
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
     }
-  }
+  };
 
   // Generate breadcrumbs from article path
-  const breadcrumbs = (currentArticle || isDirectory) && articlePath
-    ? articlePath.split('/').map((segment, index, array) => {
-        const label = segment.replace(/-/g, ' ').replace(/\.md$/, '');
-        const pathSegments = array.slice(0, index + 1).join('/');
-        const href = index < array.length - 1
-          ? repositoryId
-            ? `/${repositoryId}/${pathSegments}`
-            : `/${pathSegments}`
-          : undefined;
-        return { label, href };
-      })
-    : [];
+  const breadcrumbs =
+    (currentArticle || isDirectory) && articlePath
+      ? articlePath.split("/").map((segment, index, array) => {
+          const label = segment.replace(/-/g, " ").replace(/\.md$/, "");
+          const pathSegments = array.slice(0, index + 1).join("/");
+          const href =
+            index < array.length - 1
+              ? repositoryId
+                ? `/${repositoryId}/${pathSegments}`
+                : `/${pathSegments}`
+              : undefined;
+          return { label, href };
+        })
+      : [];
 
   if (isLoading) {
     return (
       <MainLayout>
         <p className="text-gray-600">Loading...</p>
       </MainLayout>
-    )
+    );
   }
 
   if (isDirectory) {
     const dirName = articlePath
-      ? articlePath.split('/').pop() || articlePath
-      : repository?.name || 'Root';
+      ? articlePath.split("/").pop() || articlePath
+      : repository?.name || "Root";
     return (
       <MainLayout breadcrumbs={breadcrumbs} repository={repository}>
         <DirectoryListing
@@ -270,18 +284,20 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
           currentPath={articlePath}
         />
       </MainLayout>
-    )
+    );
   }
 
   if (!currentArticle) {
     return (
-      <MainLayout breadcrumbs={[{ label: 'Not Found' }]}>
+      <MainLayout breadcrumbs={[{ label: "Not Found" }]}>
         <h1 className="text-4xl font-bold text-gray-900 tracking-tighter mb-6 mt-2 pb-4 border-b border-gray-100">
           File Not Found
         </h1>
-        <p className="text-gray-600">The file "{articlePath}" could not be found.</p>
+        <p className="text-gray-600">
+          The file "{articlePath}" could not be found.
+        </p>
       </MainLayout>
-    )
+    );
   }
 
   return (
@@ -296,20 +312,23 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
       {!isEditing && (
         <>
           {isMarkdown ? (
-            <MarkdownViewer content={currentArticle.content} repositoryId={repositoryId} />
+            <MarkdownViewer
+              content={currentArticle.content}
+              repositoryId={repositoryId}
+            />
           ) : isImage ? (
             <div className="flex justify-center p-4 bg-gray-50 rounded-lg border border-gray-200">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img 
-                src={`/api/repositories/${repositoryId}/${articlePath}`} 
+              <img
+                src={`/api/repositories/${repositoryId}/${articlePath}`}
                 alt={currentArticle.title}
-                className="max-w-full h-auto rounded shadow-sm" 
+                className="max-w-full h-auto rounded shadow-sm"
               />
             </div>
           ) : (
-            <CodeViewer 
-              content={currentArticle.content} 
-              filename={articlePath.split('/').pop() || ''} 
+            <CodeViewer
+              content={currentArticle.content}
+              filename={articlePath.split("/").pop() || ""}
             />
           )}
 
@@ -349,5 +368,5 @@ export default function ArticlePage({ params }: { params: Promise<{ slug: string
         variant="destructive"
       />
     </MainLayout>
-  )
+  );
 }

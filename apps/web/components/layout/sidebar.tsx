@@ -1,28 +1,32 @@
-'use client';
+"use client";
 
-/**
- * Sidebar component with recursive file tree navigation
- * Flat design with gray-50 background and blue active states
- */
-
-import { useRef, useEffect, useState } from 'react';
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { FileText, ChevronRight, ChevronDown, Search, FilePlus, FolderPlus, Edit, Trash2 } from 'lucide-react';
-import toast from 'react-hot-toast';
-import { DirectoryNode, RepositoryStatus } from '@/types/api';
-import { useWikiStore } from '@/lib/store';
-import { api } from '@/lib/api';
-import { RepositoryNode } from './repository-node';
+import { useRef, useEffect, useState } from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  FileText,
+  ChevronRight,
+  ChevronDown,
+  Search,
+  FilePlus,
+  FolderPlus,
+  Edit,
+  Trash2,
+} from "lucide-react";
+import toast from "react-hot-toast";
+import { DirectoryNode, RepositoryStatus } from "@/types/api";
+import { useWikiStore } from "@/lib/store";
+import { api } from "@/lib/api";
+import { RepositoryNode } from "./repository-node";
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
   ContextMenuTrigger,
-} from '@/components/ui/context-menu';
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { InputDialog } from '@/components/ui/input-dialog';
+} from "@/components/ui/context-menu";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { InputDialog } from "@/components/ui/input-dialog";
 
 interface SidebarProps {
   directories: DirectoryNode[];
@@ -37,20 +41,26 @@ interface TreeNodeProps {
   isReadOnly?: boolean;
 }
 
-const EXPANDED_NODES_KEY = 'wikigit-expanded-nodes';
+const EXPANDED_NODES_KEY = "wikigit-expanded-nodes";
 
 function getExpandedNodes(): Set<string> {
-  if (typeof window === 'undefined') return new Set();
+  if (typeof window === "undefined") return new Set();
   const stored = localStorage.getItem(EXPANDED_NODES_KEY);
   return stored ? new Set(JSON.parse(stored)) : new Set();
 }
 
 function saveExpandedNodes(nodes: Set<string>) {
-  if (typeof window === 'undefined') return;
+  if (typeof window === "undefined") return;
   localStorage.setItem(EXPANDED_NODES_KEY, JSON.stringify(Array.from(nodes)));
 }
 
-function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: TreeNodeProps) {
+function TreeNode({
+  node,
+  level,
+  onRefresh,
+  repositoryId,
+  isReadOnly = false,
+}: TreeNodeProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [isExpanded, setIsExpanded] = useState(false);
@@ -68,11 +78,13 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
   // Ref for auto-scrolling active node into view
   const nodeRef = useRef<HTMLDivElement>(null);
 
-  const isDirectory = node.type === 'directory';
+  const isDirectory = node.type === "directory";
   const hasChildren = isDirectory && node.children && node.children.length > 0;
 
   // Construct article path with repository ID if in multi-repo mode
-  const articleUrl = repositoryId ? `/${repositoryId}/${node.path}` : `/${node.path}`;
+  const articleUrl = repositoryId
+    ? `/${repositoryId}/${node.path}`
+    : `/${node.path}`;
   const isActive = pathname === articleUrl;
 
   // Auto-expand if the current pathname is within this node's subtree
@@ -81,7 +93,8 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
     const alreadyExpanded = expandedNodes.has(node.path);
 
     if (isDirectory) {
-      const shouldAutoExpand = pathname === articleUrl || pathname.startsWith(articleUrl + '/');
+      const shouldAutoExpand =
+        pathname === articleUrl || pathname.startsWith(articleUrl + "/");
       if (shouldAutoExpand && !alreadyExpanded) {
         setIsExpanded(true);
         expandedNodes.add(node.path);
@@ -98,7 +111,10 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
     if (isActive && nodeRef.current) {
       // Small delay to let parent expansions render first
       const timer = setTimeout(() => {
-        nodeRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        nodeRef.current?.scrollIntoView({
+          block: "nearest",
+          behavior: "smooth",
+        });
       }, 100);
       return () => clearTimeout(timer);
     }
@@ -132,20 +148,22 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
   const handleNewArticle = async (name: string) => {
     try {
       // Automatically add .md extension if not present
-      const articleName = name.endsWith('.md') ? name : `${name}.md`;
+      const articleName = name.endsWith(".md") ? name : `${name}.md`;
 
-      const basePath = isDirectory ? node.path : node.path.split('/').slice(0, -1).join('/');
+      const basePath = isDirectory
+        ? node.path
+        : node.path.split("/").slice(0, -1).join("/");
       const newPath = basePath ? `${basePath}/${articleName}` : articleName;
 
       if (repositoryId) {
         await api.createArticle(repositoryId, {
           path: newPath,
-          content: `# ${articleName.replace('.md', '')}\n\nStart writing your article here...`,
+          content: `# ${articleName.replace(".md", "")}\n\nStart writing your article here...`,
         });
       } else {
         await api.createArticle({
           path: newPath,
-          content: `# ${articleName.replace('.md', '')}\n\nStart writing your article here...`,
+          content: `# ${articleName.replace(".md", "")}\n\nStart writing your article here...`,
         });
       }
 
@@ -155,13 +173,15 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
       const articlePath = repositoryId ? `${repositoryId}/${newPath}` : newPath;
       router.push(`/${articlePath}?edit=true`);
     } catch (error: any) {
-      toast.error(error.message || 'Failed to create article');
+      toast.error(error.message || "Failed to create article");
     }
   };
 
   const handleNewFolder = async (name: string) => {
     try {
-      const basePath = isDirectory ? node.path : node.path.split('/').slice(0, -1).join('/');
+      const basePath = isDirectory
+        ? node.path
+        : node.path.split("/").slice(0, -1).join("/");
       const newPath = basePath ? `${basePath}/${name}` : name;
 
       if (repositoryId) {
@@ -177,15 +197,15 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
         setIsExpanded(true);
       }
     } catch (error: any) {
-      toast.error(error.message || 'Failed to create folder');
+      toast.error(error.message || "Failed to create folder");
     }
   };
 
   const handleRename = async (newName: string) => {
     try {
       // Validate new name
-      if (!newName || newName.trim() === '') {
-        toast.error('Name cannot be empty');
+      if (!newName || newName.trim() === "") {
+        toast.error("Name cannot be empty");
         return;
       }
 
@@ -196,9 +216,9 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
       }
 
       // Calculate new path
-      const pathParts = node.path.split('/');
+      const pathParts = node.path.split("/");
       pathParts[pathParts.length - 1] = newName;
-      const newPath = pathParts.join('/');
+      const newPath = pathParts.join("/");
 
       if (isDirectory) {
         if (repositoryId) {
@@ -219,7 +239,9 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
 
         // If renaming the current article, navigate to new location
         if (isActive) {
-          const articlePath = repositoryId ? `${repositoryId}/${newPath}` : newPath;
+          const articlePath = repositoryId
+            ? `${repositoryId}/${newPath}`
+            : newPath;
           router.push(`/${articlePath}`);
         }
       }
@@ -227,7 +249,7 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
       setShowRenameDialog(false);
       onRefresh?.();
     } catch (error: any) {
-      toast.error(error.message || 'Failed to rename');
+      toast.error(error.message || "Failed to rename");
     }
   };
 
@@ -243,7 +265,7 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
 
         // If currently viewing a file in this directory, redirect to home
         if (pathname === articleUrl || pathname.startsWith(`${articleUrl}/`)) {
-          router.push('/');
+          router.push("/");
         }
       } else {
         if (repositoryId) {
@@ -254,33 +276,36 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
         toast.success(`Article "${node.name}" deleted`);
 
         if (isActive) {
-          router.push('/');
+          router.push("/");
         }
       }
 
       setShowDeleteConfirm(false);
       onRefresh?.();
     } catch (error: any) {
-      toast.error(error.message || 'Failed to delete');
+      toast.error(error.message || "Failed to delete");
     }
   };
 
   // Drag and drop handlers
   const handleDragStart = (e: React.DragEvent) => {
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('application/json', JSON.stringify({
-      path: node.path,
-      type: node.type,
-      name: node.name,
-      repositoryId: repositoryId || null,
-    }));
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData(
+      "application/json",
+      JSON.stringify({
+        path: node.path,
+        type: node.type,
+        name: node.name,
+        repositoryId: repositoryId || null,
+      }),
+    );
   };
 
   const handleDragOver = (e: React.DragEvent) => {
     // Only allow drop on directories
     if (isDirectory) {
       e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
+      e.dataTransfer.dropEffect = "move";
       setIsDragOver(true);
 
       // Auto-expand collapsed directory after hovering for 600ms
@@ -315,7 +340,7 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
     if (!isDirectory) return;
 
     try {
-      const data = JSON.parse(e.dataTransfer.getData('application/json'));
+      const data = JSON.parse(e.dataTransfer.getData("application/json"));
       const sourcePath = data.path;
       const sourceType = data.type;
       const sourceName = data.name;
@@ -323,7 +348,7 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
 
       // Validate same repository
       if (sourceRepositoryId !== (repositoryId || null)) {
-        toast.error('Cannot move files between repositories');
+        toast.error("Cannot move files between repositories");
         return;
       }
 
@@ -331,8 +356,11 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
       if (sourcePath === node.path) return;
 
       // Don't allow dropping a directory into its own child
-      if (sourceType === 'directory' && node.path.startsWith(sourcePath + '/')) {
-        toast.error('Cannot move a directory into itself');
+      if (
+        sourceType === "directory" &&
+        node.path.startsWith(sourcePath + "/")
+      ) {
+        toast.error("Cannot move a directory into itself");
         return;
       }
 
@@ -340,7 +368,7 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
       const newPath = `${node.path}/${sourceName}`;
 
       // Move the item
-      if (sourceType === 'directory') {
+      if (sourceType === "directory") {
         if (repositoryId) {
           await api.moveDirectory(repositoryId, sourcePath, newPath);
         } else {
@@ -360,13 +388,17 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
       onRefresh?.();
 
       // If it was the current article, navigate to new location
-      const sourceArticleUrl = repositoryId ? `/${repositoryId}/${sourcePath}` : `/${sourcePath}`;
-      if (sourceType === 'file' && pathname === sourceArticleUrl) {
-        const newArticleUrl = repositoryId ? `/${repositoryId}/${newPath}` : `/${newPath}`;
+      const sourceArticleUrl = repositoryId
+        ? `/${repositoryId}/${sourcePath}`
+        : `/${sourcePath}`;
+      if (sourceType === "file" && pathname === sourceArticleUrl) {
+        const newArticleUrl = repositoryId
+          ? `/${repositoryId}/${newPath}`
+          : `/${newPath}`;
         router.push(newArticleUrl);
       }
     } catch (error: any) {
-      toast.error(error.message || 'Failed to move item');
+      toast.error(error.message || "Failed to move item");
     }
   };
 
@@ -377,17 +409,13 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
 
   const renderContent = () => {
     const chevron = isDirectory && hasChildren && (
-      <span className={`opacity-50 ${isActive ? 'text-blue-500' : ''}`}>
-        {isExpanded ? (
-          <ChevronDown size={14} />
-        ) : (
-          <ChevronRight size={14} />
-        )}
+      <span className={`opacity-50 ${isActive ? "text-blue-500" : ""}`}>
+        {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
       </span>
     );
 
     const icon = !isDirectory && (
-      <span className={`opacity-50 ${isActive ? 'text-blue-500' : ''}`}>
+      <span className={`opacity-50 ${isActive ? "text-blue-500" : ""}`}>
         <FileText size={14} />
       </span>
     );
@@ -404,12 +432,12 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
       group flex items-center gap-2 px-3 py-1.5 mx-2 rounded-md cursor-pointer text-sm transition-colors select-none
       ${
         isActive
-          ? 'bg-blue-50 text-blue-700 font-medium'
+          ? "bg-blue-50 text-blue-700 font-medium"
           : isContextMenuOpen
-          ? 'bg-gray-100 text-gray-900'
-          : isDragOver
-          ? 'bg-blue-100 border-2 border-blue-500 border-dashed'
-          : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+            ? "bg-gray-100 text-gray-900"
+            : isDragOver
+              ? "bg-blue-100 border-2 border-blue-500 border-dashed"
+              : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
       }
     `;
 
@@ -554,7 +582,7 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
         open={showNewArticleDialog}
         onOpenChange={setShowNewArticleDialog}
         title="New Article"
-        description={`Create a new article in ${isDirectory ? node.name : node.path.split('/').slice(0, -1).join('/')}`}
+        description={`Create a new article in ${isDirectory ? node.name : node.path.split("/").slice(0, -1).join("/")}`}
         label="Article Name"
         placeholder="my-article"
         onConfirm={handleNewArticle}
@@ -565,7 +593,7 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
         open={showNewFolderDialog}
         onOpenChange={setShowNewFolderDialog}
         title="New Folder"
-        description={`Create a new folder in ${isDirectory ? node.name : node.path.split('/').slice(0, -1).join('/')}`}
+        description={`Create a new folder in ${isDirectory ? node.name : node.path.split("/").slice(0, -1).join("/")}`}
         label="Folder Name"
         placeholder="my-folder"
         onConfirm={handleNewFolder}
@@ -575,7 +603,7 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
       <InputDialog
         open={showRenameDialog}
         onOpenChange={setShowRenameDialog}
-        title={`Rename ${isDirectory ? 'Folder' : 'Article'}`}
+        title={`Rename ${isDirectory ? "Folder" : "Article"}`}
         label="New Name"
         defaultValue={node.name}
         onConfirm={handleRename}
@@ -585,9 +613,9 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
       <ConfirmDialog
         open={showDeleteConfirm}
         onOpenChange={setShowDeleteConfirm}
-        title={`Delete ${isDirectory ? 'Folder' : 'Article'}`}
+        title={`Delete ${isDirectory ? "Folder" : "Article"}`}
         description={`Are you sure you want to delete "${node.name}"? This action cannot be undone.${
-          isDirectory ? ' The folder must be empty to be deleted.' : ''
+          isDirectory ? " The folder must be empty to be deleted." : ""
         }`}
         confirmText="Delete"
         cancelText="Cancel"
@@ -600,7 +628,9 @@ function TreeNode({ node, level, onRefresh, repositoryId, isReadOnly = false }: 
 
 export function Sidebar({ directories, onRefresh }: SidebarProps) {
   const appName = useWikiStore((state) => state.appName);
-  const repositoryRefreshTrigger = useWikiStore((state) => state.repositoryRefreshTrigger);
+  const repositoryRefreshTrigger = useWikiStore(
+    (state) => state.repositoryRefreshTrigger,
+  );
   const router = useRouter();
   const pathname = usePathname();
 
@@ -609,7 +639,7 @@ export function Sidebar({ directories, onRefresh }: SidebarProps) {
   const [isLoadingRepos, setIsLoadingRepos] = useState(false);
 
   // Search state
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Fetch repositories on mount and when refresh is triggered
   useEffect(() => {
@@ -619,7 +649,7 @@ export function Sidebar({ directories, onRefresh }: SidebarProps) {
         const response = await api.listRepositories();
         setRepositories(response.repositories || []);
       } catch (error: any) {
-        console.error('Failed to fetch repositories:', error);
+        console.error("Failed to fetch repositories:", error);
         // Don't show error toast - might be single-repo mode
         setRepositories([]);
       } finally {
@@ -638,13 +668,14 @@ export function Sidebar({ directories, onRefresh }: SidebarProps) {
   };
 
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       handleSearch();
     }
   };
 
   // Root-level dialog states
-  const [showRootNewArticleDialog, setShowRootNewArticleDialog] = useState(false);
+  const [showRootNewArticleDialog, setShowRootNewArticleDialog] =
+    useState(false);
   const [showRootNewFolderDialog, setShowRootNewFolderDialog] = useState(false);
   const [isRootDragOver, setIsRootDragOver] = useState(false);
 
@@ -673,7 +704,10 @@ export function Sidebar({ directories, onRefresh }: SidebarProps) {
         // Near top - scroll up
         const ratio = 1 - distanceFromTop / scrollZoneSize;
         scrollSpeed = -ratio * maxScrollSpeed;
-      } else if (distanceFromBottom < scrollZoneSize && distanceFromBottom > 0) {
+      } else if (
+        distanceFromBottom < scrollZoneSize &&
+        distanceFromBottom > 0
+      ) {
         // Near bottom - scroll down
         const ratio = 1 - distanceFromBottom / scrollZoneSize;
         scrollSpeed = ratio * maxScrollSpeed;
@@ -709,16 +743,16 @@ export function Sidebar({ directories, onRefresh }: SidebarProps) {
     };
 
     // Add global listeners
-    document.addEventListener('dragover', handleDragOver);
-    document.addEventListener('dragend', handleDragEnd);
-    document.addEventListener('drop', handleDragEnd);
-    document.addEventListener('dragstart', handleDragStart);
+    document.addEventListener("dragover", handleDragOver);
+    document.addEventListener("dragend", handleDragEnd);
+    document.addEventListener("drop", handleDragEnd);
+    document.addEventListener("dragstart", handleDragStart);
 
     return () => {
-      document.removeEventListener('dragover', handleDragOver);
-      document.removeEventListener('dragend', handleDragEnd);
-      document.removeEventListener('drop', handleDragEnd);
-      document.removeEventListener('dragstart', handleDragStart);
+      document.removeEventListener("dragover", handleDragOver);
+      document.removeEventListener("dragend", handleDragEnd);
+      document.removeEventListener("drop", handleDragEnd);
+      document.removeEventListener("dragstart", handleDragStart);
       if (scrollAnimationRef.current) {
         cancelAnimationFrame(scrollAnimationRef.current);
       }
@@ -728,11 +762,11 @@ export function Sidebar({ directories, onRefresh }: SidebarProps) {
   const handleRootNewArticle = async (name: string) => {
     try {
       // Automatically add .md extension if not present
-      const articleName = name.endsWith('.md') ? name : `${name}.md`;
+      const articleName = name.endsWith(".md") ? name : `${name}.md`;
 
       await api.createArticle({
         path: articleName,
-        content: `# ${articleName.replace('.md', '')}\n\nStart writing your article here...`,
+        content: `# ${articleName.replace(".md", "")}\n\nStart writing your article here...`,
       });
 
       toast.success(`Article "${articleName}" created`);
@@ -740,7 +774,7 @@ export function Sidebar({ directories, onRefresh }: SidebarProps) {
       onRefresh?.();
       router.push(`/${articleName}?edit=true`);
     } catch (error: any) {
-      toast.error(error.message || 'Failed to create article');
+      toast.error(error.message || "Failed to create article");
     }
   };
 
@@ -751,14 +785,14 @@ export function Sidebar({ directories, onRefresh }: SidebarProps) {
       setShowRootNewFolderDialog(false);
       onRefresh?.();
     } catch (error: any) {
-      toast.error(error.message || 'Failed to create folder');
+      toast.error(error.message || "Failed to create folder");
     }
   };
 
   // Root workspace drag and drop handlers
   const handleRootDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+    e.dataTransfer.dropEffect = "move";
     setIsRootDragOver(true);
   };
 
@@ -772,7 +806,7 @@ export function Sidebar({ directories, onRefresh }: SidebarProps) {
     setIsRootDragOver(false);
 
     try {
-      const data = JSON.parse(e.dataTransfer.getData('application/json'));
+      const data = JSON.parse(e.dataTransfer.getData("application/json"));
       const sourcePath = data.path;
       const sourceType = data.type;
       const sourceName = data.name;
@@ -780,7 +814,9 @@ export function Sidebar({ directories, onRefresh }: SidebarProps) {
 
       // Only allow root drop in single-repo mode (no repositoryId)
       if (sourceRepositoryId !== null) {
-        toast.error('Cannot move repository files to root. Use repository structure.');
+        toast.error(
+          "Cannot move repository files to root. Use repository structure.",
+        );
         return;
       }
 
@@ -788,7 +824,7 @@ export function Sidebar({ directories, onRefresh }: SidebarProps) {
       const newPath = sourceName;
 
       // Move the item
-      if (sourceType === 'directory') {
+      if (sourceType === "directory") {
         await api.moveDirectory(sourcePath, newPath);
         toast.success(`Moved folder to root`);
       } else {
@@ -800,11 +836,11 @@ export function Sidebar({ directories, onRefresh }: SidebarProps) {
       onRefresh?.();
 
       // If it was the current article, navigate to new location
-      if (sourceType === 'file' && pathname === `/${sourcePath}`) {
+      if (sourceType === "file" && pathname === `/${sourcePath}`) {
         router.push(`/${newPath}`);
       }
     } catch (error: any) {
-      toast.error(error.message || 'Failed to move item');
+      toast.error(error.message || "Failed to move item");
     }
   };
 
@@ -848,8 +884,8 @@ export function Sidebar({ directories, onRefresh }: SidebarProps) {
         <div
           className={`px-4 mb-2 text-[11px] font-bold uppercase tracking-wider rounded-md transition-colors ${
             isRootDragOver
-              ? 'bg-blue-100 text-blue-600 border-2 border-blue-500 border-dashed'
-              : 'text-gray-400'
+              ? "bg-blue-100 text-blue-600 border-2 border-blue-500 border-dashed"
+              : "text-gray-400"
           }`}
           onDragOver={handleRootDragOver}
           onDragLeave={handleRootDragLeave}
@@ -859,17 +895,24 @@ export function Sidebar({ directories, onRefresh }: SidebarProps) {
         </div>
 
         {isLoadingRepos ? (
-          <p className="text-gray-400 text-sm px-4 py-2">Loading repositories...</p>
+          <p className="text-gray-400 text-sm px-4 py-2">
+            Loading repositories...
+          </p>
         ) : repositories.length > 0 ? (
           <div>
             {repositories
-              .filter(repo => repo.enabled)
+              .filter((repo) => repo.enabled)
               .map((repo) => (
                 <RepositoryNode
                   key={repo.id}
                   repository={repo}
                   onRefresh={onRefresh}
-                  renderTreeNodes={(nodes, repositoryId, isReadOnly, refreshRepo) => (
+                  renderTreeNodes={(
+                    nodes,
+                    repositoryId,
+                    isReadOnly,
+                    refreshRepo,
+                  ) => (
                     <>
                       {nodes.map((node, index) => (
                         <TreeNode
@@ -891,7 +934,12 @@ export function Sidebar({ directories, onRefresh }: SidebarProps) {
         ) : (
           <div>
             {directories.map((node, index) => (
-              <TreeNode key={`${node.type}:${node.path}:${index}`} node={node} level={0} onRefresh={onRefresh} />
+              <TreeNode
+                key={`${node.type}:${node.path}:${index}`}
+                node={node}
+                level={0}
+                onRefresh={onRefresh}
+              />
             ))}
           </div>
         )}

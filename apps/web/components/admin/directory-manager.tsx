@@ -1,66 +1,74 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import toast from 'react-hot-toast'
-import { api } from '@/lib/api'
-import { Folder, Plus, Trash2 } from 'lucide-react'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { useState } from "react";
+import toast from "react-hot-toast";
+import { api } from "@/lib/api";
+import { Folder, Plus, Trash2 } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 export function DirectoryManager() {
-  const [newDirPath, setNewDirPath] = useState('')
-  const [deleteDirPath, setDeleteDirPath] = useState('')
-  const [isCreating, setIsCreating] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [newDirPath, setNewDirPath] = useState("");
+  const [deleteDirPath, setDeleteDirPath] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const handleCreateDirectory = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (!newDirPath.trim()) {
-      toast.error('Directory path is required')
-      return
+      toast.error("Directory path is required");
+      return;
     }
 
     try {
-      setIsCreating(true)
-      await api.createDirectory(newDirPath.trim())
-      toast.success(`Directory created: ${newDirPath}`)
-      setNewDirPath('')
+      setIsCreating(true);
+      await api.createDirectory(newDirPath.trim());
+      toast.success(`Directory created: ${newDirPath}`);
+      setNewDirPath("");
     } catch (error: any) {
-      toast.error(error.message || 'Failed to create directory')
+      toast.error(error.message || "Failed to create directory");
     } finally {
-      setIsCreating(false)
+      setIsCreating(false);
     }
-  }
+  };
 
   const handleDeleteDirectory = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (!deleteDirPath.trim()) {
-      toast.error('Directory path is required')
-      return
+      toast.error("Directory path is required");
+      return;
     }
 
-    setShowDeleteConfirm(true)
-  }
+    setShowDeleteConfirm(true);
+  };
 
   const confirmDeleteDirectory = async () => {
     try {
-      setIsDeleting(true)
-      await api.deleteDirectory(deleteDirPath.trim())
-      toast.success(`Directory deleted: ${deleteDirPath}`)
-      setDeleteDirPath('')
+      setIsDeleting(true);
+      await api.deleteDirectory(deleteDirPath.trim());
+      toast.success(`Directory deleted: ${deleteDirPath}`);
+      setDeleteDirPath("");
     } catch (error: any) {
-      toast.error(error.message || 'Failed to delete directory')
+      toast.error(error.message || "Failed to delete directory");
     } finally {
-      setIsDeleting(false)
-      setShowDeleteConfirm(false)
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
     }
-  }
+  };
 
   return (
     <div>
-      <h2 style={{ fontSize: '1.5rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+      <h2
+        style={{
+          fontSize: "1.5rem",
+          marginBottom: "1rem",
+          display: "flex",
+          alignItems: "center",
+          gap: "0.5rem",
+        }}
+      >
         <Folder size={24} />
         Directory Management
       </h2>
@@ -68,26 +76,35 @@ export function DirectoryManager() {
       {/* Create Directory Section */}
       <div
         style={{
-          padding: '1.5rem',
-          backgroundColor: '#f8f9fa',
-          border: '1px solid #a2a9b1',
-          borderRadius: '2px',
-          marginBottom: '2rem',
+          padding: "1.5rem",
+          backgroundColor: "#f8f9fa",
+          border: "1px solid #a2a9b1",
+          borderRadius: "2px",
+          marginBottom: "2rem",
         }}
       >
-        <h3 style={{ marginTop: 0, marginBottom: '1rem', fontSize: '1.125rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <h3
+          style={{
+            marginTop: 0,
+            marginBottom: "1rem",
+            fontSize: "1.125rem",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+          }}
+        >
           <Plus size={20} />
           Create Directory
         </h3>
         <form onSubmit={handleCreateDirectory}>
-          <div style={{ marginBottom: '1rem' }}>
+          <div style={{ marginBottom: "1rem" }}>
             <label
               htmlFor="new-dir-path"
               style={{
-                display: 'block',
-                marginBottom: '0.5rem',
-                fontWeight: 'bold',
-                fontSize: '0.875rem',
+                display: "block",
+                marginBottom: "0.5rem",
+                fontWeight: "bold",
+                fontSize: "0.875rem",
               }}
             >
               Directory Path
@@ -100,36 +117,43 @@ export function DirectoryManager() {
               placeholder="docs/tutorials"
               required
               style={{
-                width: '100%',
-                padding: '0.5rem',
-                border: '1px solid #a2a9b1',
-                borderRadius: '2px',
-                fontSize: '1rem',
+                width: "100%",
+                padding: "0.5rem",
+                border: "1px solid #a2a9b1",
+                borderRadius: "2px",
+                fontSize: "1rem",
               }}
             />
-            <small style={{ display: 'block', marginTop: '0.25rem', color: '#54595d' }}>
-              Use forward slashes for nested directories (e.g., "guides/getting-started")
+            <small
+              style={{
+                display: "block",
+                marginTop: "0.25rem",
+                color: "#54595d",
+              }}
+            >
+              Use forward slashes for nested directories (e.g.,
+              "guides/getting-started")
             </small>
           </div>
           <button
             type="submit"
             disabled={isCreating}
             style={{
-              padding: '0.5rem 1rem',
-              backgroundColor: '#3366cc',
-              color: 'white',
-              border: 'none',
-              borderRadius: '2px',
-              cursor: isCreating ? 'not-allowed' : 'pointer',
-              fontSize: '0.875rem',
+              padding: "0.5rem 1rem",
+              backgroundColor: "#3366cc",
+              color: "white",
+              border: "none",
+              borderRadius: "2px",
+              cursor: isCreating ? "not-allowed" : "pointer",
+              fontSize: "0.875rem",
               opacity: isCreating ? 0.6 : 1,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
             }}
           >
             <Plus size={16} />
-            {isCreating ? 'Creating...' : 'Create Directory'}
+            {isCreating ? "Creating..." : "Create Directory"}
           </button>
         </form>
       </div>
@@ -137,37 +161,47 @@ export function DirectoryManager() {
       {/* Delete Directory Section */}
       <div
         style={{
-          padding: '1.5rem',
-          backgroundColor: '#f8f9fa',
-          border: '1px solid #a2a9b1',
-          borderRadius: '2px',
+          padding: "1.5rem",
+          backgroundColor: "#f8f9fa",
+          border: "1px solid #a2a9b1",
+          borderRadius: "2px",
         }}
       >
-        <h3 style={{ marginTop: 0, marginBottom: '1rem', fontSize: '1.125rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <h3
+          style={{
+            marginTop: 0,
+            marginBottom: "1rem",
+            fontSize: "1.125rem",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+          }}
+        >
           <Trash2 size={20} />
           Delete Directory
         </h3>
         <div
           style={{
-            padding: '1rem',
-            backgroundColor: '#fef0e8',
-            border: '1px solid #f4c7a8',
-            borderRadius: '2px',
-            marginBottom: '1rem',
+            padding: "1rem",
+            backgroundColor: "#fef0e8",
+            border: "1px solid #f4c7a8",
+            borderRadius: "2px",
+            marginBottom: "1rem",
           }}
         >
-          <strong style={{ color: '#d33' }}>Warning:</strong> Directories can only be deleted if they are empty (no articles inside).
-          Delete all articles first before removing a directory.
+          <strong style={{ color: "#d33" }}>Warning:</strong> Directories can
+          only be deleted if they are empty (no articles inside). Delete all
+          articles first before removing a directory.
         </div>
         <form onSubmit={handleDeleteDirectory}>
-          <div style={{ marginBottom: '1rem' }}>
+          <div style={{ marginBottom: "1rem" }}>
             <label
               htmlFor="delete-dir-path"
               style={{
-                display: 'block',
-                marginBottom: '0.5rem',
-                fontWeight: 'bold',
-                fontSize: '0.875rem',
+                display: "block",
+                marginBottom: "0.5rem",
+                fontWeight: "bold",
+                fontSize: "0.875rem",
               }}
             >
               Directory Path
@@ -180,11 +214,11 @@ export function DirectoryManager() {
               placeholder="docs/tutorials"
               required
               style={{
-                width: '100%',
-                padding: '0.5rem',
-                border: '1px solid #a2a9b1',
-                borderRadius: '2px',
-                fontSize: '1rem',
+                width: "100%",
+                padding: "0.5rem",
+                border: "1px solid #a2a9b1",
+                borderRadius: "2px",
+                fontSize: "1rem",
               }}
             />
           </div>
@@ -192,21 +226,21 @@ export function DirectoryManager() {
             type="submit"
             disabled={isDeleting}
             style={{
-              padding: '0.5rem 1rem',
-              backgroundColor: '#d33',
-              color: 'white',
-              border: 'none',
-              borderRadius: '2px',
-              cursor: isDeleting ? 'not-allowed' : 'pointer',
-              fontSize: '0.875rem',
+              padding: "0.5rem 1rem",
+              backgroundColor: "#d33",
+              color: "white",
+              border: "none",
+              borderRadius: "2px",
+              cursor: isDeleting ? "not-allowed" : "pointer",
+              fontSize: "0.875rem",
               opacity: isDeleting ? 0.6 : 1,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
             }}
           >
             <Trash2 size={16} />
-            {isDeleting ? 'Deleting...' : 'Delete Directory'}
+            {isDeleting ? "Deleting..." : "Delete Directory"}
           </button>
         </form>
       </div>
@@ -214,19 +248,27 @@ export function DirectoryManager() {
       {/* Information Section */}
       <div
         style={{
-          marginTop: '2rem',
-          padding: '1rem',
-          backgroundColor: '#f0f7ff',
-          border: '1px solid #a8d4ff',
-          borderRadius: '2px',
+          marginTop: "2rem",
+          padding: "1rem",
+          backgroundColor: "#f0f7ff",
+          border: "1px solid #a8d4ff",
+          borderRadius: "2px",
         }}
       >
-        <h4 style={{ marginTop: 0, marginBottom: '0.5rem', fontSize: '1rem' }}>About Directories</h4>
-        <ul style={{ margin: 0, paddingLeft: '1.5rem', color: '#54595d' }}>
+        <h4 style={{ marginTop: 0, marginBottom: "0.5rem", fontSize: "1rem" }}>
+          About Directories
+        </h4>
+        <ul style={{ margin: 0, paddingLeft: "1.5rem", color: "#54595d" }}>
           <li>Directories help organize articles into hierarchical sections</li>
-          <li>Parent directories are automatically created if they don't exist</li>
-          <li>Empty directories contain a .gitkeep file to track them in git</li>
-          <li>Directories with articles cannot be deleted - remove articles first</li>
+          <li>
+            Parent directories are automatically created if they don't exist
+          </li>
+          <li>
+            Empty directories contain a .gitkeep file to track them in git
+          </li>
+          <li>
+            Directories with articles cannot be deleted - remove articles first
+          </li>
           <li>The sidebar navigation reflects the directory structure</li>
         </ul>
       </div>
@@ -242,5 +284,5 @@ export function DirectoryManager() {
         variant="destructive"
       />
     </div>
-  )
+  );
 }

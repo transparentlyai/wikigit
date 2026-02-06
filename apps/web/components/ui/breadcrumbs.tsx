@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
 /**
  * Breadcrumbs component
  * Shows navigation path with chevron separators
  */
 
-import Link from 'next/link';
-import { ChevronRight } from 'lucide-react';
+import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 
 interface BreadcrumbItem {
   label: string;
@@ -39,7 +39,11 @@ export function Breadcrumbs({ items }: BreadcrumbsProps) {
               {item.label}
             </Link>
           ) : (
-            <span className={i === items.length - 1 ? 'text-gray-900 font-medium' : ''}>
+            <span
+              className={
+                i === items.length - 1 ? "text-gray-900 font-medium" : ""
+              }
+            >
               {item.label}
             </span>
           )}

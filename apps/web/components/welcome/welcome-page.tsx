@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { BookOpen, GitBranch, Search, Settings, Users } from 'lucide-react';
+import Link from "next/link";
+import { BookOpen, GitBranch, Search, Settings, Users } from "lucide-react";
 
 export function WelcomePage() {
   return (
@@ -17,7 +17,8 @@ export function WelcomePage() {
               Welcome to WikiGit
             </h1>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              A Git-powered knowledge base for teams. Store, organize, and collaborate on documentation with the power of version control.
+              A Git-powered knowledge base for teams. Store, organize, and
+              collaborate on documentation with the power of version control.
             </p>
           </div>
 
@@ -33,7 +34,8 @@ export function WelcomePage() {
                     Git-Backed Storage
                   </h3>
                   <p className="text-sm text-gray-600">
-                    All your content is stored in Git repositories with full version history and branch support.
+                    All your content is stored in Git repositories with full
+                    version history and branch support.
                   </p>
                 </div>
               </div>
@@ -49,7 +51,8 @@ export function WelcomePage() {
                     Full-Text Search
                   </h3>
                   <p className="text-sm text-gray-600">
-                    Quickly find what you need with powerful search across all your documentation.
+                    Quickly find what you need with powerful search across all
+                    your documentation.
                   </p>
                 </div>
               </div>
@@ -65,7 +68,8 @@ export function WelcomePage() {
                     Markdown Editing
                   </h3>
                   <p className="text-sm text-gray-600">
-                    Write and edit documentation in Markdown with live preview and syntax highlighting.
+                    Write and edit documentation in Markdown with live preview
+                    and syntax highlighting.
                   </p>
                 </div>
               </div>
@@ -81,7 +85,8 @@ export function WelcomePage() {
                     Multi-Repository
                   </h3>
                   <p className="text-sm text-gray-600">
-                    Manage multiple repositories in one place, perfect for organizing different projects or teams.
+                    Manage multiple repositories in one place, perfect for
+                    organizing different projects or teams.
                   </p>
                 </div>
               </div>
@@ -104,7 +109,8 @@ export function WelcomePage() {
                     Configure GitHub Integration
                   </h4>
                   <p className="text-sm text-gray-600">
-                    Set up your GitHub user ID and access token to enable repository management.
+                    Set up your GitHub user ID and access token to enable
+                    repository management.
                   </p>
                 </div>
               </div>
@@ -118,7 +124,8 @@ export function WelcomePage() {
                     Add Your Repositories
                   </h4>
                   <p className="text-sm text-gray-600">
-                    Connect your existing GitHub repositories or create new ones for your documentation.
+                    Connect your existing GitHub repositories or create new ones
+                    for your documentation.
                   </p>
                 </div>
               </div>
@@ -132,7 +139,8 @@ export function WelcomePage() {
                     Set Your Home Page
                   </h4>
                   <p className="text-sm text-gray-600">
-                    Choose an article from your repositories to display as your home page.
+                    Choose an article from your repositories to display as your
+                    home page.
                   </p>
                 </div>
               </div>

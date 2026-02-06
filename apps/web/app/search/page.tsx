@@ -1,118 +1,126 @@
-'use client'
+"use client";
 
-import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
-import toast from 'react-hot-toast'
-import { MainLayout } from '@/components/layout/main-layout'
-import { api } from '@/lib/api'
-import type { SearchResult, RepositoryStatus } from '@/types/api'
-import { Search as SearchIcon, FileText, ChevronRight } from 'lucide-react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import toast from "react-hot-toast";
+import { MainLayout } from "@/components/layout/main-layout";
+import { api } from "@/lib/api";
+import type { SearchResult, RepositoryStatus } from "@/types/api";
+import { Search as SearchIcon, FileText, ChevronRight } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 function SearchContent() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const query = searchParams.get('q') || ''
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const query = searchParams.get("q") || "";
 
-  const [results, setResults] = useState<SearchResult[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [hasSearched, setHasSearched] = useState(false)
-  const [inputValue, setInputValue] = useState(query)
-  const [repositories, setRepositories] = useState<RepositoryStatus[]>([])
-  const [selectedRepoId, setSelectedRepoId] = useState(searchParams.get('repo') || '')
-  const isTypingRef = useRef(false)
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [inputValue, setInputValue] = useState(query);
+  const [repositories, setRepositories] = useState<RepositoryStatus[]>([]);
+  const [selectedRepoId, setSelectedRepoId] = useState(
+    searchParams.get("repo") || "",
+  );
+  const isTypingRef = useRef(false);
 
   // Fetch enabled repositories on mount
   useEffect(() => {
     const fetchRepositories = async () => {
       try {
-        const response = await api.listRepositories()
-        setRepositories(response.repositories.filter(r => r.enabled))
+        const response = await api.listRepositories();
+        setRepositories(response.repositories.filter((r) => r.enabled));
       } catch (error) {
-        console.error('Failed to fetch repositories:', error)
+        console.error("Failed to fetch repositories:", error);
       }
-    }
-    fetchRepositories()
-  }, [])
+    };
+    fetchRepositories();
+  }, []);
 
-  const performSearch = useCallback(async (searchQuery: string, repoId?: string) => {
-    try {
-      setIsLoading(true)
-      setHasSearched(true)
-      const searchResults = await api.search(searchQuery, repoId || undefined)
-      setResults(searchResults)
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to perform search')
-      console.error('Search failed:', error)
-      setResults([])
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
+  const performSearch = useCallback(
+    async (searchQuery: string, repoId?: string) => {
+      try {
+        setIsLoading(true);
+        setHasSearched(true);
+        const searchResults = await api.search(
+          searchQuery,
+          repoId || undefined,
+        );
+        setResults(searchResults);
+      } catch (error: any) {
+        toast.error(error.message || "Failed to perform search");
+        console.error("Search failed:", error);
+        setResults([]);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [],
+  );
 
   // Sync inputValue from URL, but not when we just pushed a URL change from typing
   useEffect(() => {
     if (isTypingRef.current) {
-      isTypingRef.current = false
-      return
+      isTypingRef.current = false;
+      return;
     }
-    setInputValue(query)
-  }, [query])
+    setInputValue(query);
+  }, [query]);
 
   // Sync selectedRepoId from URL
   useEffect(() => {
-    setSelectedRepoId(searchParams.get('repo') || '')
-  }, [searchParams])
+    setSelectedRepoId(searchParams.get("repo") || "");
+  }, [searchParams]);
 
   // Trigger search when query or repo filter changes
   useEffect(() => {
     if (query.trim()) {
-      performSearch(query, selectedRepoId)
+      performSearch(query, selectedRepoId);
     }
-  }, [query, selectedRepoId, performSearch])
+  }, [query, selectedRepoId, performSearch]);
 
   // Update URL params on repo filter change
   const handleRepoFilterChange = (repoId: string) => {
-    const params = new URLSearchParams(searchParams.toString())
+    const params = new URLSearchParams(searchParams.toString());
     if (repoId) {
-      params.set('repo', repoId)
+      params.set("repo", repoId);
     } else {
-      params.delete('repo')
+      params.delete("repo");
     }
-    router.push(`/search?${params.toString()}`)
-  }
+    router.push(`/search?${params.toString()}`);
+  };
 
   // Debounced input → URL sync
   useEffect(() => {
     const timer = setTimeout(() => {
       if (inputValue !== query) {
-        const params = new URLSearchParams(searchParams.toString())
+        const params = new URLSearchParams(searchParams.toString());
         if (inputValue.trim()) {
-          params.set('q', inputValue)
+          params.set("q", inputValue);
         } else {
-          params.delete('q')
+          params.delete("q");
         }
-        isTypingRef.current = true
-        router.push(`/search?${params.toString()}`)
+        isTypingRef.current = true;
+        router.push(`/search?${params.toString()}`);
       }
-    }, 300)
+    }, 300);
 
-    return () => clearTimeout(timer)
-  }, [inputValue, query, searchParams, router])
+    return () => clearTimeout(timer);
+  }, [inputValue, query, searchParams, router]);
 
   const stripHtmlTags = (html: string) => {
     // Strip HTML highlight tags from Whoosh but keep the text content
-    return html.replace(/<[^>]*>/g, '')
-  }
+    return html.replace(/<[^>]*>/g, "");
+  };
 
   const stripImages = (markdown: string) => {
     // Remove markdown images: ![alt](url)
-    let cleaned = markdown.replace(/!\[([^\]]*)\]\([^)]+\)/g, '')
+    let cleaned = markdown.replace(/!\[([^\]]*)\]\([^)]+\)/g, "");
     // Remove HTML img tags
-    cleaned = cleaned.replace(/<img[^>]*>/gi, '')
-    return cleaned
-  }
+    cleaned = cleaned.replace(/<img[^>]*>/gi, "");
+    return cleaned;
+  };
 
   return (
     <MainLayout>
@@ -197,20 +205,25 @@ function SearchContent() {
               <div className="mt-3 flex items-center justify-between text-sm">
                 <p className="text-gray-500">
                   {isLoading ? (
-                    'Searching...'
+                    "Searching..."
                   ) : (
                     <>
-                      Found{' '}
+                      Found{" "}
                       <span className="font-medium text-gray-900">
-                        {results.length} {results.length === 1 ? 'result' : 'results'}
-                      </span>{' '}
-                      for{' '}
-                      <span className="font-medium text-gray-900">"{query}"</span>
+                        {results.length}{" "}
+                        {results.length === 1 ? "result" : "results"}
+                      </span>{" "}
+                      for{" "}
+                      <span className="font-medium text-gray-900">
+                        "{query}"
+                      </span>
                       {selectedRepoId && (
                         <>
-                          {' '}in{' '}
+                          {" "}
+                          in{" "}
                           <span className="font-medium text-gray-900">
-                            {repositories.find(r => r.id === selectedRepoId)?.name || selectedRepoId}
+                            {repositories.find((r) => r.id === selectedRepoId)
+                              ?.name || selectedRepoId}
                           </span>
                         </>
                       )}
@@ -252,9 +265,11 @@ function SearchContent() {
             {!isLoading && results.length > 0 && (
               <ul className="divide-y divide-gray-100">
                 {results.map((result, index) => {
-                  const pathParts = result.path.split('/');
+                  const pathParts = result.path.split("/");
                   const relevance = Math.round(result.score * 100);
-                  const articleUrl = result.repository_id ? `/${result.repository_id}/${result.path}` : `/${result.path}`;
+                  const articleUrl = result.repository_id
+                    ? `/${result.repository_id}/${result.path}`
+                    : `/${result.path}`;
 
                   return (
                     <li
@@ -273,7 +288,10 @@ function SearchContent() {
                           {/* Meta / Breadcrumbs */}
                           <div className="flex items-center text-xs text-gray-500 mb-1 space-x-1">
                             {pathParts.map((crumb, idx) => (
-                              <span key={idx} className="flex items-center space-x-1">
+                              <span
+                                key={idx}
+                                className="flex items-center space-x-1"
+                              >
                                 <span className="uppercase tracking-wide font-medium">
                                   {crumb}
                                 </span>
@@ -304,10 +322,10 @@ function SearchContent() {
                           <span
                             className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
                               relevance >= 90
-                                ? 'bg-green-100 text-green-800'
+                                ? "bg-green-100 text-green-800"
                                 : relevance >= 70
-                                  ? 'bg-blue-50 text-blue-700'
-                                  : 'bg-gray-100 text-gray-600'
+                                  ? "bg-blue-50 text-blue-700"
+                                  : "bg-gray-100 text-gray-600"
                             }`}
                           >
                             {relevance}%
@@ -323,27 +341,32 @@ function SearchContent() {
         </div>
       </div>
     </MainLayout>
-  )
+  );
 }
 
 export default function SearchPage() {
   return (
-    <Suspense fallback={
-      <MainLayout>
-        <div className="wiki-main">
-          <div className="wiki-content">
-            <h1 className="wiki-page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <SearchIcon size={28} />
-              Search Results
-            </h1>
-            <div style={{ padding: '2rem', textAlign: 'center' }}>
-              <p style={{ color: '#54595d' }}>Loading search...</p>
+    <Suspense
+      fallback={
+        <MainLayout>
+          <div className="wiki-main">
+            <div className="wiki-content">
+              <h1
+                className="wiki-page-title"
+                style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+              >
+                <SearchIcon size={28} />
+                Search Results
+              </h1>
+              <div style={{ padding: "2rem", textAlign: "center" }}>
+                <p style={{ color: "#54595d" }}>Loading search...</p>
+              </div>
             </div>
           </div>
-        </div>
-      </MainLayout>
-    }>
+        </MainLayout>
+      }
+    >
       <SearchContent />
     </Suspense>
-  )
+  );
 }

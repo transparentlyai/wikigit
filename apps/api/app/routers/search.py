@@ -30,7 +30,9 @@ def get_search_service():
 async def search_articles(
     q: str = Query(..., description="Search query string", min_length=1),
     limit: int = Query(20, description="Maximum number of results", ge=1, le=100),
-    repository_id: Optional[str] = Query(None, description="Filter results by repository ID"),
+    repository_id: Optional[str] = Query(
+        None, description="Filter results by repository ID"
+    ),
     _user: str = Depends(get_current_user),
     search_service: SearchService = Depends(get_search_service),
 ):

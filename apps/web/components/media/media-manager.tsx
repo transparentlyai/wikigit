@@ -1,19 +1,27 @@
-'use client';
+"use client";
 
-import { useEffect, useState, useRef } from 'react';
-import toast from 'react-hot-toast';
-import { api } from '@/lib/api';
-import type { MediaFile } from '@/types/api';
-import { Upload, Trash2, Image as ImageIcon, File, Video, Music, FileText } from 'lucide-react';
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { useEffect, useState, useRef } from "react";
+import toast from "react-hot-toast";
+import { api } from "@/lib/api";
+import type { MediaFile } from "@/types/api";
+import {
+  Upload,
+  Trash2,
+  Image as ImageIcon,
+  File,
+  Video,
+  Music,
+  FileText,
+} from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 interface MediaManagerProps {
   onSelect?: (file: MediaFile) => void;
@@ -41,13 +49,15 @@ export function MediaManager({ onSelect, onClose, isOpen }: MediaManagerProps) {
       const response = await api.getMediaFiles();
       setMediaFiles(response.files);
     } catch (error: any) {
-      toast.error(error.message || 'Failed to load media files');
+      toast.error(error.message || "Failed to load media files");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -60,12 +70,12 @@ export function MediaManager({ onSelect, onClose, isOpen }: MediaManagerProps) {
       // Auto-select the uploaded file
       setSelectedFile(uploadedFile);
     } catch (error: any) {
-      toast.error(error.message || 'Failed to upload file');
+      toast.error(error.message || "Failed to upload file");
     } finally {
       setIsUploading(false);
       // Reset file input
       if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+        fileInputRef.current.value = "";
       }
     }
   };
@@ -81,13 +91,15 @@ export function MediaManager({ onSelect, onClose, isOpen }: MediaManagerProps) {
     try {
       await api.deleteMediaFile(fileToDelete.filename);
       toast.success(`Deleted ${fileToDelete.filename}`);
-      setMediaFiles(mediaFiles.filter(f => f.filename !== fileToDelete.filename));
+      setMediaFiles(
+        mediaFiles.filter((f) => f.filename !== fileToDelete.filename),
+      );
 
       if (selectedFile?.filename === fileToDelete.filename) {
         setSelectedFile(null);
       }
     } catch (error: any) {
-      toast.error(error.message || 'Failed to delete file');
+      toast.error(error.message || "Failed to delete file");
     } finally {
       setFileToDelete(null);
     }
@@ -100,10 +112,11 @@ export function MediaManager({ onSelect, onClose, isOpen }: MediaManagerProps) {
   };
 
   const getFileIcon = (contentType: string) => {
-    if (contentType.startsWith('image/')) return <ImageIcon size={20} />;
-    if (contentType.startsWith('video/')) return <Video size={20} />;
-    if (contentType.startsWith('audio/')) return <Music size={20} />;
-    if (contentType.startsWith('text/') || contentType === 'application/pdf') return <FileText size={20} />;
+    if (contentType.startsWith("image/")) return <ImageIcon size={20} />;
+    if (contentType.startsWith("video/")) return <Video size={20} />;
+    if (contentType.startsWith("audio/")) return <Music size={20} />;
+    if (contentType.startsWith("text/") || contentType === "application/pdf")
+      return <FileText size={20} />;
     return <File size={20} />;
   };
 
@@ -135,7 +148,7 @@ export function MediaManager({ onSelect, onClose, isOpen }: MediaManagerProps) {
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Upload size={18} />
-            {isUploading ? 'Uploading...' : 'Upload File'}
+            {isUploading ? "Uploading..." : "Upload File"}
           </button>
         </div>
 
@@ -159,13 +172,13 @@ export function MediaManager({ onSelect, onClose, isOpen }: MediaManagerProps) {
                   onClick={() => setSelectedFile(file)}
                   className={`relative group cursor-pointer rounded-lg border-2 overflow-hidden transition-all ${
                     selectedFile?.filename === file.filename
-                      ? 'border-blue-500 shadow-lg'
-                      : 'border-gray-200 hover:border-gray-300'
+                      ? "border-blue-500 shadow-lg"
+                      : "border-gray-200 hover:border-gray-300"
                   }`}
                 >
                   {/* Preview */}
                   <div className="aspect-square bg-gray-50 flex items-center justify-center p-4">
-                    {file.content_type.startsWith('image/') ? (
+                    {file.content_type.startsWith("image/") ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={file.url}
@@ -181,10 +194,15 @@ export function MediaManager({ onSelect, onClose, isOpen }: MediaManagerProps) {
 
                   {/* Info */}
                   <div className="p-2 bg-white border-t border-gray-200">
-                    <p className="text-xs font-medium text-gray-900 truncate" title={file.filename}>
+                    <p
+                      className="text-xs font-medium text-gray-900 truncate"
+                      title={file.filename}
+                    >
                       {file.filename}
                     </p>
-                    <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
+                    <p className="text-xs text-gray-500">
+                      {formatFileSize(file.size)}
+                    </p>
                   </div>
 
                   {/* Delete button */}
@@ -213,16 +231,10 @@ export function MediaManager({ onSelect, onClose, isOpen }: MediaManagerProps) {
             )}
           </div>
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={onClose}
-            >
+            <Button variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button
-              onClick={handleInsert}
-              disabled={!selectedFile}
-            >
+            <Button onClick={handleInsert} disabled={!selectedFile}>
               Insert
             </Button>
           </div>
@@ -233,7 +245,7 @@ export function MediaManager({ onSelect, onClose, isOpen }: MediaManagerProps) {
         open={!!fileToDelete}
         onOpenChange={(open) => !open && setFileToDelete(null)}
         title="Delete File"
-        description={`Are you sure you want to delete ${fileToDelete?.filename || 'this file'}?`}
+        description={`Are you sure you want to delete ${fileToDelete?.filename || "this file"}?`}
         confirmText="Delete"
         cancelText="Cancel"
         onConfirm={confirmDelete}

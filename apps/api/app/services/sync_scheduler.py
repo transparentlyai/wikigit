@@ -1,12 +1,4 @@
-"""
-Repository sync scheduler service for WikiGit.
-
-This module provides automatic background synchronization for all enabled
-repositories using APScheduler. It runs periodic sync operations and
-re-indexes repositories when files change.
-
-Phase 3-5: Multi-Repository Support - Sync Scheduler
-"""
+"""Background sync scheduler for multi-repository support."""
 
 import logging
 from pathlib import Path
@@ -23,35 +15,20 @@ logger = logging.getLogger(__name__)
 
 
 class SyncScheduler:
-    """
-    Scheduler for automatic repository synchronization.
-
-    Manages periodic sync operations for all enabled repositories,
-    including error handling and search index updates.
-    """
+    """Periodic sync scheduler for enabled repositories."""
 
     def __init__(self):
-        """Initialize the sync scheduler."""
         self.scheduler = AsyncIOScheduler()
         self.repository_service: RepositoryService | None = None
         self._is_running = False
 
     def initialize(self, repository_service: RepositoryService):
-        """
-        Initialize the scheduler with repository service.
-
-        Args:
-            repository_service: Repository service instance to use for sync operations
-        """
+        """Set the repository service for sync operations."""
         self.repository_service = repository_service
         logger.info("Sync scheduler initialized")
 
     def start(self):
-        """
-        Start the scheduler if multi-repository mode is enabled.
-
-        Adds the sync job with the configured interval and starts the scheduler.
-        """
+        """Start periodic sync if multi-repository mode is enabled."""
         if not settings.multi_repository.enabled:
             logger.info("Multi-repository mode disabled - sync scheduler not started")
             return
@@ -64,10 +41,8 @@ class SyncScheduler:
             logger.warning("Sync scheduler already running")
             return
 
-        # Get sync interval from settings (in minutes)
         interval_minutes = settings.multi_repository.auto_sync_interval_minutes
 
-        # Add the sync job
         self.scheduler.add_job(
             self._sync_all_repositories,
             trigger=IntervalTrigger(minutes=interval_minutes),
@@ -76,7 +51,6 @@ class SyncScheduler:
             replace_existing=True,
         )
 
-        # Start the scheduler
         self.scheduler.start()
         self._is_running = True
 
@@ -95,26 +69,19 @@ class SyncScheduler:
         logger.info("Sync scheduler stopped")
 
     async def _sync_all_repositories(self):
-        """
-        Sync all enabled repositories.
-
-        This is the main job function that runs on the configured interval.
-        It syncs all enabled repositories and re-indexes those with changes.
-        """
+        """Sync all enabled repositories and re-index those with changes."""
         if self.repository_service is None:
             logger.error("Repository service not initialized")
             return
 
         logger.info("Starting scheduled sync of all repositories")
 
-        # Get all repositories
         try:
             repositories = self.repository_service.list_repositories()
         except Exception as e:
             logger.error(f"Failed to list repositories: {e}")
             return
 
-        # Filter for enabled repositories
         enabled_repos = [repo for repo in repositories if repo.get("enabled", False)]
 
         if not enabled_repos:
@@ -123,7 +90,6 @@ class SyncScheduler:
 
         logger.info(f"Found {len(enabled_repos)} enabled repositories to sync")
 
-        # Sync each repository
         success_count = 0
         error_count = 0
 
@@ -132,7 +98,6 @@ class SyncScheduler:
             try:
                 logger.debug(f"Syncing repository: {repo_id}")
 
-                # Perform sync
                 result = self.repository_service.sync_repository(
                     repo_id=repo_id,
                     author_name=settings.multi_repository.author_name,
@@ -165,17 +130,7 @@ class SyncScheduler:
         )
 
     async def _reindex_repository(self, repo_id: str, local_path: str):
-        """
-        Rebuild the entire multi-repository search index.
-
-        This is triggered when a repository has changes. Since the search index
-        is shared across all repositories, we rebuild the entire index to ensure
-        consistency.
-
-        Args:
-            repo_id: Repository identifier (for logging purposes)
-            local_path: Path to the local repository clone
-        """
+        """Rebuild search index after repository changes."""
         try:
             repo_path = Path(local_path)
             if not repo_path.exists():
@@ -209,12 +164,7 @@ _scheduler: SyncScheduler | None = None
 
 
 def get_scheduler() -> SyncScheduler:
-    """
-    Get the global scheduler instance.
-
-    Returns:
-        SyncScheduler instance
-    """
+    """Get the global scheduler instance."""
     global _scheduler
     if _scheduler is None:
         _scheduler = SyncScheduler()
