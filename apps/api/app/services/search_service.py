@@ -13,7 +13,7 @@ from typing import List, Optional
 from whoosh import index
 from whoosh.fields import ID, TEXT, DATETIME, Schema
 from whoosh.qparser import MultifieldParser
-from whoosh.query import Query
+from whoosh.query import Query, Term
 
 from app.config.settings import SearchSettings
 from app.models.schemas import SearchResult
@@ -43,6 +43,7 @@ class SearchService:
             path=ID(stored=True, unique=True),
             title=TEXT(stored=True),
             content=TEXT(stored=True),
+            searchable_path=TEXT(stored=False),
             author=TEXT(stored=True),
             created_at=DATETIME(stored=True),
             updated_at=DATETIME(stored=True),
@@ -54,13 +55,9 @@ class SearchService:
         # Create index directory if it doesn't exist
         self.index_dir.mkdir(parents=True, exist_ok=True)
 
-        # Initialize or open index
-        if not index.exists_in(str(self.index_dir)):
-            logger.info(f"Creating new search index at {self.index_dir}")
-            self.ix = index.create_in(str(self.index_dir), self.schema)
-        else:
-            logger.info(f"Opening existing search index at {self.index_dir}")
-            self.ix = index.open_dir(str(self.index_dir))
+        # Always recreate index with current schema (index is rebuilt on startup via sync)
+        logger.info(f"Creating search index at {self.index_dir}")
+        self.ix = index.create_in(str(self.index_dir), self.schema)
 
     @staticmethod
     def _parse_timestamp(timestamp_value) -> Optional[datetime]:
@@ -236,10 +233,16 @@ class SearchService:
                     updated_at = datetime.now()
                     updated_by = "system"
 
+                # Build searchable_path: full path + filename + stem for boosted matching
+                filename = file_path.name
+                stem = file_path.stem
+                searchable_path = f"{article_path} {filename} {stem}"
+
                 writer.add_document(
                     path=indexed_path,
                     title=title,
                     content=content,
+                    searchable_path=searchable_path,
                     author=author,
                     created_at=created_at,
                     updated_at=updated_at,
@@ -287,11 +290,18 @@ class SearchService:
         try:
             writer = self.ix.writer()
 
+            # Derive searchable_path from path
+            # Path may be "repo-id:article/path.md" or just "article/path.md"
+            article_path = path.split(":", 1)[1] if ":" in path else path
+            p = Path(article_path)
+            searchable_path = f"{article_path} {p.name} {p.stem}"
+
             # Update or add document (update replaces if path exists)
             writer.update_document(
                 path=path,
                 title=title,
                 content=content,
+                searchable_path=searchable_path,
                 author=author,
                 created_at=created_at,
                 updated_at=updated_at,
@@ -331,15 +341,22 @@ class SearchService:
             logger.error(f"Failed to remove article {path} from index: {e}")
             raise
 
-    def search(self, query_string: str, limit: int = 20) -> List[SearchResult]:
+    def search(
+        self,
+        query_string: str,
+        limit: int = 20,
+        repository_id: Optional[str] = None,
+    ) -> List[SearchResult]:
         """
         Search for articles matching the query.
 
-        Searches in title and content fields with boosted title relevance.
+        Searches across title, searchable_path, repository_name, and content
+        fields with weighted boosts for relevance ranking.
 
         Args:
             query_string: Search query string
             limit: Maximum number of results to return (default: 20)
+            repository_id: Optional repository ID to filter results
 
         Returns:
             List[SearchResult]: List of search results sorted by relevance
@@ -351,20 +368,26 @@ class SearchService:
             if not query_string or query_string.strip() == "":
                 return []
 
-            # Create multifield parser (searches title and content)
-            # Boost title field for higher relevance
             parser = MultifieldParser(
-                ["title", "content"],
+                ["title", "searchable_path", "repository_name", "content"],
                 schema=self.schema,
-                fieldboosts={"title": 2.0, "content": 1.0},
+                fieldboosts={
+                    "title": 2.0,
+                    "searchable_path": 1.5,
+                    "repository_name": 1.5,
+                    "content": 1.0,
+                },
             )
 
             # Parse query
             query: Query = parser.parse(query_string)
 
+            # Build optional filter for repository
+            filter_query = Term("repository_id", repository_id) if repository_id else None
+
             # Execute search
             with self.ix.searcher() as searcher:
-                results = searcher.search(query, limit=limit)
+                results = searcher.search(query, limit=limit, filter=filter_query)
 
                 # Convert to SearchResult objects
                 search_results = []
@@ -384,12 +407,12 @@ class SearchService:
                     normalized_score = hit.score / max_score if max_score > 0 else 0.0
 
                     # Extract repository info (available in multi-repo mode)
-                    repository_id = hit.get("repository_id", None) or None
-                    repository_name = hit.get("repository_name", None) or None
+                    hit_repo_id = hit.get("repository_id", None) or None
+                    hit_repo_name = hit.get("repository_name", None) or None
 
                     # Extract article path (strip repository prefix if present)
                     full_path = hit["path"]
-                    if repository_id and ":" in full_path:
+                    if hit_repo_id and ":" in full_path:
                         # Path format is "repo-id:article/path.md"
                         article_path = full_path.split(":", 1)[1]
                     else:
@@ -401,8 +424,8 @@ class SearchService:
                             title=hit["title"],
                             snippet=excerpt,
                             score=normalized_score,
-                            repository_id=repository_id,
-                            repository_name=repository_name,
+                            repository_id=hit_repo_id,
+                            repository_name=hit_repo_name,
                         )
                     )
 

@@ -329,13 +329,17 @@ export async function moveDirectory(pathOrRepoId: string, newPathOrPath: string,
 
 /**
  * Search articles by query
- * GET /api/search?q={query}
+ * GET /api/search?q={query}&repository_id={repositoryId}
  *
  * @param query - Search query string
+ * @param repositoryId - Optional repository ID to filter results
  */
-export async function search(query: string): Promise<SearchResult[]> {
-  const encodedQuery = encodeURIComponent(query);
-  return get<SearchResult[]>(`/api/search?q=${encodedQuery}`);
+export async function search(query: string, repositoryId?: string): Promise<SearchResult[]> {
+  const params = new URLSearchParams({ q: query });
+  if (repositoryId) {
+    params.set('repository_id', repositoryId);
+  }
+  return get<SearchResult[]>(`/api/search?${params.toString()}`);
 }
 
 /**

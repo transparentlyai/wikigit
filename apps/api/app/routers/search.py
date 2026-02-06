@@ -5,7 +5,7 @@ This module provides endpoints for full-text search across all repositories.
 """
 
 import logging
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
@@ -30,18 +30,21 @@ def get_search_service():
 async def search_articles(
     q: str = Query(..., description="Search query string", min_length=1),
     limit: int = Query(20, description="Maximum number of results", ge=1, le=100),
+    repository_id: Optional[str] = Query(None, description="Filter results by repository ID"),
     _user: str = Depends(get_current_user),
     search_service: SearchService = Depends(get_search_service),
 ):
     """
     Search for articles across all repositories.
 
-    Performs full-text search across article titles and content in all enabled repositories.
-    Results are ranked by relevance with title matches boosted.
+    Performs full-text search across article titles, paths, repository names,
+    and content in all enabled repositories. Results are ranked by relevance
+    with title and path matches boosted.
 
     Args:
         q: Search query string (required)
         limit: Maximum number of results to return (1-100, default: 20)
+        repository_id: Optional repository ID to filter results
 
     Returns:
         List[SearchResult]: List of matching articles with excerpts and scores
@@ -50,7 +53,7 @@ async def search_articles(
         HTTPException: If search fails
     """
     try:
-        results = search_service.search(q, limit=limit)
+        results = search_service.search(q, limit=limit, repository_id=repository_id)
         logger.info(f"Search query '{q}' returned {len(results)} results")
         return results
 

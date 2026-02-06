@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { MainLayout } from '@/components/layout/main-layout'
 import { api } from '@/lib/api'
-import type { SearchResult } from '@/types/api'
+import type { SearchResult, RepositoryStatus } from '@/types/api'
 import { Search as SearchIcon, FileText, ChevronRight } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -19,12 +19,27 @@ function SearchContent() {
   const [isLoading, setIsLoading] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
   const [inputValue, setInputValue] = useState(query)
+  const [repositories, setRepositories] = useState<RepositoryStatus[]>([])
+  const [selectedRepoId, setSelectedRepoId] = useState(searchParams.get('repo') || '')
 
-  const performSearch = useCallback(async (searchQuery: string) => {
+  // Fetch enabled repositories on mount
+  useEffect(() => {
+    const fetchRepositories = async () => {
+      try {
+        const response = await api.listRepositories()
+        setRepositories(response.repositories.filter(r => r.enabled))
+      } catch (error) {
+        console.error('Failed to fetch repositories:', error)
+      }
+    }
+    fetchRepositories()
+  }, [])
+
+  const performSearch = useCallback(async (searchQuery: string, repoId?: string) => {
     try {
       setIsLoading(true)
       setHasSearched(true)
-      const searchResults = await api.search(searchQuery)
+      const searchResults = await api.search(searchQuery, repoId || undefined)
       setResults(searchResults)
     } catch (error: any) {
       toast.error(error.message || 'Failed to perform search')
@@ -39,12 +54,30 @@ function SearchContent() {
     setInputValue(query)
   }, [query])
 
+  // Sync selectedRepoId from URL
+  useEffect(() => {
+    setSelectedRepoId(searchParams.get('repo') || '')
+  }, [searchParams])
+
+  // Trigger search when query or repo filter changes
   useEffect(() => {
     if (query.trim()) {
-      performSearch(query)
+      performSearch(query, selectedRepoId)
     }
-  }, [query, performSearch])
+  }, [query, selectedRepoId, performSearch])
 
+  // Update URL params on repo filter change
+  const handleRepoFilterChange = (repoId: string) => {
+    const params = new URLSearchParams(searchParams.toString())
+    if (repoId) {
+      params.set('repo', repoId)
+    } else {
+      params.delete('repo')
+    }
+    router.push(`/search?${params.toString()}`)
+  }
+
+  // Debounced input → URL sync
   useEffect(() => {
     const timer = setTimeout(() => {
       if (inputValue !== query) {
@@ -135,6 +168,24 @@ function SearchContent() {
               />
             </div>
 
+            {/* Repository filter */}
+            {repositories.length > 1 && (
+              <div className="mt-3">
+                <select
+                  value={selectedRepoId}
+                  onChange={(e) => handleRepoFilterChange(e.target.value)}
+                  className="block w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                >
+                  <option value="">All repositories</option>
+                  {repositories.map((repo) => (
+                    <option key={repo.id} value={repo.id}>
+                      {repo.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             {query && hasSearched && (
               <div className="mt-3 flex items-center justify-between text-sm">
                 <p className="text-gray-500">
@@ -148,6 +199,14 @@ function SearchContent() {
                       </span>{' '}
                       for{' '}
                       <span className="font-medium text-gray-900">"{query}"</span>
+                      {selectedRepoId && (
+                        <>
+                          {' '}in{' '}
+                          <span className="font-medium text-gray-900">
+                            {repositories.find(r => r.id === selectedRepoId)?.name || selectedRepoId}
+                          </span>
+                        </>
+                      )}
                     </>
                   )}
                 </p>
