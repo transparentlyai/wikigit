@@ -309,15 +309,28 @@ class RepositoryService:
                 )
                 commits_pulled = len(commits_to_merge)
 
+            # Check for local commits ahead of merge base
+            local_ahead = []
+            if merge_base:
+                local_ahead = list(repo.iter_commits(f"{merge_base[0]}..HEAD"))
+
+            # Detect divergence: both local and remote have new commits
+            if commits_pulled > 0 and local_ahead:
+                raise Exception(
+                    f"Repository has diverged: {len(local_ahead)} local commit(s) "
+                    f"and {commits_pulled} remote commit(s). "
+                    f"Resolve manually at: {local_path} — "
+                    f"run 'git rebase origin/{default_branch}' or "
+                    f"'git merge origin/{default_branch}', then sync again."
+                )
+
             # Fast-forward merge if there are changes
             if commits_pulled > 0:
                 remote_commit = repo.commit(f"origin/{default_branch}")
-                # Count files changed between current HEAD and remote
                 diff = repo.head.commit.diff(remote_commit)
                 files_changed = len(diff)
 
-                # Move branch ref AND update working tree
-                repo.head.reset(remote_commit, working_tree=True)
+                repo.git.merge(f"origin/{default_branch}", "--ff-only")
                 logger.info(
                     f"Fast-forwarded {repo_id}: {commits_pulled} commits, "
                     f"{files_changed} files changed"
@@ -326,12 +339,9 @@ class RepositoryService:
             # Perform push (if not read-only)
             commits_pushed = 0
             if not repo_meta.get("read_only", False):
-                # Re-check commits ahead after pull
-                tracking_ref = f"origin/{default_branch}"
-                ahead_commits = list(repo.iter_commits(f"{tracking_ref}..HEAD"))
-                if ahead_commits:
+                if local_ahead:
                     origin.push(default_branch)
-                    commits_pushed = len(ahead_commits)
+                    commits_pushed = len(local_ahead)
                     logger.info(f"Pushed {commits_pushed} commits for {repo_id}")
 
             # Restore original (non-authenticated) URL on the remote
@@ -478,6 +488,7 @@ class RepositoryService:
             "last_synced": repo_meta.get("last_synced"),
             "sync_status": repo_meta.get("sync_status", "never"),
             "error_message": repo_meta.get("error_message"),
+            "local_path": str(local_path),
             "has_local_changes": False,
             "ahead_of_remote": 0,
             "behind_of_remote": 0,

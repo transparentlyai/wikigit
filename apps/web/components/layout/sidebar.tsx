@@ -155,19 +155,21 @@ function TreeNode({
         : node.path.split("/").slice(0, -1).join("/");
       const newPath = basePath ? `${basePath}/${articleName}` : articleName;
 
-      if (repositoryId) {
-        await api.createArticle(repositoryId, {
-          path: newPath,
-          content: `# ${articleName.replace(".md", "")}\n\nStart writing your article here...`,
-        });
-      } else {
-        await api.createArticle({
-          path: newPath,
-          content: `# ${articleName.replace(".md", "")}\n\nStart writing your article here...`,
-        });
-      }
+      const result = repositoryId
+        ? await api.createArticle(repositoryId, {
+            path: newPath,
+            content: `# ${articleName.replace(".md", "")}\n\nStart writing your article here...`,
+          })
+        : await api.createArticle({
+            path: newPath,
+            content: `# ${articleName.replace(".md", "")}\n\nStart writing your article here...`,
+          });
 
-      toast.success(`Article "${articleName}" created`);
+      if (result.warning) {
+        toast.error(result.warning);
+      } else {
+        toast.success(`Article "${articleName}" created`);
+      }
       setShowNewArticleDialog(false);
       onRefresh?.();
       const articlePath = repositoryId ? `${repositoryId}/${newPath}` : newPath;
@@ -230,12 +232,14 @@ function TreeNode({
       } else {
         // For articles, the newName might not have .md extension
         // The API will handle adding it if needed
-        if (repositoryId) {
-          await api.moveArticle(repositoryId, node.path, newPath);
+        const moveResult = repositoryId
+          ? await api.moveArticle(repositoryId, node.path, newPath)
+          : await api.moveArticle(node.path, newPath);
+        if (moveResult.warning) {
+          toast.error(moveResult.warning);
         } else {
-          await api.moveArticle(node.path, newPath);
+          toast.success(`Article renamed to "${newName}"`);
         }
-        toast.success(`Article renamed to "${newName}"`);
 
         // If renaming the current article, navigate to new location
         if (isActive) {
@@ -376,12 +380,14 @@ function TreeNode({
         }
         toast.success(`Moved folder to ${node.name}`);
       } else {
-        if (repositoryId) {
-          await api.moveArticle(repositoryId, sourcePath, newPath);
+        const moveResult = repositoryId
+          ? await api.moveArticle(repositoryId, sourcePath, newPath)
+          : await api.moveArticle(sourcePath, newPath);
+        if (moveResult.warning) {
+          toast.error(moveResult.warning);
         } else {
-          await api.moveArticle(sourcePath, newPath);
+          toast.success(`Moved article to ${node.name}`);
         }
-        toast.success(`Moved article to ${node.name}`);
       }
 
       // Refresh the tree
@@ -764,12 +770,16 @@ export function Sidebar({ directories, onRefresh }: SidebarProps) {
       // Automatically add .md extension if not present
       const articleName = name.endsWith(".md") ? name : `${name}.md`;
 
-      await api.createArticle({
+      const result = await api.createArticle({
         path: articleName,
         content: `# ${articleName.replace(".md", "")}\n\nStart writing your article here...`,
       });
 
-      toast.success(`Article "${articleName}" created`);
+      if (result.warning) {
+        toast.error(result.warning);
+      } else {
+        toast.success(`Article "${articleName}" created`);
+      }
       setShowRootNewArticleDialog(false);
       onRefresh?.();
       router.push(`/${articleName}?edit=true`);
@@ -828,8 +838,12 @@ export function Sidebar({ directories, onRefresh }: SidebarProps) {
         await api.moveDirectory(sourcePath, newPath);
         toast.success(`Moved folder to root`);
       } else {
-        await api.moveArticle(sourcePath, newPath);
-        toast.success(`Moved article to root`);
+        const moveResult = await api.moveArticle(sourcePath, newPath);
+        if (moveResult.warning) {
+          toast.error(moveResult.warning);
+        } else {
+          toast.success(`Moved article to root`);
+        }
       }
 
       // Refresh the tree

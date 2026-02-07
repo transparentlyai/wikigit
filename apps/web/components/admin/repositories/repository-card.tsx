@@ -149,7 +149,7 @@ export function RepositoryCard({
           <div
             style={{
               marginBottom: "1rem",
-              padding: "0.5rem",
+              padding: "0.75rem",
               backgroundColor: "#fee7e6",
               border: "1px solid #d33",
               borderRadius: "2px",
@@ -157,7 +157,25 @@ export function RepositoryCard({
               color: "#d33",
             }}
           >
-            {repository.error_message}
+            <div style={{ fontWeight: "bold", marginBottom: "0.25rem" }}>
+              Sync Error
+            </div>
+            <div>{repository.error_message}</div>
+            {repository.local_path && (
+              <div
+                style={{
+                  marginTop: "0.5rem",
+                  padding: "0.375rem 0.5rem",
+                  backgroundColor: "#fff0f0",
+                  borderRadius: "2px",
+                  fontFamily: "monospace",
+                  fontSize: "0.8125rem",
+                  wordBreak: "break-all",
+                }}
+              >
+                {repository.local_path}
+              </div>
+            )}
           </div>
         )}
 

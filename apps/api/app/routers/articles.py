@@ -590,6 +590,7 @@ async def create_article(
         logger.info(f"Article {path} created successfully")
 
         # Commit and push changes to git
+        git_warning = None
         try:
             git_service = get_git_service(repository_id)
             git_service.add_and_commit([path], "Create", user_email)
@@ -600,7 +601,9 @@ async def create_article(
             logger.info(f"Pushed creation of {path} to remote")
         except Exception as git_error:
             logger.warning(f"Failed to commit/push article creation: {git_error}")
-            # Continue even if git commit/push fails
+            git_warning = (
+                f"Article saved locally but failed to push to remote: {git_error}"
+            )
 
         # Parse article for response
         metadata, content = frontmatter_service.parse_article(article_path)
@@ -626,6 +629,7 @@ async def create_article(
             created_at=metadata.get("created_at"),
             updated_at=metadata.get("updated_at"),
             updated_by=normalize_author_field(metadata.get("updated_by")),
+            warning=git_warning,
         )
 
     except Exception as e:
@@ -699,6 +703,7 @@ async def update_article(
         logger.info(f"Article {path} updated successfully")
 
         # Commit and push changes to git
+        git_warning = None
         try:
             git_service = get_git_service(repository_id)
             git_service.add_and_commit([path], "Update", user_email)
@@ -709,7 +714,9 @@ async def update_article(
             logger.info(f"Pushed update to {path} to remote")
         except Exception as git_error:
             logger.warning(f"Failed to commit/push article update: {git_error}")
-            # Continue even if git commit/push fails
+            git_warning = (
+                f"Article saved locally but failed to push to remote: {git_error}"
+            )
 
         # Parse article for response
         metadata, content = frontmatter_service.parse_article(article_path)
@@ -735,6 +742,7 @@ async def update_article(
             created_at=metadata.get("created_at"),
             updated_at=metadata.get("updated_at"),
             updated_by=normalize_author_field(metadata.get("updated_by")),
+            warning=git_warning,
         )
 
     except Exception as e:
@@ -884,6 +892,7 @@ async def move_article(
         logger.info(f"Article moved from {old_path} to {new_path} successfully")
 
         # Commit and push move to git (remove old, add new)
+        git_warning = None
         try:
             git_service = get_git_service(repository_id)
             if git_service.repo:
@@ -898,7 +907,9 @@ async def move_article(
                 logger.info(f"Pushed move from {old_path} to {new_path} to remote")
         except Exception as git_error:
             logger.warning(f"Failed to commit/push article move: {git_error}")
-            # Continue even if git commit/push fails
+            git_warning = (
+                f"Article moved locally but failed to push to remote: {git_error}"
+            )
 
         # Parse article for response
         metadata, content = frontmatter_service.parse_article(new_article_path)
@@ -925,6 +936,7 @@ async def move_article(
             created_at=metadata.get("created_at"),
             updated_at=metadata.get("updated_at"),
             updated_by=normalize_author_field(metadata.get("updated_by")),
+            warning=git_warning,
         )
 
     except Exception as e:

@@ -10,6 +10,7 @@ export interface Article {
   created_at: string | null;
   updated_at: string | null;
   updated_by: string | null;
+  warning?: string | null;
 }
 
 export interface ArticleCreate {
@@ -127,6 +128,7 @@ export interface RepositoryStatus {
   last_synced: string | null;
   sync_status: "synced" | "pending" | "error" | "never" | "unavailable";
   error_message: string | null;
+  local_path: string | null;
   has_local_changes: boolean;
   ahead_of_remote: number;
   behind_of_remote: number;

@@ -34,6 +34,7 @@ class Article(BaseModel):
     updated_by: Optional[str] = Field(
         None, description="Email of last editor from frontmatter"
     )
+    warning: Optional[str] = None
 
     model_config = {
         "from_attributes": True,
@@ -753,6 +754,9 @@ class RepositoryStatus(BaseModel):
     )
     error_message: Optional[str] = Field(
         None, description="Error message if sync failed"
+    )
+    local_path: Optional[str] = Field(
+        None, description="Local filesystem path (visible to admins)"
     )
     has_local_changes: bool = Field(
         default=False, description="Whether there are uncommitted local changes"

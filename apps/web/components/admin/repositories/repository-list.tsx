@@ -32,9 +32,11 @@ export function RepositoryList() {
   };
 
   const handleSync = async (id: string) => {
-    await api.syncRepository(id);
-    // Refresh the list to get updated status
+    const result = await api.syncRepository(id);
     await fetchRepositories();
+    if (result.status === "error") {
+      throw new Error(result.message);
+    }
   };
 
   const handleDelete = async (id: string) => {

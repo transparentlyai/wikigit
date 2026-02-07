@@ -206,7 +206,11 @@ export default function ArticlePage({
         : await api.updateArticle(articlePath, { content: editContent });
       setCurrentArticle(updated);
       setIsEditing(false);
-      toast.success("Article saved successfully");
+      if (updated.warning) {
+        toast.error(updated.warning);
+      } else {
+        toast.success("Article saved successfully");
+      }
     } catch (error: any) {
       toast.error(error.message || "Failed to save article");
       console.error("Failed to save article:", error);

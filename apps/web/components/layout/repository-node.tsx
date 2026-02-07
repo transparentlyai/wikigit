@@ -110,12 +110,16 @@ export function RepositoryNode({
       // Automatically add .md extension if not present
       const articleName = name.endsWith(".md") ? name : `${name}.md`;
 
-      await api.createArticle(repository.id, {
+      const result = await api.createArticle(repository.id, {
         path: articleName,
         content: `# ${articleName.replace(".md", "")}\n\nStart writing your article here...`,
       });
 
-      toast.success(`Article "${articleName}" created`);
+      if (result.warning) {
+        toast.error(result.warning);
+      } else {
+        toast.success(`Article "${articleName}" created`);
+      }
       setShowNewArticleDialog(false);
       await fetchDirectories();
 
