@@ -16,6 +16,14 @@
     "lint": {
       "dependsOn": ["^lint"]
     },
+    "test": {
+      "dependsOn": [],
+      "cache": false
+    },
+    "test:coverage": {
+      "dependsOn": [],
+      "cache": false
+    },
     "clean": {
       "cache": false
     }

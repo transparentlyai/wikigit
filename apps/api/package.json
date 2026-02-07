@@ -1,0 +1,9 @@
+{
+  "name": "wikigit-api",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "test": "uv run pytest",
+    "test:coverage": "uv run pytest --cov=app --cov-report=term-missing"
+  }
+}
