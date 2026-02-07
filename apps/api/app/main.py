@@ -14,7 +14,15 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config.settings import settings
 from app.middleware.auth import AuthMiddleware
-from app.routers import articles, config, health, repositories, search, setup
+from app.routers import (
+    articles,
+    config,
+    directories,
+    health,
+    repositories,
+    search,
+    setup,
+)
 from app.services import repository_service
 from app.services.sync_scheduler import get_scheduler
 
@@ -108,6 +116,7 @@ app.include_router(setup.router)
 app.include_router(search.router)
 app.include_router(config.router)
 app.include_router(repositories.router)
+app.include_router(directories.router)
 app.include_router(articles.router)
 
 
